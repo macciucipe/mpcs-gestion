@@ -120,11 +120,11 @@
     }
 
     async function loadEmpleados() {
-      const empresa = document.getElementById('filtro-empresa').value || perfil.ruc_empresa;
+      const empresa = document.getElementById('filtro-empresa').value;
       let query = sbClient.from('empleados')
-        .select('*, locales(nombre)')
-        .order('apellidos');
-      if (empresa) query = query.eq('ruc_empresa', empresa);
+      .select('*, locales(nombre)')
+      .order('apellidos');
+    if (empresa) query = query.eq('ruc_empresa', empresa);
 
       const { data } = await query;
       empleados = data || [];
