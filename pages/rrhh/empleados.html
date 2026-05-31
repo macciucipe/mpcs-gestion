@@ -120,11 +120,11 @@
     }
 
     async function loadEmpleados() {
-      const empresa = document.getElementById('filtro-empresa').value;
+      const empresa = document.getElementById('filtro-empresa').value || perfil.ruc_empresa;
       let query = sbClient.from('empleados')
-      .select('*, locales(nombre)')
-      .order('apellidos');
-    if (empresa) query = query.eq('ruc_empresa', empresa);
+        .select('*, locales(nombre)')
+        .order('apellidos');
+      if (empresa) query = query.eq('ruc_empresa', empresa);
 
       const { data } = await query;
       empleados = data || [];
@@ -170,9 +170,9 @@
           <td style="font-size:12px">S/ ${Number(e.sueldo_basico || 0).toLocaleString('es-PE')}</td>
           <td>${getEstadoBadge(e.estado)}</td>
           <td>
-            <button class="btn btn-sm btn-ghost" onclick="verDetalle('${e.id_empleado}')">
-              ${icons.eye} Ver
-            </button>
+            <a href="perfil-empleado.html?id=${e.id_empleado}" class="btn btn-sm btn-ghost">
+              ${icons.eye} Ver perfil
+            </a>
           </td>
         </tr>
       `).join('');
