@@ -600,7 +600,7 @@
         .select('storage_path').eq('id_empleado', empleadoId)
         .eq('categoria', 'foto').order('created_at', { ascending: false }).limit(1);
       if (data && data.length > 0) {
-        const { data: url } = sbClient.storage.from('legajos').getPublicUrl(data[0].storage_path);
+        const { data: url } = sbClient.storage.from('Legajos').getPublicUrl(data[0].storage_path);
         if (url?.publicUrl) {
           document.getElementById('foto-img').src = url.publicUrl;
           document.getElementById('foto-img').style.display = 'block';
@@ -614,7 +614,7 @@
       if (!file) return;
       const ext  = file.name.split('.').pop().toLowerCase();
       const path = `${empleado.ruc_empresa}/${empleadoId}/foto_${Date.now()}.${ext}`;
-      const { error } = await sbClient.storage.from('legajos').upload(path, file, { upsert: true });
+      const { error } = await sbClient.storage.from('Legajos').upload(path, file, { upsert: true });
       if (error) { alert('Error al subir la foto.'); return; }
 
       // Guardar en legajo_documentos
@@ -717,7 +717,7 @@
       const btn   = document.getElementById('btn-subir-doc');
       btn.disabled = true; btn.textContent = 'Subiendo...';
 
-      const { error } = await sbClient.storage.from('legajos').upload(path, pendingFile);
+      const { error } = await sbClient.storage.from('Legajos').upload(path, pendingFile);
       if (error) {
         alert('Error al subir el archivo: ' + error.message);
         btn.disabled = false; btn.textContent = 'Subir documento'; return;
@@ -737,7 +737,7 @@
     }
 
     async function descargarDoc(path, nombre) {
-      const { data, error } = await sbClient.storage.from('legajos').download(path);
+      const { data, error } = await sbClient.storage.from('Legajos').download(path);
       if (error) { alert('Error al descargar.'); return; }
       const url = URL.createObjectURL(data);
       const a   = document.createElement('a');
@@ -747,7 +747,7 @@
 
     async function eliminarDoc(id, path) {
       if (!confirm('¿Eliminar este documento?')) return;
-      await sbClient.storage.from('legajos').remove([path]);
+      await sbClient.storage.from('Legajos').remove([path]);
       await sbClient.from('legajo_documentos').delete().eq('id', id);
       await loadDocumentos();
     }
