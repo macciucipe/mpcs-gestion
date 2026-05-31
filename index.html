@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MPC Soluciones · Gestión</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="page-login">
+  <div class="login-container">
+    <div class="login-header">
+      <div class="login-logo">
+        <span class="mpc">MPC</span>
+        <span class="sol">Soluciones</span>
+      </div>
+      <div class="login-tagline">Portal de gestión interna</div>
+    </div>
+    <div class="login-card">
+      <h2>Iniciar sesión</h2>
+      <p class="sub">Ingresá con tu correo corporativo</p>
+      <div id="login-error" class="alert alert-error" style="display:none"></div>
+      <div class="field">
+        <label>Correo electrónico</label>
+        <input type="email" id="email" placeholder="nombre@empresa.com" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <button class="btn btn-primary btn-full" id="btn-login" onclick="handleLogin()">
+        <span id="btn-text">Ingresar</span>
+        <span id="btn-loading" style="display:none">Ingresando...</span>
+      </button>
+    </div>
+    <div class="login-footer">¿Problemas para ingresar? Contactá a administración</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    document.getElementById('password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleLogin();
+    });
+
+    async function handleLogin() {
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const errEl    = document.getElementById('login-error');
+      const btn      = document.getElementById('btn-login');
+      const btnText  = document.getElementById('btn-text');
+      const btnLoad  = document.getElementById('btn-loading');
+
+      errEl.style.display = 'none';
+      if (!email || !password) {
+        errEl.textContent = 'Completá todos los campos.';
+        errEl.style.display = 'block';
+        return;
+      }
+      btn.disabled = true;
+      btnText.style.display = 'none';
+      btnLoad.style.display = 'inline';
+
+      const { error } = await signIn(email, password);
+
+      if (error) {
+        errEl.textContent = 'Email o contraseña incorrectos.';
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btnText.style.display = 'inline';
+        btnLoad.style.display = 'none';
+      } else {
+        window.location.href = 'pages/dashboard.html';
+      }
+    }
+
+    checkSession().then(s => {
+      if (s) window.location.href = 'pages/dashboard.html';
+    });
+  </script>
+</body>
+</html>

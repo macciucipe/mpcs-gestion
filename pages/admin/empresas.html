@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Empresas · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Empresas</h1>
+        <p>Gestión de empresas del grupo</p>
+      </div>
+      <div class="page-header-right">
+        <button class="btn btn-primary" onclick="openModal()">
+          ${icons_placeholder_plus} Nueva empresa
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="card">
+        <div class="card-header">
+          <h2 id="count-label">Empresas</h2>
+          <div class="search-bar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="search" placeholder="Buscar empresa..." oninput="filterTable()" />
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="tabla">
+            <thead>
+              <tr>
+                <th>RUC</th>
+                <th>Razón social</th>
+                <th>Sector</th>
+                <th>Distrito</th>
+                <th>Abrev.</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="7"><div class="loading">Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-overlay hidden" id="modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-title">Nueva empresa</h3>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-error" class="alert alert-error" style="display:none"></div>
+        <div class="form-grid">
+          <div class="field">
+            <label>RUC <span class="req">*</span></label>
+            <input type="text" id="f-ruc" placeholder="20611965274" maxlength="11" />
+          </div>
+          <div class="field">
+            <label>Abreviatura <span class="req">*</span></label>
+            <input type="text" id="f-abrev" placeholder="MPC" maxlength="10" style="text-transform:uppercase" />
+          </div>
+          <div class="field full">
+            <label>Razón social <span class="req">*</span></label>
+            <input type="text" id="f-razon" placeholder="MPC SOLUCIONES E.I.R.L." />
+          </div>
+          <div class="field full">
+            <label>Nombre comercial</label>
+            <input type="text" id="f-nombre" placeholder="Nombre comercial" />
+          </div>
+          <div class="field">
+            <label>Sector</label>
+            <select id="f-sector">
+              <option value="">Seleccionar...</option>
+              <option>Servicios</option>
+              <option>Comercio</option>
+              <option>Industria</option>
+              <option>Gastronomía</option>
+              <option>Otro</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Estado</label>
+            <select id="f-estado">
+              <option value="activa">Activa</option>
+              <option value="inactiva">Inactiva</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Departamento</label>
+            <input type="text" id="f-dep" placeholder="LIMA" />
+          </div>
+          <div class="field">
+            <label>Provincia</label>
+            <input type="text" id="f-prov" placeholder="LIMA" />
+          </div>
+          <div class="field">
+            <label>Distrito</label>
+            <input type="text" id="f-dist" placeholder="MIRAFLORES" />
+          </div>
+          <div class="field">
+            <label>Teléfono</label>
+            <input type="text" id="f-tel" placeholder="01 234 5678" />
+          </div>
+          <div class="field full">
+            <label>Dirección</label>
+            <input type="text" id="f-dir" placeholder="Av. Principal 123" />
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="f-email" placeholder="contacto@empresa.com" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-primary" id="btn-save" onclick="saveEmpresa()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let empresas = [];
+    let editingRuc = null;
+
+    async function init() {
+      const perfil = await requireAuth(['admin']);
+      if (!perfil) return;
+      renderSidebar(perfil, 'empresas');
+      await loadEmpresas();
+    }
+
+    async function loadEmpresas() {
+      const { data, error } = await sbClient.from('empresas').select('*').order('razon_social');
+      if (error) { console.error(error); return; }
+      empresas = data || [];
+      renderTable(empresas);
+      document.getElementById('count-label').textContent = `Empresas (${empresas.length})`;
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('tbody');
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>No hay empresas registradas</p></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(e => `
+        <tr>
+          <td style="font-family:monospace;font-size:12px">${e.ruc}</td>
+          <td><strong>${e.razon_social}</strong>${e.nombre_comercial ? `<br><span style="font-size:12px;color:var(--text-muted)">${e.nombre_comercial}</span>` : ''}</td>
+          <td>${e.sector || '—'}</td>
+          <td>${e.distrito || '—'}</td>
+          <td><span class="badge badge-blue">${e.abreviatura}</span></td>
+          <td>${getEstadoBadge(e.estado)}</td>
+          <td>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm btn-ghost" onclick="editEmpresa('${e.ruc}')">${icons.edit} Editar</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function filterTable() {
+      const q = document.getElementById('search').value.toLowerCase();
+      renderTable(empresas.filter(e =>
+        e.razon_social.toLowerCase().includes(q) ||
+        e.ruc.includes(q) ||
+        (e.abreviatura || '').toLowerCase().includes(q)
+      ));
+    }
+
+    function openModal(ruc = null) {
+      editingRuc = ruc;
+      document.getElementById('modal-error').style.display = 'none';
+      if (ruc) {
+        const e = empresas.find(x => x.ruc === ruc);
+        document.getElementById('modal-title').textContent = 'Editar empresa';
+        document.getElementById('f-ruc').value     = e.ruc;
+        document.getElementById('f-ruc').disabled  = true;
+        document.getElementById('f-abrev').value   = e.abreviatura;
+        document.getElementById('f-razon').value   = e.razon_social;
+        document.getElementById('f-nombre').value  = e.nombre_comercial || '';
+        document.getElementById('f-sector').value  = e.sector || '';
+        document.getElementById('f-estado').value  = e.estado;
+        document.getElementById('f-dep').value     = e.departamento || '';
+        document.getElementById('f-prov').value    = e.provincia || '';
+        document.getElementById('f-dist').value    = e.distrito || '';
+        document.getElementById('f-tel').value     = e.telefono || '';
+        document.getElementById('f-dir').value     = e.direccion || '';
+        document.getElementById('f-email').value   = e.email || '';
+      } else {
+        document.getElementById('modal-title').textContent = 'Nueva empresa';
+        document.getElementById('f-ruc').disabled = false;
+        ['ruc','abrev','razon','nombre','sector','dep','prov','dist','tel','dir','email'].forEach(f => {
+          const el = document.getElementById('f-'+f);
+          if (el.tagName === 'SELECT') el.selectedIndex = 0;
+          else el.value = '';
+        });
+        document.getElementById('f-estado').value = 'activa';
+      }
+      document.getElementById('modal').classList.remove('hidden');
+    }
+
+    function editEmpresa(ruc) { openModal(ruc); }
+    function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+    async function saveEmpresa() {
+      const errEl = document.getElementById('modal-error');
+      errEl.style.display = 'none';
+      const ruc   = document.getElementById('f-ruc').value.trim();
+      const abrev = document.getElementById('f-abrev').value.trim().toUpperCase();
+      const razon = document.getElementById('f-razon').value.trim();
+      if (!ruc || !abrev || !razon) {
+        errEl.textContent = 'RUC, abreviatura y razón social son obligatorios.';
+        errEl.style.display = 'block'; return;
+      }
+      const payload = {
+        ruc, abreviatura: abrev, razon_social: razon,
+        nombre_comercial: document.getElementById('f-nombre').value.trim() || null,
+        sector:      document.getElementById('f-sector').value || null,
+        estado:      document.getElementById('f-estado').value,
+        departamento:document.getElementById('f-dep').value.trim() || null,
+        provincia:   document.getElementById('f-prov').value.trim() || null,
+        distrito:    document.getElementById('f-dist').value.trim() || null,
+        telefono:    document.getElementById('f-tel').value.trim() || null,
+        direccion:   document.getElementById('f-dir').value.trim() || null,
+        email:       document.getElementById('f-email').value.trim() || null,
+      };
+      const btn = document.getElementById('btn-save');
+      btn.disabled = true; btn.textContent = 'Guardando...';
+      let error;
+      if (editingRuc) {
+        ({ error } = await sbClient.from('empresas').update(payload).eq('ruc', editingRuc));
+      } else {
+        ({ error } = await sbClient.from('empresas').insert([payload]));
+      }
+      btn.disabled = false; btn.textContent = 'Guardar';
+      if (error) {
+        errEl.textContent = error.message.includes('duplicate') ? 'Ya existe una empresa con ese RUC.' : 'Error al guardar.';
+        errEl.style.display = 'block';
+      } else {
+        closeModal();
+        await loadEmpresas();
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Empleados · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Empleados</h1>
+        <p id="page-sub">Listado de personal</p>
+      </div>
+      <div class="page-header-right">
+        <select id="filtro-empresa" class="btn" onchange="loadEmpleados()" style="padding:7px 12px">
+          <option value="">Todas las empresas</option>
+        </select>
+        <div class="search-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="search" placeholder="Buscar empleado..." oninput="filterTable()" />
+        </div>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- Stats -->
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:1.5rem">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-label">Total empleados</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-activos" style="color:var(--success)">—</div>
+          <div class="stat-label">Activos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-cesados" style="color:var(--error)">—</div>
+          <div class="stat-label">Cesados</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 id="count-label">Empleados</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="filtro-estado" class="btn btn-sm" onchange="filterTable()" style="padding:5px 10px">
+              <option value="">Todos los estados</option>
+              <option value="activo">Activos</option>
+              <option value="cesado">Cesados</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Empleado</th>
+                <th>Documento</th>
+                <th>Cargo</th>
+                <th>Local</th>
+                <th>Sueldo</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal detalle -->
+  <div class="modal-overlay hidden" id="modal-detalle">
+    <div class="modal" style="max-width:680px">
+      <div class="modal-header">
+        <h3 id="detalle-nombre">Detalle del empleado</h3>
+        <button class="modal-close" onclick="closeDetalle()">×</button>
+      </div>
+      <div class="modal-body" id="detalle-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeDetalle()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let empleados = [];
+    let perfil    = null;
+
+    async function init() {
+      perfil = await requireAuth(['admin','rrhh','gerencia']);
+      if (!perfil) return;
+      renderSidebar(perfil, 'empleados');
+      await loadEmpresasFiltro();
+      await loadEmpleados();
+    }
+
+    async function loadEmpresasFiltro() {
+      const { data } = await sbClient.from('empresas').select('ruc, abreviatura, razon_social').eq('estado','activa').order('razon_social');
+      const sel = document.getElementById('filtro-empresa');
+      (data || []).forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.ruc; opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
+        sel.appendChild(opt);
+      });
+      // Si no es admin, fija la empresa
+      if (perfil.rol !== 'admin' && perfil.ruc_empresa) {
+        sel.value = perfil.ruc_empresa;
+        sel.disabled = true;
+      }
+    }
+
+    async function loadEmpleados() {
+      const empresa = document.getElementById('filtro-empresa').value || perfil.ruc_empresa;
+      let query = sbClient.from('empleados')
+        .select('*, locales(nombre)')
+        .order('apellidos');
+      if (empresa) query = query.eq('ruc_empresa', empresa);
+
+      const { data } = await query;
+      empleados = data || [];
+
+      const activos  = empleados.filter(e => e.estado === 'activo').length;
+      const cesados  = empleados.filter(e => e.estado === 'cesado').length;
+      document.getElementById('stat-total').textContent   = empleados.length;
+      document.getElementById('stat-activos').textContent = activos;
+      document.getElementById('stat-cesados').textContent = cesados;
+
+      filterTable();
+    }
+
+    function filterTable() {
+      const q      = document.getElementById('search').value.toLowerCase();
+      const estado = document.getElementById('filtro-estado').value;
+      let filtered = empleados;
+      if (estado) filtered = filtered.filter(e => e.estado === estado);
+      if (q) filtered = filtered.filter(e =>
+        `${e.nombres} ${e.apellidos}`.toLowerCase().includes(q) ||
+        e.numero_documento.includes(q) ||
+        (e.cargo || '').toLowerCase().includes(q)
+      );
+      document.getElementById('count-label').textContent = `Empleados (${filtered.length})`;
+      renderTable(filtered);
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('tbody');
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>No se encontraron empleados</p></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(e => `
+        <tr>
+          <td style="font-size:12px;color:var(--text-muted)">${e.id_empleado}</td>
+          <td>
+            <strong>${e.nombres} ${e.apellidos}</strong>
+          </td>
+          <td style="font-size:12px">${e.tipo_documento} ${e.numero_documento}</td>
+          <td style="font-size:12px">${e.cargo || '—'}</td>
+          <td style="font-size:12px">${e.locales?.nombre || '—'}</td>
+          <td style="font-size:12px">S/ ${Number(e.sueldo_basico || 0).toLocaleString('es-PE')}</td>
+          <td>${getEstadoBadge(e.estado)}</td>
+          <td>
+            <button class="btn btn-sm btn-ghost" onclick="verDetalle('${e.id_empleado}')">
+              ${icons.eye} Ver
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function verDetalle(id) {
+      const e = empleados.find(x => x.id_empleado === id);
+      if (!e) return;
+      document.getElementById('detalle-nombre').textContent = `${e.nombres} ${e.apellidos}`;
+      document.getElementById('detalle-body').innerHTML = `
+        <div class="form-grid">
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">ID Empleado</div><div style="font-size:13px;font-weight:500">${e.id_empleado}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Documento</div><div style="font-size:13px">${e.tipo_documento} ${e.numero_documento}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Cargo</div><div style="font-size:13px">${e.cargo || '—'}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Área</div><div style="font-size:13px">${e.area || '—'}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Local</div><div style="font-size:13px">${e.locales?.nombre || '—'}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Tipo contrato</div><div style="font-size:13px">${e.tipo_contrato || '—'}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Sueldo básico</div><div style="font-size:13px;font-weight:500">S/ ${Number(e.sueldo_basico || 0).toLocaleString('es-PE')}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Asig. familiar</div><div style="font-size:13px">S/ ${Number(e.asignacion_familiar || 0).toLocaleString('es-PE')}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Sistema pensionario</div><div style="font-size:13px">${e.sistema_pensionario || '—'} ${e.afp ? '· '+e.afp : ''}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Banco / Cuenta</div><div style="font-size:13px">${e.banco || '—'} ${e.numero_cuenta ? '<br><span style="font-size:11px">'+e.numero_cuenta+'</span>' : ''}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Ingreso</div><div style="font-size:13px">${e.fecha_ingreso || '—'}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Estado</div><div style="font-size:13px">${getEstadoBadge(e.estado)}</div></div>
+        </div>
+      `;
+      document.getElementById('modal-detalle').classList.remove('hidden');
+    }
+
+    function closeDetalle() { document.getElementById('modal-detalle').classList.add('hidden'); }
+
+    init();
+  </script>
+</body>
+</html>

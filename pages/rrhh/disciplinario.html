@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Medidas Disciplinarias · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Medidas disciplinarias</h1>
+        <p>Solicitudes FO-RRHH-005</p>
+      </div>
+      <div class="page-header-right">
+        <a href="https://formularios.mpcs.pe" target="_blank" class="btn btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Ir al formulario
+        </a>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- Stats -->
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1.5rem">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-label">Total solicitudes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-pendiente" style="color:var(--warning)">—</div>
+          <div class="stat-label">Pendientes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-revision" style="color:var(--info)">—</div>
+          <div class="stat-label">En revisión</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-resuelto" style="color:var(--success)">—</div>
+          <div class="stat-label">Resueltas</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 id="count-label">Solicitudes</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="filtro-estado" class="btn btn-sm" onchange="filterTable()" style="padding:5px 10px">
+              <option value="">Todos los estados</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="en_revision">En revisión</option>
+              <option value="resuelto">Resuelto</option>
+              <option value="archivado">Archivado</option>
+            </select>
+            <div class="search-bar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="search" placeholder="Buscar..." oninput="filterTable()" />
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>N°</th>
+                <th>Trabajador</th>
+                <th>Empresa</th>
+                <th>Clasificación</th>
+                <th>Solicitante</th>
+                <th>Fecha</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal detalle/gestión -->
+  <div class="modal-overlay hidden" id="modal">
+    <div class="modal" style="max-width:700px">
+      <div class="modal-header">
+        <h3 id="modal-title">Detalle de solicitud</h3>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">Cerrar</button>
+        <button class="btn btn-primary" id="btn-save-estado" onclick="saveEstado()">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let solicitudes = [];
+    let currentId   = null;
+
+    async function init() {
+      const perfil = await requireAuth(['admin','rrhh','gerencia']);
+      if (!perfil) return;
+      renderSidebar(perfil, 'disciplinario');
+      await loadSolicitudes();
+    }
+
+    async function loadSolicitudes() {
+      const { data } = await sbClient.from('medidas_disciplinarias')
+        .select('*').order('fecha_envio', { ascending: false });
+      solicitudes = data || [];
+
+      document.getElementById('stat-total').textContent     = solicitudes.length;
+      document.getElementById('stat-pendiente').textContent = solicitudes.filter(s => s.estado === 'pendiente').length;
+      document.getElementById('stat-revision').textContent  = solicitudes.filter(s => s.estado === 'en_revision').length;
+      document.getElementById('stat-resuelto').textContent  = solicitudes.filter(s => s.estado === 'resuelto').length;
+
+      filterTable();
+    }
+
+    function filterTable() {
+      const q      = document.getElementById('search').value.toLowerCase();
+      const estado = document.getElementById('filtro-estado').value;
+      let filtered = solicitudes;
+      if (estado) filtered = filtered.filter(s => s.estado === estado);
+      if (q) filtered = filtered.filter(s =>
+        s.nombre_trabajador.toLowerCase().includes(q) ||
+        s.empresa.toLowerCase().includes(q) ||
+        s.nombre_jefe.toLowerCase().includes(q)
+      );
+      document.getElementById('count-label').textContent = `Solicitudes (${filtered.length})`;
+      renderTable(filtered);
+    }
+
+    function clasifBadge(c) {
+      if (c?.includes('leve'))       return `<span class="badge badge-yellow">${c}</span>`;
+      if (c?.includes('grave') && !c.includes('muy')) return `<span class="badge badge-red">${c}</span>`;
+      if (c?.includes('muy'))        return `<span class="badge badge-red" style="background:#fee2e2">${c}</span>`;
+      return `<span class="badge badge-gray">${c}</span>`;
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('tbody');
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>No se encontraron solicitudes</p></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(s => `
+        <tr>
+          <td style="font-size:12px;font-weight:600;color:var(--navy)">MD-${String(s.id).padStart(5,'0')}</td>
+          <td><strong>${s.nombre_trabajador}</strong><br><span style="font-size:12px;color:var(--text-muted)">${s.cargo_trabajador}</span></td>
+          <td style="font-size:12px">${s.empresa}</td>
+          <td>${clasifBadge(s.clasificacion)}</td>
+          <td style="font-size:12px">${s.nombre_jefe}</td>
+          <td style="font-size:12px">${new Date(s.fecha_envio).toLocaleDateString('es-PE')}</td>
+          <td>${getEstadoBadge(s.estado)}</td>
+          <td>
+            <button class="btn btn-sm btn-ghost" onclick="verDetalle(${s.id})">
+              ${icons.eye} Ver
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function verDetalle(id) {
+      const s = solicitudes.find(x => x.id === id);
+      if (!s) return;
+      currentId = id;
+      document.getElementById('modal-title').textContent = `MD-${String(s.id).padStart(5,'0')} · ${s.nombre_trabajador}`;
+      document.getElementById('modal-body').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">
+          ${field('Trabajador',   s.nombre_trabajador)}
+          ${field('Cargo',        s.cargo_trabajador)}
+          ${field('Empresa',      s.empresa)}
+          ${field('Local / Área', s.local_area)}
+          ${field('Jefe solicitante', s.nombre_jefe)}
+          ${field('Cargo jefe',   s.cargo_jefe)}
+          ${field('Correo jefe',  s.correo_jefe)}
+          ${field('Fecha suceso', s.fecha_suceso + ' ' + s.hora_suceso)}
+          ${field('Lugar',        s.lugar_suceso)}
+          ${field('Detección',    s.deteccion)}
+        </div>
+        <div style="margin-bottom:1rem">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Descripción del hecho</div>
+          <div style="font-size:13px;background:var(--bg);padding:12px;border-radius:var(--radius-md);line-height:1.7">${s.descripcion}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">
+          ${field('Clasificación',       s.clasificacion)}
+          ${field('Corrección verbal',   s.correccion_verbal)}
+          ${field('Evidencia',           s.evidencia)}
+          ${field('Archivos adjuntos',   s.archivos_adjuntos || 'Ninguno')}
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px">Gestión RRHH</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div class="field">
+            <label>Estado</label>
+            <select id="edit-estado">
+              <option value="pendiente"   ${s.estado==='pendiente'   ?'selected':''}>Pendiente</option>
+              <option value="en_revision" ${s.estado==='en_revision' ?'selected':''}>En revisión</option>
+              <option value="resuelto"    ${s.estado==='resuelto'    ?'selected':''}>Resuelto</option>
+              <option value="archivado"   ${s.estado==='archivado'   ?'selected':''}>Archivado</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Medida tomada</label>
+            <input type="text" id="edit-medida" value="${s.medida_tomada || ''}" placeholder="Ej: Amonestación escrita" />
+          </div>
+          <div class="field full" style="grid-column:1/-1">
+            <label>Notas internas RRHH</label>
+            <textarea id="edit-notas" rows="3" placeholder="Notas internas...">${s.notas_rrhh || ''}</textarea>
+          </div>
+        </div>
+      `;
+      document.getElementById('modal').classList.remove('hidden');
+    }
+
+    function field(label, value) {
+      return `<div>
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">${label}</div>
+        <div style="font-size:13px">${value || '—'}</div>
+      </div>`;
+    }
+
+    function closeModal() { document.getElementById('modal').classList.add('hidden'); currentId = null; }
+
+    async function saveEstado() {
+      if (!currentId) return;
+      const btn = document.getElementById('btn-save-estado');
+      btn.disabled = true; btn.textContent = 'Guardando...';
+      const { error } = await sbClient.from('medidas_disciplinarias').update({
+        estado:        document.getElementById('edit-estado').value,
+        medida_tomada: document.getElementById('edit-medida').value || null,
+        notas_rrhh:    document.getElementById('edit-notas').value || null,
+        fecha_resolucion: document.getElementById('edit-estado').value === 'resuelto' ? new Date().toISOString().split('T')[0] : null,
+      }).eq('id', currentId);
+      btn.disabled = false; btn.textContent = 'Guardar cambios';
+      if (!error) { closeModal(); await loadSolicitudes(); }
+    }
+
+    init();
+  </script>
+</body>
+</html>

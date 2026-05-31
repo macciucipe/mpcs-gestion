@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Locales · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Locales</h1>
+        <p>Gestión de locales y áreas</p>
+      </div>
+      <div class="page-header-right">
+        <button class="btn btn-primary" onclick="openModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nuevo local
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="card">
+        <div class="card-header">
+          <h2 id="count-label">Locales</h2>
+          <div style="display:flex;gap:8px">
+            <select id="filtro-empresa" class="btn btn-sm" onchange="filterTable()" style="padding:5px 10px">
+              <option value="">Todas las empresas</option>
+            </select>
+            <div class="search-bar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="search" placeholder="Buscar local..." oninput="filterTable()" />
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Empresa</th>
+                <th>Tipo</th>
+                <th>Distrito</th>
+                <th>Horario</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-overlay hidden" id="modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-title">Nuevo local</h3>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-error" class="alert alert-error" style="display:none"></div>
+        <div class="form-grid">
+          <div class="field">
+            <label>ID Local <span class="req">*</span></label>
+            <input type="text" id="f-id" placeholder="CYC-001" />
+          </div>
+          <div class="field">
+            <label>Empresa <span class="req">*</span></label>
+            <select id="f-empresa"><option value="">Seleccionar...</option></select>
+          </div>
+          <div class="field">
+            <label>Nombre <span class="req">*</span></label>
+            <input type="text" id="f-nombre" placeholder="La Parri San Isidro" />
+          </div>
+          <div class="field">
+            <label>Tipo</label>
+            <select id="f-tipo">
+              <option value="">Seleccionar...</option>
+              <option>Tienda</option>
+              <option>Almacén</option>
+              <option>Oficina</option>
+              <option>Producción</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Distrito</label>
+            <input type="text" id="f-dist" placeholder="San Isidro" />
+          </div>
+          <div class="field">
+            <label>Responsable</label>
+            <input type="text" id="f-resp" placeholder="Nombre del responsable" />
+          </div>
+          <div class="field">
+            <label>Teléfono</label>
+            <input type="text" id="f-tel" placeholder="999 000 111" />
+          </div>
+          <div class="field">
+            <label>Días atención</label>
+            <input type="text" id="f-dias" placeholder="Lun - Dom" />
+          </div>
+          <div class="field">
+            <label>Horario</label>
+            <input type="text" id="f-horario" placeholder="09:00 - 22:00" />
+          </div>
+          <div class="field">
+            <label>Estado</label>
+            <select id="f-estado">
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label>Dirección</label>
+            <input type="text" id="f-dir" placeholder="Av. Dos de Mayo 457" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-primary" id="btn-save" onclick="saveLocal()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let locales   = [];
+    let empresas  = [];
+    let editingId = null;
+
+    async function init() {
+      const perfil = await requireAuth(['admin','rrhh','gerencia']);
+      if (!perfil) return;
+      renderSidebar(perfil, 'locales');
+      await loadEmpresas();
+      await loadLocales();
+    }
+
+    async function loadEmpresas() {
+      const { data } = await sbClient.from('empresas').select('ruc, razon_social, abreviatura').eq('estado','activa').order('razon_social');
+      empresas = data || [];
+      const sels = [document.getElementById('filtro-empresa'), document.getElementById('f-empresa')];
+      empresas.forEach(e => {
+        sels.forEach(sel => {
+          const opt = document.createElement('option');
+          opt.value = e.ruc; opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    async function loadLocales() {
+      const { data } = await sbClient.from('locales').select('*, empresas(razon_social, abreviatura)').order('id_local');
+      locales = data || [];
+      filterTable();
+      document.getElementById('count-label').textContent = `Locales (${locales.length})`;
+    }
+
+    function filterTable() {
+      const q       = document.getElementById('search').value.toLowerCase();
+      const empresa = document.getElementById('filtro-empresa').value;
+      let filtered  = locales;
+      if (empresa) filtered = filtered.filter(l => l.ruc_empresa === empresa);
+      if (q) filtered = filtered.filter(l =>
+        l.nombre.toLowerCase().includes(q) ||
+        l.id_local.toLowerCase().includes(q) ||
+        (l.distrito || '').toLowerCase().includes(q)
+      );
+      document.getElementById('count-label').textContent = `Locales (${filtered.length})`;
+      renderTable(filtered);
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('tbody');
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>No se encontraron locales</p></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(l => `
+        <tr>
+          <td style="font-size:12px;font-weight:600">${l.id_local}</td>
+          <td><strong>${l.nombre}</strong></td>
+          <td><span class="badge badge-blue">${l.empresas?.abreviatura || '—'}</span></td>
+          <td style="font-size:12px">${l.tipo || '—'}</td>
+          <td style="font-size:12px">${l.distrito || '—'}</td>
+          <td style="font-size:12px">${l.horario || '—'}</td>
+          <td>${getEstadoBadge(l.estado)}</td>
+          <td>
+            <button class="btn btn-sm btn-ghost" onclick="editLocal('${l.id_local}')">${icons.edit} Editar</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openModal(id = null) {
+      editingId = id;
+      document.getElementById('modal-error').style.display = 'none';
+      if (id) {
+        const l = locales.find(x => x.id_local === id);
+        document.getElementById('modal-title').textContent = 'Editar local';
+        document.getElementById('f-id').value       = l.id_local;
+        document.getElementById('f-id').disabled    = true;
+        document.getElementById('f-empresa').value  = l.ruc_empresa;
+        document.getElementById('f-nombre').value   = l.nombre;
+        document.getElementById('f-tipo').value     = l.tipo || '';
+        document.getElementById('f-dist').value     = l.distrito || '';
+        document.getElementById('f-resp').value     = l.responsable || '';
+        document.getElementById('f-tel').value      = l.telefono || '';
+        document.getElementById('f-dias').value     = l.dias_atencion || '';
+        document.getElementById('f-horario').value  = l.horario || '';
+        document.getElementById('f-estado').value   = l.estado;
+        document.getElementById('f-dir').value      = l.direccion || '';
+      } else {
+        document.getElementById('modal-title').textContent = 'Nuevo local';
+        document.getElementById('f-id').disabled = false;
+        ['id','nombre','dist','resp','tel','dias','horario','dir'].forEach(f => document.getElementById('f-'+f).value = '');
+        document.getElementById('f-empresa').selectedIndex = 0;
+        document.getElementById('f-tipo').selectedIndex    = 0;
+        document.getElementById('f-estado').value = 'activo';
+      }
+      document.getElementById('modal').classList.remove('hidden');
+    }
+
+    function editLocal(id) { openModal(id); }
+    function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+    async function saveLocal() {
+      const errEl = document.getElementById('modal-error');
+      errEl.style.display = 'none';
+      const id      = document.getElementById('f-id').value.trim().toUpperCase();
+      const empresa = document.getElementById('f-empresa').value;
+      const nombre  = document.getElementById('f-nombre').value.trim();
+      if (!id || !empresa || !nombre) {
+        errEl.textContent = 'ID, empresa y nombre son obligatorios.';
+        errEl.style.display = 'block'; return;
+      }
+      const payload = {
+        id_local: id, ruc_empresa: empresa, nombre,
+        tipo:         document.getElementById('f-tipo').value || null,
+        distrito:     document.getElementById('f-dist').value.trim() || null,
+        responsable:  document.getElementById('f-resp').value.trim() || null,
+        telefono:     document.getElementById('f-tel').value.trim() || null,
+        dias_atencion:document.getElementById('f-dias').value.trim() || null,
+        horario:      document.getElementById('f-horario').value.trim() || null,
+        estado:       document.getElementById('f-estado').value,
+        direccion:    document.getElementById('f-dir').value.trim() || null,
+      };
+      const btn = document.getElementById('btn-save');
+      btn.disabled = true; btn.textContent = 'Guardando...';
+      let error;
+      if (editingId) {
+        ({ error } = await sbClient.from('locales').update(payload).eq('id_local', editingId));
+      } else {
+        ({ error } = await sbClient.from('locales').insert([payload]));
+      }
+      btn.disabled = false; btn.textContent = 'Guardar';
+      if (error) {
+        errEl.textContent = 'Error al guardar: ' + error.message;
+        errEl.style.display = 'block';
+      } else { closeModal(); await loadLocales(); }
+    }
+
+    init();
+  </script>
+</body>
+</html>
