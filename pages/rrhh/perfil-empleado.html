@@ -211,10 +211,7 @@
             </div>
             <div class="info-field full">
               <label>Dirección (Av./Jr./Calle)</label>
-              <input type="text" id="e-dir" placeholder="Escribí para buscar..." autocomplete="off" oninput="markDirty()" />
-            </div>
-            <div class="info-field full" id="mapa-container" style="display:none">
-              <div id="mapa" style="width:100%;height:220px;border-radius:var(--radius-md);border:1px solid var(--border-md)"></div>
+              <input type="text" id="e-dir" oninput="markDirty()" />
             </div>
             <div class="info-field">
               <label>Número</label>
@@ -332,7 +329,6 @@
               <select id="e-tipo-contrato" onchange="markDirty()">
                 <option value="plazo_fijo">Plazo fijo</option>
                 <option value="indefinido">Indefinido</option>
-                <option value="part_time">Part time</option>
                 <option value="por_obra">Por obra</option>
                 <option value="practicas">Prácticas</option>
                 <option value="otros">Otros</option>
@@ -732,6 +728,23 @@
       document.getElementById('save-bar').classList.add('visible');
       document.getElementById('btn-guardar').textContent = 'Crear empleado';
       document.getElementById('btn-guardar').onclick = crearEmpleado;
+
+      // Pre-cargar datos del candidato si viene de incorporar
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('candidato_id')) {
+        const ap = (params.get('apellidos')||'').split(' ');
+        setVal('e-ap-paterno',  ap[0] || '');
+        setVal('e-ap-materno',  ap[1] || '');
+        setVal('e-nombres',     params.get('nombres') || '');
+        setVal('e-tipo-doc',    params.get('tipo_doc') || 'DNI');
+        setVal('e-num-doc',     params.get('doc') || '');
+        setVal('e-tel',         params.get('tel') || '');
+        setVal('e-email',       params.get('email') || '');
+        setVal('e-dir',         params.get('dir') || '');
+        setVal('e-fecha-nac',   params.get('fnac') || '');
+        // Marcar candidato como incorporado al crear
+        window._candidatoId = params.get('candidato_id');
+      }
     }
 
     async function loadEmpresas() {
@@ -899,25 +912,30 @@
       if (!num) { alert('Ingresá el número de documento primero.'); return; }
       try {
         if (tipo === 'DNI') {
-          const res = await fetch('https://apiperu.dev/api/dni', {
+          const res = await fetch('https://api.migo.pe/api/v1/dni', {
             method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${SUNAT_TOKEN}`,
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ dni: num })
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: RENIEC_TOKEN, dni: num })
           });
           const d = await res.json();
-          if (!d.success) { alert('No se encontró el DNI.'); return; }
-          const data = d.data;
-          setVal('e-ap-paterno', data.apellido_paterno || '');
-          setVal('e-ap-materno', data.apellido_materno || '');
-          setVal('e-nombres',    data.nombres || '');
+          if (!d.success) { alert('No se encontró el DNI en RENIEC.'); return; }
+          const nombres = d.nombres || d.nombre || '';
+          let ap = d.apellido_paterno || '', am = d.apellido_materno || '';
+          let nom = nombres;
+          if (nom && !ap) {
+            const p = nom.trim().split(/\s+/);
+            if (p.length >= 3) { ap = p[0]; am = p[1]; nom = p.slice(2).join(' '); }
+          }
+          let fn = d.fecha_nacimiento || '';
+          if (fn && fn.includes('/')) { const pf = fn.split('/'); if (pf.length===3) fn = `${pf[2]}-${pf[1]}-${pf[0]}`; }
+          setVal('e-ap-paterno', ap);
+          setVal('e-ap-materno', am);
+          setVal('e-nombres',    nom);
+          setVal('e-fecha-nac',  fn);
           markDirty();
           alert('✅ Datos cargados desde RENIEC');
         }
-      } catch(e) { alert('Error: ' + e.message); }
+      } catch(e) { alert('Error al consultar: ' + e.message); }
     }
 
     // ── Foto ──────────────────────────────────────────────
@@ -1129,6 +1147,15 @@
       const { error } = await sbClient.from('empleados').insert([payload]);
       btn.disabled=false;
       if (error) { btn.textContent='Crear empleado'; alert('Error: '+(error.message.includes('duplicate')?'Ya existe un empleado con ese ID o documento.':error.message)); return; }
+      // Si viene de candidato, marcarlo como incorporado
+      if (window._candidatoId) {
+        await sbClient.from('candidatos').update({ estado: 'incorporado' }).eq('id', window._candidatoId);
+        await sbClient.from('candidatos_acciones').insert([{
+          candidato_id: parseInt(window._candidatoId),
+          accion: `Incorporado como empleado — ID: ${idEmp}`,
+          user_id: (await checkSession()).user.id
+        }]);
+      }
       window.location.href = `perfil-empleado.html?id=${idEmp}`;
     }
 
@@ -1166,30 +1193,5 @@
 
     init();
   </script>
-  <script>
-  function initGoogleMaps() {
-    const input = document.getElementById('e-dir');
-    const options = { componentRestrictions: { country: 'pe' }, fields: ['address_components','geometry','name','formatted_address'] };
-    const autocomplete = new google.maps.places.Autocomplete(input, options);
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (!place.geometry) return;
-      // Extraer componentes
-      const comps = place.address_components || [];
-      const get = (type) => comps.find(c => c.types.includes(type))?.long_name || '';
-      setVal('e-distrito',  get('administrative_area_level_3') || get('locality'));
-      setVal('e-provincia', get('administrative_area_level_2'));
-      const nro = get('street_number');
-      if (nro) setVal('e-dir-nro', nro);
-      // Mostrar mapa
-      const mapEl = document.getElementById('mapa');
-      document.getElementById('mapa-container').style.display = 'block';
-      const map = new google.maps.Map(mapEl, { center: place.geometry.location, zoom: 16, disableDefaultUI: true, zoomControl: true });
-      new google.maps.Marker({ position: place.geometry.location, map });
-      markDirty();
-    });
-  }
-</script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB0N4DS4-6zKehujK6VSVw0i0A8CfRutNs&libraries=places&callback=initGoogleMaps" async defer></script>
 </body>
 </html>

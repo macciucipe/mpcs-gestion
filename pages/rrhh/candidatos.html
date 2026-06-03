@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Candidatos · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .estado-badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+    .estado-postulante   { background: #EDE9FE; color: #6D28D9; }
+    .estado-contactado   { background: #DBEAFE; color: #1D4ED8; }
+    .estado-entrevistado { background: #FEF3C7; color: #B45309; }
+    .estado-seleccionado { background: #D1FAE5; color: #065F46; }
+    .estado-descartado   { background: #F3F4F6; color: #6B7280; }
+    .estado-incorporado  { background: #D1FAE5; color: #065F46; }
+    .accion-item { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .accion-item:last-child { border-bottom: none; }
+    .accion-fecha { font-size: 11px; color: var(--text-muted); white-space: nowrap; min-width: 130px; }
+    .postulaciones-badge { font-size: 11px; background: #FEF3C7; color: #B45309; padding: 2px 7px; border-radius: 20px; }
+  </style>
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Candidatos</h1>
+        <p>Gestión del proceso de selección</p>
+      </div>
+      <div class="page-header-right">
+        <a href="https://formularios.mpcs.pe/postulacion.html" target="_blank" class="btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Ver formulario público
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="copiarLink()" style="margin-left:4px">
+          📋 Copiar link
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- Stats -->
+      <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:1.5rem">
+        <div class="stat-card"><div class="stat-value" id="st-total" style="color:var(--navy)">—</div><div class="stat-label">Total</div></div>
+        <div class="stat-card"><div class="stat-value" id="st-postulante" style="color:#6D28D9">—</div><div class="stat-label">Postulantes</div></div>
+        <div class="stat-card"><div class="stat-value" id="st-contactado" style="color:#1D4ED8">—</div><div class="stat-label">Contactados</div></div>
+        <div class="stat-card"><div class="stat-value" id="st-entrevistado" style="color:#B45309">—</div><div class="stat-label">Entrevistados</div></div>
+        <div class="stat-card"><div class="stat-value" id="st-seleccionado" style="color:var(--success)">—</div><div class="stat-label">Seleccionados</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 id="count-label">Candidatos</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="filtro-estado" class="btn btn-sm" onchange="filterTable()" style="padding:5px 10px">
+              <option value="">Todos los estados</option>
+              <option value="postulante">Postulante</option>
+              <option value="contactado">Contactado</option>
+              <option value="entrevistado">Entrevistado</option>
+              <option value="seleccionado">Seleccionado</option>
+              <option value="descartado">Descartado</option>
+              <option value="incorporado">Incorporado</option>
+            </select>
+            <div class="search-bar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="search" placeholder="Buscar candidato..." oninput="filterTable()" />
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Candidato</th>
+                <th>Documento</th>
+                <th>Teléfono</th>
+                <th>Email</th>
+                <th>Estado</th>
+                <th>Postulaciones</th>
+                <th>Fecha</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal detalle candidato -->
+  <div class="modal-overlay hidden" id="modal">
+    <div class="modal" style="max-width:680px">
+      <div class="modal-header">
+        <h3 id="modal-nombre">Candidato</h3>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <!-- Info básica -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.25rem">
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:3px">Documento</div><div id="d-doc" style="font-size:13px;font-weight:500"></div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:3px">Teléfono</div><div id="d-tel" style="font-size:13px"></div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:3px">Email</div><div id="d-email" style="font-size:13px"></div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:3px">Nacimiento</div><div id="d-nac" style="font-size:13px"></div></div>
+          <div class="full" style="grid-column:span 2"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:3px">Dirección</div><div id="d-dir" style="font-size:13px"></div></div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+
+        <!-- Cambiar estado -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">
+          <div class="field">
+            <label>Estado actual</label>
+            <select id="edit-estado">
+              <option value="postulante">Postulante</option>
+              <option value="contactado">Contactado</option>
+              <option value="entrevistado">Entrevistado</option>
+              <option value="seleccionado">Seleccionado</option>
+              <option value="descartado">Descartado</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Notas generales</label>
+            <input type="text" id="edit-notas" placeholder="Ej: Buen perfil para cocina" />
+          </div>
+        </div>
+
+        <!-- Registrar acción -->
+        <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent);margin-bottom:10px">Registrar acción</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <button class="btn btn-sm" onclick="setAccion('Llamado telefónico — sin respuesta')">📞 Sin respuesta</button>
+          <button class="btn btn-sm" onclick="setAccion('Llamado telefónico — contactado')">📞 Contactado</button>
+          <button class="btn btn-sm" onclick="setAccion('WhatsApp enviado')">💬 WhatsApp</button>
+          <button class="btn btn-sm" onclick="setAccion('Entrevista programada')">📅 Entrevista</button>
+          <button class="btn btn-sm" onclick="setAccion('Entrevista realizada')">✅ Entrevistado</button>
+          <button class="btn btn-sm" onclick="setAccion('Candidato descartado')">❌ Descartado</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:1.25rem">
+          <input type="text" id="accion-texto" placeholder="O escribí una acción personalizada..." style="flex:1;font-size:13px;padding:7px 10px;border:1px solid var(--border-md);border-radius:var(--radius-md);outline:none" />
+          <button class="btn btn-primary btn-sm" onclick="registrarAccion()">Registrar</button>
+        </div>
+
+        <!-- Historial de acciones -->
+        <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent);margin-bottom:10px">Historial</div>
+        <div id="acciones-list" style="max-height:200px;overflow-y:auto">
+          <div class="loading">Cargando...</div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between">
+        <button class="btn btn-ghost" onclick="closeModal()">Cerrar</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="btn-incorporar" onclick="incorporarCandidato()" style="background:#D1FAE5;color:#065F46;border-color:#059669">
+            ✅ Incorporar como empleado
+          </button>
+          <button class="btn btn-primary" onclick="guardarCandidato()">Guardar cambios</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let candidatos = [];
+    let currentId  = null;
+
+    async function init() {
+      const perfil = await requireAuth(['admin','rrhh','gerencia']);
+      if (!perfil) return;
+      renderSidebar(perfil, 'candidatos');
+      await loadCandidatos();
+    }
+
+    async function loadCandidatos() {
+      const { data } = await sbClient.from('candidatos').select('*').order('created_at', { ascending: false });
+      candidatos = data || [];
+
+      document.getElementById('st-total').textContent       = candidatos.length;
+      document.getElementById('st-postulante').textContent  = candidatos.filter(c=>c.estado==='postulante').length;
+      document.getElementById('st-contactado').textContent  = candidatos.filter(c=>c.estado==='contactado').length;
+      document.getElementById('st-entrevistado').textContent= candidatos.filter(c=>c.estado==='entrevistado').length;
+      document.getElementById('st-seleccionado').textContent= candidatos.filter(c=>c.estado==='seleccionado').length;
+
+      filterTable();
+    }
+
+    function filterTable() {
+      const q      = document.getElementById('search').value.toLowerCase();
+      const estado = document.getElementById('filtro-estado').value;
+      let filtered = candidatos;
+      if (estado) filtered = filtered.filter(c => c.estado === estado);
+      if (q) filtered = filtered.filter(c =>
+        `${c.nombres} ${c.apellidos}`.toLowerCase().includes(q) ||
+        c.numero_documento.includes(q) ||
+        (c.telefono||'').includes(q)
+      );
+      document.getElementById('count-label').textContent = `Candidatos (${filtered.length})`;
+      renderTable(filtered);
+    }
+
+    function estadoBadge(e) {
+      return `<span class="estado-badge estado-${e}">${e.charAt(0).toUpperCase()+e.slice(1)}</span>`;
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('tbody');
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>No se encontraron candidatos</p></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(c => `
+        <tr>
+          <td><strong>${c.nombres} ${c.apellidos}</strong></td>
+          <td style="font-size:12px">${c.tipo_documento} ${c.numero_documento}</td>
+          <td style="font-size:12px">${c.telefono||'—'}</td>
+          <td style="font-size:12px">${c.email||'—'}</td>
+          <td>${estadoBadge(c.estado)}</td>
+          <td style="text-align:center">${c.postulaciones > 1 ? `<span class="postulaciones-badge">${c.postulaciones}x</span>` : '1'}</td>
+          <td style="font-size:12px">${new Date(c.created_at).toLocaleDateString('es-PE')}</td>
+          <td>
+            <button class="btn btn-sm btn-ghost" onclick="verCandidato(${c.id})">
+              ${icons.eye} Ver
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function verCandidato(id) {
+      currentId = id;
+      const c = candidatos.find(x => x.id === id);
+      document.getElementById('modal-nombre').textContent = `${c.nombres} ${c.apellidos}`;
+      document.getElementById('d-doc').textContent   = `${c.tipo_documento} ${c.numero_documento}`;
+      document.getElementById('d-tel').textContent   = c.telefono || '—';
+      document.getElementById('d-email').textContent = c.email || '—';
+      document.getElementById('d-nac').textContent   = c.fecha_nacimiento || '—';
+      document.getElementById('d-dir').textContent   = c.direccion || '—';
+      document.getElementById('edit-estado').value   = c.estado;
+      document.getElementById('edit-notas').value    = c.notas || '';
+      document.getElementById('btn-incorporar').style.display = c.estado === 'seleccionado' ? 'inline-flex' : 'none';
+      document.getElementById('modal').classList.remove('hidden');
+      await loadAcciones(id);
+    }
+
+    async function loadAcciones(id) {
+      const { data } = await sbClient.from('candidatos_acciones').select('*').eq('candidato_id', id).order('created_at', { ascending: false });
+      const list = document.getElementById('acciones-list');
+      if (!data || !data.length) { list.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:8px 0">Sin acciones registradas aún.</div>'; return; }
+      list.innerHTML = data.map(a => `
+        <div class="accion-item">
+          <div class="accion-fecha">${new Date(a.created_at).toLocaleString('es-PE', {dateStyle:'short',timeStyle:'short'})}</div>
+          <div>${a.accion}${a.notas ? `<br><span style="color:var(--text-muted);font-size:12px">${a.notas}</span>` : ''}</div>
+        </div>
+      `).join('');
+    }
+
+    function setAccion(texto) {
+      document.getElementById('accion-texto').value = texto;
+    }
+
+    async function registrarAccion() {
+      const texto = document.getElementById('accion-texto').value.trim();
+      if (!texto || !currentId) return;
+      const session = await checkSession();
+      await sbClient.from('candidatos_acciones').insert([{
+        candidato_id: currentId, accion: texto, user_id: session.user.id
+      }]);
+      document.getElementById('accion-texto').value = '';
+      await loadAcciones(currentId);
+    }
+
+    async function guardarCandidato() {
+      if (!currentId) return;
+      const { error } = await sbClient.from('candidatos').update({
+        estado: document.getElementById('edit-estado').value,
+        notas:  document.getElementById('edit-notas').value.trim() || null,
+      }).eq('id', currentId);
+      if (!error) { closeModal(); await loadCandidatos(); }
+    }
+
+    function incorporarCandidato() {
+      const c = candidatos.find(x => x.id === currentId);
+      if (!c) return;
+      // Redirigir a nuevo empleado con datos pre-cargados
+      const params = new URLSearchParams({
+        nuevo: '1',
+        candidato_id: c.id,
+        doc: c.numero_documento,
+        tipo_doc: c.tipo_documento,
+        nombres: c.nombres,
+        apellidos: c.apellidos,
+        tel: c.telefono || '',
+        email: c.email || '',
+        dir: c.direccion || '',
+        fnac: c.fecha_nacimiento || ''
+      });
+      window.location.href = `perfil-empleado.html?${params.toString()}`;
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.add('hidden');
+      currentId = null;
+    }
+
+    function copiarLink() {
+      navigator.clipboard.writeText('https://formularios.mpcs.pe/postulacion.html');
+      alert('✅ Link copiado al portapapeles');
+    }
+
+    init();
+  </script>
+</body>
+</html>
