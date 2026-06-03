@@ -895,30 +895,25 @@
       if (!num) { alert('Ingresá el número de documento primero.'); return; }
       try {
         if (tipo === 'DNI') {
-          const res = await fetch('https://api.migo.pe/api/v1/dni', {
+          const res = await fetch('https://apiperu.dev/api/dni', {
             method: 'POST',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: RENIEC_TOKEN, dni: num })
+            headers: {
+              'Authorization': `Bearer ${SUNAT_TOKEN}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ dni: num })
           });
           const d = await res.json();
-          if (!d.success) { alert('No se encontró el DNI en RENIEC.'); return; }
-          const nombres = d.nombres || d.nombre || '';
-          let ap = d.apellido_paterno || '', am = d.apellido_materno || '';
-          let nom = nombres;
-          if (nom && !ap) {
-            const p = nom.trim().split(/\s+/);
-            if (p.length >= 3) { ap = p[0]; am = p[1]; nom = p.slice(2).join(' '); }
-          }
-          let fn = d.fecha_nacimiento || '';
-          if (fn && fn.includes('/')) { const pf = fn.split('/'); if (pf.length===3) fn = `${pf[2]}-${pf[1]}-${pf[0]}`; }
-          setVal('e-ap-paterno', ap);
-          setVal('e-ap-materno', am);
-          setVal('e-nombres',    nom);
-          setVal('e-fecha-nac',  fn);
+          if (!d.success) { alert('No se encontró el DNI.'); return; }
+          const data = d.data;
+          setVal('e-ap-paterno', data.apellido_paterno || '');
+          setVal('e-ap-materno', data.apellido_materno || '');
+          setVal('e-nombres',    data.nombres || '');
           markDirty();
           alert('✅ Datos cargados desde RENIEC');
         }
-      } catch(e) { alert('Error al consultar: ' + e.message); }
+      } catch(e) { alert('Error: ' + e.message); }
     }
 
     // ── Foto ──────────────────────────────────────────────
