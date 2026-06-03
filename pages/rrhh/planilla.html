@@ -6,24 +6,74 @@
   <title>Planilla · MPC Gestión</title>
   <link rel="stylesheet" href="../../css/style.css" />
   <style>
-    .concepto-row { display:grid; grid-template-columns:1fr 120px; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); }
-    .concepto-row:last-child { border-bottom:none; }
+    .periodo-header { background:var(--navy); color:#fff; border-radius:var(--radius-lg); padding:1.25rem 1.5rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; }
+    .periodo-header h2 { font-size:18px; font-weight:700; color:#fff; }
+    .periodo-header p  { font-size:13px; color:rgba(255,255,255,0.6); margin-top:2px; }
+
+    .emp-tabs { display:flex; gap:8px; margin-bottom:1.5rem; }
+    .emp-tab {
+      flex:1; padding:12px 16px; border-radius:var(--radius-lg);
+      border:2px solid var(--border-md); background:var(--white);
+      cursor:pointer; transition:all 0.15s; text-align:left;
+    }
+    .emp-tab:hover { border-color:var(--navy); }
+    .emp-tab.active { border-color:var(--navy); background:var(--navy-light); }
+    .emp-tab .emp-name { font-size:14px; font-weight:600; }
+    .emp-tab .emp-sub  { font-size:12px; color:var(--text-muted); margin-top:2px; }
+    .emp-tab .emp-neto { font-size:16px; font-weight:700; color:var(--success); margin-top:4px; }
+
+    .planilla-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+
+    .concepto-group { margin-bottom:1.25rem; }
+    .concepto-group-title {
+      font-size:11px; font-weight:600; text-transform:uppercase;
+      letter-spacing:0.08em; color:var(--accent);
+      padding-bottom:6px; border-bottom:2px solid var(--navy-light);
+      margin-bottom:10px;
+    }
+
+    .concepto-row {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:8px 10px; border-radius:var(--radius-md);
+      transition:background 0.1s; margin-bottom:4px;
+    }
+    .concepto-row:hover { background:var(--bg); }
+    .concepto-row.disabled { opacity:0.4; }
+
+    .concepto-left { display:flex; align-items:center; gap:10px; flex:1; }
     .concepto-label { font-size:13px; }
-    .concepto-input { font-size:13px; padding:5px 8px; border:1px solid var(--border-md); border-radius:var(--radius-md); text-align:right; width:100%; }
-    .concepto-input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(46,77,176,0.1); }
-    .concepto-total { font-size:13px; font-weight:600; text-align:right; }
-    .section-header { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); padding:8px 0 4px; border-bottom:2px solid var(--navy-light); margin-bottom:4px; }
-    .resumen-box { background:var(--navy-light); border-radius:var(--radius-lg); padding:1.25rem; }
-    .resumen-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; font-size:13px; border-bottom:1px solid rgba(0,0,0,0.06); }
-    .resumen-row:last-child { border-bottom:none; font-weight:700; font-size:15px; }
-    .emp-card { display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--white); border:1px solid var(--border); border-radius:var(--radius-md); cursor:pointer; transition:all 0.15s; margin-bottom:8px; }
-    .emp-card:hover { border-color:var(--navy); background:var(--navy-light); }
-    .emp-card.selected { border-color:var(--navy); background:var(--navy-light); }
-    .emp-avatar { width:36px; height:36px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
-    .emp-info { flex:1; }
-    .emp-name { font-size:13px; font-weight:500; }
-    .emp-cargo { font-size:12px; color:var(--text-muted); }
-    .emp-neto { font-size:13px; font-weight:600; color:var(--success); }
+    .concepto-sublabel { font-size:11px; color:var(--text-muted); }
+
+    .concepto-right { display:flex; align-items:center; gap:8px; min-width:140px; justify-content:flex-end; }
+    .concepto-monto { font-size:13px; font-weight:500; color:var(--success); min-width:70px; text-align:right; }
+    .concepto-monto.descuento { color:var(--error); }
+    .concepto-monto.neutral { color:var(--text-muted); }
+
+    .concepto-input {
+      font-size:13px; padding:4px 8px; border:1px solid var(--border-md);
+      border-radius:var(--radius-sm); text-align:right; width:80px;
+      outline:none;
+    }
+    .concepto-input:focus { border-color:var(--accent); }
+
+    .toggle-check {
+      width:18px; height:18px; accent-color:var(--navy); cursor:pointer; flex-shrink:0;
+    }
+
+    .resumen-card {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+      border-radius:var(--radius-lg); padding:1.5rem; color:#fff;
+    }
+    .resumen-title { font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:rgba(255,255,255,0.5); margin-bottom:12px; }
+    .resumen-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; font-size:13px; border-bottom:1px solid rgba(255,255,255,0.1); }
+    .resumen-row:last-child { border-bottom:none; }
+    .resumen-row.total { font-size:18px; font-weight:700; padding-top:12px; }
+    .resumen-row span:last-child { font-weight:600; }
+    .resumen-row.ingreso span:last-child { color:#6EE7B7; }
+    .resumen-row.descuento span:last-child { color:#FCA5A5; }
+    .resumen-row.aporte span:last-child { color:#93C5FD; }
+
+    .action-btns { display:flex; flex-direction:column; gap:8px; margin-top:1.25rem; }
   </style>
 </head>
 <body class="portal-layout">
@@ -42,7 +92,7 @@
     </div>
 
     <div class="page-body">
-      <!-- Vista lista de períodos -->
+      <!-- Vista: lista de períodos -->
       <div id="vista-lista">
         <div class="card">
           <div class="card-header">
@@ -54,14 +104,7 @@
           <div class="table-wrap">
             <table>
               <thead>
-                <tr>
-                  <th>Período</th>
-                  <th>Empresa</th>
-                  <th>Empleados</th>
-                  <th>Total neto</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
+                <tr><th>Período</th><th>Empresa</th><th>Empleados</th><th>Total neto</th><th>Estado</th><th>Acciones</th></tr>
               </thead>
               <tbody id="tbody-periodos">
                 <tr><td colspan="6"><div class="loading">Cargando...</div></td></tr>
@@ -71,28 +114,225 @@
         </div>
       </div>
 
-      <!-- Vista detalle período -->
+      <!-- Vista: detalle período -->
       <div id="vista-detalle" style="display:none">
-        <div style="display:flex;gap:1.5rem">
-          <!-- Lista empleados -->
-          <div style="width:280px;flex-shrink:0">
-            <div class="card">
-              <div class="card-header">
-                <h2 id="periodo-titulo">Empleados</h2>
-              </div>
-              <div style="padding:12px" id="lista-empleados"></div>
-            </div>
-            <button class="btn btn-ghost btn-sm" onclick="volverLista()" style="margin-top:8px;width:100%;justify-content:center">
-              ← Volver a períodos
-            </button>
+        <div class="periodo-header">
+          <div>
+            <h2 id="periodo-titulo">—</h2>
+            <p id="periodo-empresa">—</p>
           </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="volverLista()" style="color:#fff;border-color:rgba(255,255,255,0.3)">← Períodos</button>
+            <button class="btn btn-primary" id="btn-generar-todas" onclick="generarTodasBoletas()" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3)">📄 Generar todas las boletas</button>
+          </div>
+        </div>
 
-          <!-- Formulario empleado -->
-          <div style="flex:1" id="panel-empleado">
-            <div class="empty-state" style="background:var(--white);border-radius:var(--radius-lg);border:1px solid var(--border);padding:3rem">
-              <p>Seleccioná un empleado para cargar su planilla</p>
+        <!-- Tabs empleados -->
+        <div class="emp-tabs" id="emp-tabs"></div>
+
+        <!-- Panel planilla -->
+        <div id="panel-planilla" style="display:none">
+          <div class="planilla-grid">
+            <!-- Columna izquierda: Ingresos -->
+            <div>
+              <div class="concepto-group">
+                <div class="concepto-group-title">Remuneración base</div>
+                <div class="concepto-row">
+                  <div class="concepto-left">
+                    <span class="concepto-label">Haber básico</span>
+                    <span class="concepto-sublabel" id="lbl-basico"></span>
+                  </div>
+                  <div class="concepto-right">
+                    <span class="concepto-monto" id="m-basico">S/ 0.00</span>
+                  </div>
+                </div>
+                <div class="concepto-row" id="row-asig-fam">
+                  <div class="concepto-left">
+                    <span class="concepto-label">Asignación familiar</span>
+                  </div>
+                  <div class="concepto-right">
+                    <span class="concepto-monto" id="m-asig-fam">S/ 0.00</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="concepto-group">
+                <div class="concepto-group-title">Bonos (marcar si aplica)</div>
+                <div class="concepto-row" id="row-puntualidad">
+                  <div class="concepto-left">
+                    <input type="checkbox" class="toggle-check" id="chk-puntualidad" onchange="calcular()" checked />
+                    <div>
+                      <div class="concepto-label">Bono puntualidad</div>
+                      <div class="concepto-sublabel" id="lbl-puntualidad"></div>
+                    </div>
+                  </div>
+                  <div class="concepto-right">
+                    <span class="concepto-monto" id="m-puntualidad">S/ 0.00</span>
+                  </div>
+                </div>
+                <div class="concepto-row" id="row-asistencia">
+                  <div class="concepto-left">
+                    <input type="checkbox" class="toggle-check" id="chk-asistencia" onchange="calcular()" checked />
+                    <div>
+                      <div class="concepto-label">Asistencia perfecta</div>
+                      <div class="concepto-sublabel" id="lbl-asistencia"></div>
+                    </div>
+                  </div>
+                  <div class="concepto-right">
+                    <span class="concepto-monto" id="m-asistencia">S/ 0.00</span>
+                  </div>
+                </div>
+                <div class="concepto-row" id="row-desempeno">
+                  <div class="concepto-left">
+                    <input type="checkbox" class="toggle-check" id="chk-desempeno" onchange="calcular()" checked />
+                    <div>
+                      <div class="concepto-label">Buen desempeño</div>
+                      <div class="concepto-sublabel" id="lbl-desempeno"></div>
+                    </div>
+                  </div>
+                  <div class="concepto-right">
+                    <span class="concepto-monto" id="m-desempeno">S/ 0.00</span>
+                  </div>
+                </div>
+                <div class="concepto-row" id="row-movilidad">
+                  <div class="concepto-left">
+                    <input type="checkbox" class="toggle-check" id="chk-movilidad" onchange="calcular()" />
+                    <div>
+                      <div class="concepto-label">Movilidad fija</div>
+                      <div class="concepto-sublabel" id="lbl-movilidad"></div>
+                    </div>
+                  </div>
+                  <div class="concepto-right">
+                    <span class="concepto-monto" id="m-movilidad">S/ 0.00</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="concepto-group">
+                <div class="concepto-group-title">Variables (ingresá el monto)</div>
+                <div class="concepto-row">
+                  <div class="concepto-left">
+                    <div>
+                      <div class="concepto-label">Feriados y días de descanso</div>
+                      <div class="concepto-sublabel">Monto total calculado en planilla</div>
+                    </div>
+                  </div>
+                  <div class="concepto-right">
+                    <input type="number" class="concepto-input" id="f-feriados" value="0" min="0" step="0.01" oninput="calcular()" />
+                  </div>
+                </div>
+                <div class="concepto-row">
+                  <div class="concepto-left">
+                    <div>
+                      <div class="concepto-label">Horas extras 25%</div>
+                      <div class="concepto-sublabel">Monto total</div>
+                    </div>
+                  </div>
+                  <div class="concepto-right">
+                    <input type="number" class="concepto-input" id="f-he25" value="0" min="0" step="0.01" oninput="calcular()" />
+                  </div>
+                </div>
+                <div class="concepto-row">
+                  <div class="concepto-left">
+                    <div>
+                      <div class="concepto-label">Horas extras 35%</div>
+                      <div class="concepto-sublabel">Monto total</div>
+                    </div>
+                  </div>
+                  <div class="concepto-right">
+                    <input type="number" class="concepto-input" id="f-he35" value="0" min="0" step="0.01" oninput="calcular()" />
+                  </div>
+                </div>
+                <div class="concepto-row">
+                  <div class="concepto-left">
+                    <div>
+                      <div class="concepto-label">Bono excepcional</div>
+                    </div>
+                  </div>
+                  <div class="concepto-right">
+                    <input type="number" class="concepto-input" id="f-bono-exc" value="0" min="0" step="0.01" oninput="calcular()" />
+                  </div>
+                </div>
+                <div class="concepto-row">
+                  <div class="concepto-left"><div class="concepto-label">Otros ingresos</div></div>
+                  <div class="concepto-right">
+                    <input type="number" class="concepto-input" id="f-otros-ing" value="0" min="0" step="0.01" oninput="calcular()" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Columna derecha: Descuentos + Resumen -->
+            <div>
+              <div class="concepto-group">
+                <div class="concepto-group-title">Días trabajados</div>
+                <div class="concepto-row">
+                  <div class="concepto-left"><div class="concepto-label">Días laborados</div></div>
+                  <div class="concepto-right">
+                    <input type="number" class="concepto-input" id="f-dias" value="30" min="0" max="31" step="1" oninput="calcular()" />
+                  </div>
+                </div>
+                <div class="concepto-row">
+                  <div class="concepto-left"><div class="concepto-label">Feriados (días)</div></div>
+                  <div class="concepto-right">
+                    <input type="number" class="concepto-input" id="f-dias-feriados" value="0" min="0" max="5" step="1" oninput="calcular()" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="concepto-group">
+                <div class="concepto-group-title">Descuentos</div>
+                <div class="concepto-row">
+                  <div class="concepto-left"><div class="concepto-label">Faltas (días)</div></div>
+                  <div class="concepto-right">
+                    <input type="number" class="concepto-input" id="f-faltas" value="0" min="0" step="1" oninput="calcular()" />
+                    <span class="concepto-monto descuento" id="m-faltas">S/ 0.00</span>
+                  </div>
+                </div>
+                <div class="concepto-row">
+                  <div class="concepto-left"><div class="concepto-label">Tardanzas (S/)</div></div>
+                  <div class="concepto-right">
+                    <input type="number" class="concepto-input" id="f-tardanzas" value="0" min="0" step="0.01" oninput="calcular()" />
+                  </div>
+                </div>
+                <div class="concepto-row">
+                  <div class="concepto-left"><div class="concepto-label">Adelanto / anticipo</div></div>
+                  <div class="concepto-right">
+                    <input type="number" class="concepto-input" id="f-adelanto" value="0" min="0" step="0.01" oninput="calcular()" />
+                  </div>
+                </div>
+                <div class="concepto-row">
+                  <div class="concepto-left"><div class="concepto-label">Otros descuentos</div></div>
+                  <div class="concepto-right">
+                    <input type="number" class="concepto-input" id="f-otros-dsc" value="0" min="0" step="0.01" oninput="calcular()" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Resumen -->
+              <div class="resumen-card">
+                <div class="resumen-title">Resumen del período</div>
+                <div class="resumen-row ingreso"><span>Total ingresos</span><span id="r-ingresos">S/ 0.00</span></div>
+                <div class="resumen-row descuento"><span id="r-afp-label">AFP</span><span id="r-afp">S/ 0.00</span></div>
+                <div class="resumen-row descuento"><span>Otros descuentos</span><span id="r-otros-dsc">S/ 0.00</span></div>
+                <div class="resumen-row aporte"><span>EsSalud (empleador)</span><span id="r-essalud">S/ 0.00</span></div>
+                <div class="resumen-row total"><span>NETO A PAGAR</span><span id="r-neto">S/ 0.00</span></div>
+              </div>
+
+              <div class="action-btns">
+                <button class="btn btn-primary" onclick="guardarDetalle()" style="background:var(--success);border-color:var(--success)">
+                  💾 Guardar
+                </button>
+                <button class="btn btn-primary" onclick="generarBoleta()">
+                  📄 Generar boleta PDF
+                </button>
+              </div>
             </div>
           </div>
+        </div>
+
+        <div id="panel-vacio" class="empty-state" style="background:var(--white);border-radius:var(--radius-lg);border:1px solid var(--border);padding:3rem">
+          <p>Seleccioná un empleado para cargar su planilla</p>
         </div>
       </div>
     </div>
@@ -100,10 +340,10 @@
 
   <!-- Modal nuevo período -->
   <div class="modal-overlay hidden" id="modal-periodo">
-    <div class="modal" style="max-width:440px">
+    <div class="modal" style="max-width:420px">
       <div class="modal-header">
-        <h3>Nuevo período de planilla</h3>
-        <button class="modal-close" onclick="closeModal('modal-periodo')">×</button>
+        <h3>Nuevo período</h3>
+        <button class="modal-close" onclick="closeModal()">×</button>
       </div>
       <div class="modal-body">
         <div id="modal-error" class="alert alert-error" style="display:none"></div>
@@ -117,7 +357,7 @@
             <select id="np-mes">
               <option value="1">Enero</option><option value="2">Febrero</option>
               <option value="3">Marzo</option><option value="4">Abril</option>
-              <option value="5">Mayo</option><option value="6">Junio</option>
+              <option value="5" selected>Mayo</option><option value="6">Junio</option>
               <option value="7">Julio</option><option value="8">Agosto</option>
               <option value="9">Septiembre</option><option value="10">Octubre</option>
               <option value="11">Noviembre</option><option value="12">Diciembre</option>
@@ -130,7 +370,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="closeModal('modal-periodo')">Cancelar</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
         <button class="btn btn-primary" onclick="crearPeriodo()">Crear período</button>
       </div>
     </div>
@@ -142,11 +382,27 @@
   <script src="../../js/auth.js"></script>
   <script>
     const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-    const AFP_RATES = { PROFUTURO:{oblig:0.10,comision:0.0155,seguro:0.0137}, PRIMA:{oblig:0.10,comision:0.0000,seguro:0.0137}, HABITAT:{oblig:0.10,comision:0.0000,seguro:0.0137}, INTEGRA:{oblig:0.10,comision:0.0155,seguro:0.0137} };
-    const SNP_RATE  = 0.13;
+
+    // Tasas AFP actualizadas
+    const AFP_RATES = {
+      PROFUTURO: { oblig:0.10, comision:0.0169, seguro:0.0137 },
+      PRIMA:     { oblig:0.10, comision:0.0000, seguro:0.0137 },
+      HABITAT:   { oblig:0.10, comision:0.0000, seguro:0.0137 },
+      INTEGRA:   { oblig:0.10, comision:0.0155, seguro:0.0137 },
+    };
+    const SNP_RATE     = 0.13;
     const ESSALUD_RATE = 0.09;
 
-    let perfil = null, periodos = [], currentPeriodo = null, empleados = [], currentEmpleado = null;
+    // Config de bonos por empleado ETW (% del básico)
+    const BONOS_CONFIG = {
+      puntualidad: 0.10,
+      asistencia:  0.10,
+      desempeno:   0.10,
+    };
+    const MOVILIDAD_ETW = { 'ETW-EMP-001': 0, 'ETW-EMP-002': 150 };
+
+    let perfil = null, periodos = [], currentPeriodo = null;
+    let empleados = [], currentEmpleado = null, detalleMap = {};
 
     async function init() {
       perfil = await requireAuth(['admin','rrhh','gerencia']);
@@ -165,14 +421,10 @@
           o.textContent = `${e.abreviatura} — ${e.razon_social}`; sel.appendChild(o);
         });
       });
-      if (perfil.ruc_empresa) {
-        document.getElementById('filtro-empresa-plan').value = perfil.ruc_empresa;
-        document.getElementById('np-empresa').value = perfil.ruc_empresa;
-      }
     }
 
     async function loadPeriodos() {
-      const empresa = document.getElementById('filtro-empresa-plan').value || perfil.ruc_empresa;
+      const empresa = document.getElementById('filtro-empresa-plan').value;
       let q = sbClient.from('planilla_periodos').select('*, empresas(razon_social,abreviatura)').order('anio',{ascending:false}).order('mes',{ascending:false});
       if (empresa) q = q.eq('ruc_empresa', empresa);
       const { data } = await q;
@@ -183,476 +435,431 @@
 
     function renderPeriodos() {
       const tbody = document.getElementById('tbody-periodos');
-      if (!periodos.length) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>No hay períodos creados</p></div></td></tr>'; return; }
-      tbody.innerHTML = periodos.map(p => `
+      if (!periodos.length) { tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><p>No hay períodos</p></div></td></tr>'; return; }
+      tbody.innerHTML = periodos.map(p=>`
         <tr>
           <td style="font-weight:600">${MESES[p.mes]} ${p.anio}</td>
           <td><span class="badge badge-blue">${p.empresas?.abreviatura||'—'}</span></td>
-          <td id="emp-count-${p.id}">—</td>
-          <td id="neto-count-${p.id}" style="font-weight:600;color:var(--success)">—</td>
+          <td id="ec-${p.id}">—</td>
+          <td id="nc-${p.id}" style="font-weight:600;color:var(--success)">—</td>
           <td>${p.estado==='cerrado'?'<span class="badge badge-green">Cerrado</span>':'<span class="badge badge-yellow">Borrador</span>'}</td>
           <td>
             <div style="display:flex;gap:6px">
               <button class="btn btn-sm btn-ghost" onclick="abrirPeriodo(${p.id})">✏️ Cargar</button>
               ${p.estado==='borrador'?`<button class="btn btn-sm btn-ghost" onclick="cerrarPeriodo(${p.id})">🔒 Cerrar</button>`:''}
-              <button class="btn btn-sm btn-ghost" onclick="generarTodasBoletas(${p.id})">📄 Boletas</button>
             </div>
           </td>
-        </tr>
-      `).join('');
-      periodos.forEach(p => loadPeriodoStats(p.id));
+        </tr>`).join('');
+      periodos.forEach(p => loadStats(p.id));
     }
 
-    async function loadPeriodoStats(periodoId) {
-      const { data } = await sbClient.from('planilla_detalle').select('neto_pagar').eq('periodo_id', periodoId);
+    async function loadStats(id) {
+      const { data } = await sbClient.from('planilla_detalle').select('neto_pagar').eq('periodo_id', id);
       if (!data) return;
-      document.getElementById(`emp-count-${periodoId}`).textContent = data.length;
-      const total = data.reduce((s,d) => s + (d.neto_pagar||0), 0);
-      document.getElementById(`neto-count-${periodoId}`).textContent = `S/ ${total.toLocaleString('es-PE',{minimumFractionDigits:2})}`;
+      document.getElementById(`ec-${id}`).textContent = data.length;
+      const total = data.reduce((s,d)=>s+(d.neto_pagar||0),0);
+      document.getElementById(`nc-${id}`).textContent = `S/ ${total.toLocaleString('es-PE',{minimumFractionDigits:2})}`;
     }
 
     async function abrirPeriodo(id) {
-      currentPeriodo = periodos.find(p => p.id === id);
+      currentPeriodo = periodos.find(p=>p.id===id);
       document.getElementById('periodo-titulo').textContent = `${MESES[currentPeriodo.mes]} ${currentPeriodo.anio}`;
-      document.getElementById('vista-lista').style.display = 'none';
-      document.getElementById('vista-detalle').style.display = 'block';
-      await loadEmpleadosPeriodo();
-    }
+      document.getElementById('periodo-empresa').textContent = currentPeriodo.empresas?.razon_social||'—';
+      document.getElementById('vista-lista').style.display  = 'none';
+      document.getElementById('vista-detalle').style.display= 'block';
+      document.getElementById('panel-planilla').style.display= 'none';
+      document.getElementById('panel-vacio').style.display  = 'block';
 
-    async function loadEmpleadosPeriodo() {
-      const { data } = await sbClient.from('empleados').select('id_empleado, nombres, apellidos, cargo, sueldo_basico, asignacion_familiar, sistema_pensionario, afp, cuspp, regimen, tipo_documento, numero_documento, ruc_empresa, empresas(razon_social,abreviatura), locales(nombre), datos_extra').eq('ruc_empresa', currentPeriodo.ruc_empresa).eq('estado','activo').order('apellidos');
+      // Cargar empleados de la empresa
+      const { data } = await sbClient.from('empleados').select('*, empresas(razon_social,abreviatura), locales(nombre), datos_extra').eq('ruc_empresa', currentPeriodo.ruc_empresa).eq('estado','activo').order('apellidos');
       empleados = data || [];
 
-      // Cargar detalles ya cargados
-      const { data: detalles } = await sbClient.from('planilla_detalle').select('*').eq('periodo_id', currentPeriodo.id);
-      const detalleMap = {};
-      (detalles||[]).forEach(d => detalleMap[d.id_empleado] = d);
+      // Cargar detalles ya guardados
+      const { data: dets } = await sbClient.from('planilla_detalle').select('*').eq('periodo_id', id);
+      detalleMap = {};
+      (dets||[]).forEach(d => detalleMap[d.id_empleado] = d);
 
-      const lista = document.getElementById('lista-empleados');
-      lista.innerHTML = empleados.map(e => {
+      renderEmpTabs();
+    }
+
+    function renderEmpTabs() {
+      const tabs = document.getElementById('emp-tabs');
+      tabs.innerHTML = empleados.map(e => {
         const det = detalleMap[e.id_empleado];
         const ini = `${(e.nombres||'')[0]||''}${(e.apellidos||'')[0]||''}`.toUpperCase();
-        return `<div class="emp-card" id="emp-card-${e.id_empleado}" onclick="selectEmpleado('${e.id_empleado}')">
-          <div class="emp-avatar">${ini}</div>
-          <div class="emp-info">
-            <div class="emp-name">${e.nombres} ${e.apellidos}</div>
-            <div class="emp-cargo">${e.cargo||'—'}</div>
+        return `<div class="emp-tab" id="etab-${e.id_empleado}" onclick="selectEmpleado('${e.id_empleado}')">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0">${ini}</div>
+            <div>
+              <div class="emp-name">${e.nombres} ${e.apellidos}</div>
+              <div class="emp-sub">${e.cargo||'—'} · ${e.sistema_pensionario||''} ${e.afp||''}</div>
+              ${det ? `<div class="emp-neto">S/ ${Number(det.neto_pagar).toFixed(2)}</div>` : '<div style="font-size:11px;color:var(--text-muted);margin-top:2px">⏳ Pendiente</div>'}
+            </div>
           </div>
-          ${det ? `<div class="emp-neto">S/${Number(det.neto_pagar).toFixed(0)}</div>` : '<div style="font-size:11px;color:var(--text-muted)">Pendiente</div>'}
         </div>`;
       }).join('');
     }
 
     async function selectEmpleado(id) {
-      document.querySelectorAll('.emp-card').forEach(c => c.classList.remove('selected'));
-      document.getElementById(`emp-card-${id}`)?.classList.add('selected');
-      currentEmpleado = empleados.find(e => e.id_empleado === id);
-      const extra = currentEmpleado.datos_extra ? JSON.parse(currentEmpleado.datos_extra) : {};
+      document.querySelectorAll('.emp-tab').forEach(t=>t.classList.remove('active'));
+      document.getElementById(`etab-${id}`)?.classList.add('active');
+      currentEmpleado = empleados.find(e=>e.id_empleado===id);
+      document.getElementById('panel-vacio').style.display   = 'none';
+      document.getElementById('panel-planilla').style.display= 'block';
 
-      // Cargar detalle existente
-      const { data: det } = await sbClient.from('planilla_detalle').select('*').eq('periodo_id', currentPeriodo.id).eq('id_empleado', id).maybeSingle();
+      const e    = currentEmpleado;
+      const suel = e.sueldo_basico || 0;
+      const asig = e.asignacion_familiar || 0;
+      const mov  = MOVILIDAD_ETW[id] || 0;
+      const det  = detalleMap[id];
 
-      renderFormEmpleado(currentEmpleado, extra, det);
+      // Labels de referencia
+      document.getElementById('lbl-basico').textContent      = `S/ ${suel.toFixed(2)} / mes`;
+      document.getElementById('lbl-puntualidad').textContent = `10% básico = S/ ${(suel*BONOS_CONFIG.puntualidad).toFixed(2)}`;
+      document.getElementById('lbl-asistencia').textContent  = `10% básico = S/ ${(suel*BONOS_CONFIG.asistencia).toFixed(2)}`;
+      document.getElementById('lbl-desempeno').textContent   = `10% básico = S/ ${(suel*BONOS_CONFIG.desempeno).toFixed(2)}`;
+      document.getElementById('lbl-movilidad').textContent   = mov > 0 ? `S/ ${mov.toFixed(2)} fijo` : 'No aplica';
+
+      // Mostrar/ocultar asig familiar
+      document.getElementById('row-asig-fam').style.display = asig > 0 ? 'flex' : 'none';
+      // Movilidad solo si tiene
+      document.getElementById('row-movilidad').style.display = mov > 0 ? 'flex' : 'none';
+
+      // AFP label
+      const pension = e.sistema_pensionario;
+      document.getElementById('r-afp-label').textContent = pension === 'ONP' ? 'SNP (13%)' : `AFP ${e.afp||''}`;
+
+      // Cargar valores previos o defaults
+      if (det) {
+        document.getElementById('chk-puntualidad').checked = det.bono_puntualidad > 0;
+        document.getElementById('chk-asistencia').checked  = det.bono_asistencia > 0;
+        document.getElementById('chk-desempeno').checked   = det.bono_desempeno > 0;
+        document.getElementById('chk-movilidad').checked   = det.movilidad > 0;
+        document.getElementById('f-feriados').value  = det.bono_dia_trabajador || 0;
+        document.getElementById('f-he25').value      = det.horas_extras_25 || 0;
+        document.getElementById('f-he35').value      = det.horas_extras_35 || 0;
+        document.getElementById('f-bono-exc').value  = det.bono_excepcional || 0;
+        document.getElementById('f-otros-ing').value = det.otros_ingresos || 0;
+        document.getElementById('f-dias').value      = det.dias_laborados || 30;
+        document.getElementById('f-dias-feriados').value = det.dias_feriados || 0;
+        document.getElementById('f-faltas').value    = det.faltas || 0;
+        document.getElementById('f-tardanzas').value = det.tardanzas || 0;
+        document.getElementById('f-adelanto').value  = det.adelanto || 0;
+        document.getElementById('f-otros-dsc').value = det.otros_descuentos || 0;
+      } else {
+        // Defaults: bonos activos, movilidad según config
+        document.getElementById('chk-puntualidad').checked = true;
+        document.getElementById('chk-asistencia').checked  = true;
+        document.getElementById('chk-desempeno').checked   = true;
+        document.getElementById('chk-movilidad').checked   = mov > 0;
+        document.getElementById('f-feriados').value  = 0;
+        document.getElementById('f-he25').value      = 0;
+        document.getElementById('f-he35').value      = 0;
+        document.getElementById('f-bono-exc').value  = 0;
+        document.getElementById('f-otros-ing').value = 0;
+        document.getElementById('f-dias').value      = 30;
+        document.getElementById('f-dias-feriados').value = 0;
+        document.getElementById('f-faltas').value    = 0;
+        document.getElementById('f-tardanzas').value = 0;
+        document.getElementById('f-adelanto').value  = 0;
+        document.getElementById('f-otros-dsc').value = 0;
+      }
+      calcular();
     }
 
-    function renderFormEmpleado(e, extra, det) {
-      const d = det || {};
-      const panel = document.getElementById('panel-empleado');
-      panel.innerHTML = `
-        <div class="card">
-          <div class="card-header" style="background:var(--navy);border-radius:var(--radius-lg) var(--radius-lg) 0 0">
-            <div>
-              <h2 style="color:#fff">${e.nombres} ${e.apellidos}</h2>
-              <div style="font-size:12px;color:rgba(255,255,255,0.6)">${e.cargo||'—'} · ${e.tipo_documento} ${e.numero_documento}</div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-size:11px;color:rgba(255,255,255,0.5)">Sueldo base</div>
-              <div style="font-size:18px;font-weight:700;color:#fff">S/ ${Number(e.sueldo_basico||0).toLocaleString('es-PE')}</div>
-            </div>
-          </div>
-          <div class="card-body">
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem">
-              <!-- Días -->
-              <div>
-                <div class="section-header">Días</div>
-                ${concepto('Días laborados','dias_laborados', d.dias_laborados??30)}
-                ${concepto('Feriados','dias_feriados', d.dias_feriados??0)}
-                ${concepto('Días subsidiados','dias_subsidiados', d.dias_subsidiados??0)}
-
-                <div class="section-header" style="margin-top:12px">Bonos</div>
-                ${concepto('Bono día trabajador','bono_dia_trabajador', d.bono_dia_trabajador??0)}
-                ${concepto('Movilidad fija','movilidad', d.movilidad??0)}
-                ${concepto('Bono antigüedad','bono_antiguedad', d.bono_antiguedad??0)}
-                ${concepto('Bono puntualidad','bono_puntualidad', d.bono_puntualidad??0)}
-                ${concepto('Asistencia perfecta','bono_asistencia', d.bono_asistencia??0)}
-                ${concepto('Buen desempeño','bono_desempeno', d.bono_desempeno??0)}
-                ${concepto('Bono excepcional','bono_excepcional', d.bono_excepcional??0)}
-                ${concepto('Aguinaldo','aguinaldo', d.aguinaldo??0)}
-              </div>
-
-              <!-- Horas extras y truncos -->
-              <div>
-                <div class="section-header">Horas extras</div>
-                ${concepto('HE 25%','horas_extras_25', d.horas_extras_25??0)}
-                ${concepto('HE 35%','horas_extras_35', d.horas_extras_35??0)}
-
-                <div class="section-header" style="margin-top:12px">Truncos y otros</div>
-                ${concepto('CTS trunco','cts_trunco', d.cts_trunco??0)}
-                ${concepto('Grat. trunca','grat_trunca', d.grat_trunca??0)}
-                ${concepto('Grat. EsSalud trunco','grat_essalud_trunco', d.grat_essalud_trunco??0)}
-                ${concepto('Vacaciones truncas','vacaciones_truncas', d.vacaciones_truncas??0)}
-                ${concepto('Vacaciones gozadas','vacaciones_gozadas', d.vacaciones_gozadas??0)}
-                ${concepto('Otros ingresos','otros_ingresos', d.otros_ingresos??0)}
-              </div>
-
-              <!-- Descuentos -->
-              <div>
-                <div class="section-header">Descuentos</div>
-                ${concepto('Faltas (días)','faltas', d.faltas??0)}
-                ${concepto('Tardanzas (S/)','tardanzas', d.tardanzas??0)}
-                ${concepto('Adelanto','adelanto', d.adelanto??0)}
-                ${concepto('Otros descuentos','otros_descuentos', d.otros_descuentos??0)}
-
-                <div class="section-header" style="margin-top:12px">Resumen</div>
-                <div class="resumen-box">
-                  <div class="resumen-row"><span>Total ingresos</span><span id="r-ingresos" style="color:var(--success)">S/ 0.00</span></div>
-                  <div class="resumen-row"><span>AFP / SNP</span><span id="r-afp" style="color:var(--error)">S/ 0.00</span></div>
-                  <div class="resumen-row"><span>Total descuentos</span><span id="r-descuentos" style="color:var(--error)">S/ 0.00</span></div>
-                  <div class="resumen-row"><span>EsSalud (empleador)</span><span id="r-essalud">S/ 0.00</span></div>
-                  <div class="resumen-row"><span>NETO A PAGAR</span><span id="r-neto" style="color:var(--navy)">S/ 0.00</span></div>
-                </div>
-
-                <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
-                  <button class="btn btn-primary" onclick="calcular()">🔄 Calcular</button>
-                  <button class="btn btn-primary" onclick="guardarDetalle()" style="background:var(--success);border-color:var(--success)">💾 Guardar</button>
-                  <button class="btn" onclick="generarBoleta()" id="btn-boleta">📄 Generar boleta PDF</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>`;
-
-      // Auto-calcular si hay datos previos
-      if (det) calcular();
-    }
-
-    function concepto(label, field, value) {
-      return `<div class="concepto-row">
-        <label class="concepto-label">${label}</label>
-        <input class="concepto-input" type="number" id="f-${field}" value="${value||0}" step="0.01" min="0" oninput="calcular()" />
-      </div>`;
-    }
-
-    function getVal(id) { return parseFloat(document.getElementById(id)?.value||0)||0; }
+    function gv(id) { return parseFloat(document.getElementById(id)?.value||0)||0; }
+    function gchk(id) { return document.getElementById(id)?.checked||false; }
 
     function calcular() {
       if (!currentEmpleado) return;
-      const e = currentEmpleado;
-      const sueldo = e.sueldo_basico || 0;
-      const asigFam = e.asignacion_familiar || 0;
-      const diasLab = getVal('f-dias_laborados');
-      const diasMes = 30;
+      const e    = currentEmpleado;
+      const suel = e.sueldo_basico || 0;
+      const asig = e.asignacion_familiar || 0;
+      const mov  = MOVILIDAD_ETW[e.id_empleado] || 0;
+      const dias = gv('f-dias');
 
-      // Remuneración proporcional
-      const remunProp = (sueldo / diasMes) * diasLab;
-      const asigProp  = diasLab >= diasMes ? asigFam : 0;
+      // Remuneración proporcional (base 30 días)
+      const remun = (suel / 30) * dias;
+      const asigP = dias >= 30 ? asig : 0;
 
-      // Horas extras
-      const he25 = getVal('f-horas_extras_25');
-      const he35 = getVal('f-horas_extras_35');
+      const punt  = gchk('chk-puntualidad') ? suel * BONOS_CONFIG.puntualidad : 0;
+      const asis  = gchk('chk-asistencia')  ? suel * BONOS_CONFIG.asistencia  : 0;
+      const desemp= gchk('chk-desempeno')   ? suel * BONOS_CONFIG.desempeno   : 0;
+      const movil = gchk('chk-movilidad')   ? mov  : 0;
+      const feria = gv('f-feriados');
+      const he25  = gv('f-he25');
+      const he35  = gv('f-he35');
+      const bonoE = gv('f-bono-exc');
+      const otrosI= gv('f-otros-ing');
 
-      // Bonos e ingresos variables
-      const bonos = ['bono_dia_trabajador','movilidad','bono_antiguedad','bono_puntualidad','bono_asistencia','bono_desempeno','bono_excepcional','aguinaldo','cts_trunco','grat_trunca','grat_essalud_trunco','vacaciones_truncas','vacaciones_gozadas','otros_ingresos'].reduce((s,f)=>s+getVal('f-'+f),0);
-
-      const totalIngresos = remunProp + asigProp + he25 + he35 + bonos;
+      const totalIngresos = remun + asigP + punt + asis + desemp + movil + feria + he25 + he35 + bonoE + otrosI;
 
       // Descuentos
-      const faltas   = (sueldo / diasMes) * getVal('f-faltas');
-      const tardanzas= getVal('f-tardanzas');
-      const adelanto = getVal('f-adelanto');
-      const otrosDsc = getVal('f-otros_descuentos');
+      const montFaltas = (suel / 30) * gv('f-faltas');
+      const tardanzas  = gv('f-tardanzas');
+      const adelanto   = gv('f-adelanto');
+      const otrosDsc   = gv('f-otros-dsc');
 
-      // AFP / SNP
-      let afpObl = 0, afpCom = 0, afpSeg = 0, snp = 0;
-      const pension = e.sistema_pensionario;
-      if (pension === 'ONP') {
-        snp = remunProp * SNP_RATE;
-      } else if (pension === 'AFP' && e.afp) {
-        const rates = AFP_RATES[e.afp] || AFP_RATES['PRIMA'];
-        afpObl = remunProp * rates.oblig;
-        afpCom = remunProp * rates.comision;
-        afpSeg = remunProp * rates.seguro;
+      // AFP / SNP sobre remuneración computable
+      let afpObl=0, afpCom=0, afpSeg=0, snp=0;
+      if (e.sistema_pensionario === 'ONP') {
+        snp = remun * SNP_RATE;
+      } else if (e.afp) {
+        const r = AFP_RATES[e.afp] || AFP_RATES['PRIMA'];
+        afpObl = remun * r.oblig;
+        afpCom = remun * r.comision;
+        afpSeg = remun * r.seguro;
       }
-
-      const totalAfpSnp   = afpObl + afpCom + afpSeg + snp;
-      const totalDescuentos = faltas + tardanzas + adelanto + otrosDsc + totalAfpSnp;
+      const totalAfp = afpObl + afpCom + afpSeg + snp;
+      const totalOtrosDsc = montFaltas + tardanzas + adelanto + otrosDsc;
+      const totalDescuentos = totalAfp + totalOtrosDsc;
       const neto = totalIngresos - totalDescuentos;
-      const essalud = remunProp * ESSALUD_RATE;
+      const essalud = remun * ESSALUD_RATE;
 
-      document.getElementById('r-ingresos').textContent  = `S/ ${totalIngresos.toFixed(2)}`;
-      document.getElementById('r-afp').textContent       = `S/ ${totalAfpSnp.toFixed(2)}`;
-      document.getElementById('r-descuentos').textContent= `S/ ${totalDescuentos.toFixed(2)}`;
-      document.getElementById('r-essalud').textContent   = `S/ ${essalud.toFixed(2)}`;
-      document.getElementById('r-neto').textContent      = `S/ ${neto.toFixed(2)}`;
+      // Actualizar UI
+      document.getElementById('m-basico').textContent      = `S/ ${remun.toFixed(2)}`;
+      document.getElementById('m-asig-fam').textContent    = `S/ ${asigP.toFixed(2)}`;
+      document.getElementById('m-puntualidad').textContent = `S/ ${punt.toFixed(2)}`;
+      document.getElementById('m-asistencia').textContent  = `S/ ${asis.toFixed(2)}`;
+      document.getElementById('m-desempeno').textContent   = `S/ ${desemp.toFixed(2)}`;
+      document.getElementById('m-movilidad').textContent   = `S/ ${movil.toFixed(2)}`;
+      document.getElementById('m-faltas').textContent      = montFaltas > 0 ? `-S/ ${montFaltas.toFixed(2)}` : 'S/ 0.00';
+      document.getElementById('r-ingresos').textContent    = `S/ ${totalIngresos.toFixed(2)}`;
+      document.getElementById('r-afp').textContent         = `S/ ${totalAfp.toFixed(2)}`;
+      document.getElementById('r-otros-dsc').textContent   = `S/ ${totalOtrosDsc.toFixed(2)}`;
+      document.getElementById('r-essalud').textContent     = `S/ ${essalud.toFixed(2)}`;
+      document.getElementById('r-neto').textContent        = `S/ ${neto.toFixed(2)}`;
 
-      // Guardar en memoria para usar al guardar
-      window._calc = { totalIngresos, totalDescuentos, neto, essalud, afpObl, afpCom, afpSeg, snp };
+      window._calc = { totalIngresos, totalDescuentos, neto, essalud, afpObl, afpCom, afpSeg, snp,
+        punt, asis, desemp, movil, feria, he25, he35, bonoE, otrosI, montFaltas, remun, asigP };
     }
 
     async function guardarDetalle() {
-      if (!currentEmpleado || !window._calc) { calcular(); }
-      const c = window._calc || {};
+      if (!currentEmpleado) return;
+      calcular();
+      const c = window._calc;
       const payload = {
-        periodo_id: currentPeriodo.id,
-        id_empleado: currentEmpleado.id_empleado,
-        dias_laborados:     getVal('f-dias_laborados'),
-        dias_feriados:      getVal('f-dias_feriados'),
-        dias_subsidiados:   getVal('f-dias_subsidiados'),
-        horas_extras_25:    getVal('f-horas_extras_25'),
-        horas_extras_35:    getVal('f-horas_extras_35'),
-        bono_dia_trabajador:getVal('f-bono_dia_trabajador'),
-        movilidad:          getVal('f-movilidad'),
-        bono_antiguedad:    getVal('f-bono_antiguedad'),
-        bono_puntualidad:   getVal('f-bono_puntualidad'),
-        bono_asistencia:    getVal('f-bono_asistencia'),
-        bono_desempeno:     getVal('f-bono_desempeno'),
-        bono_excepcional:   getVal('f-bono_excepcional'),
-        aguinaldo:          getVal('f-aguinaldo'),
-        cts_trunco:         getVal('f-cts_trunco'),
-        grat_trunca:        getVal('f-grat_trunca'),
-        grat_essalud_trunco:getVal('f-grat_essalud_trunco'),
-        vacaciones_truncas: getVal('f-vacaciones_truncas'),
-        vacaciones_gozadas: getVal('f-vacaciones_gozadas'),
-        otros_ingresos:     getVal('f-otros_ingresos'),
-        faltas:             getVal('f-faltas'),
-        tardanzas:          getVal('f-tardanzas'),
-        adelanto:           getVal('f-adelanto'),
-        otros_descuentos:   getVal('f-otros_descuentos'),
-        total_ingresos:     c.totalIngresos||0,
-        total_descuentos:   c.totalDescuentos||0,
-        neto_pagar:         c.neto||0,
-        essalud:            c.essalud||0,
-        afp_obligatorio:    c.afpObl||0,
-        afp_comision:       c.afpCom||0,
-        afp_seguro:         c.afpSeg||0,
-        snp:                c.snp||0,
+        periodo_id:           currentPeriodo.id,
+        id_empleado:          currentEmpleado.id_empleado,
+        dias_laborados:       gv('f-dias'),
+        dias_feriados:        gv('f-dias-feriados'),
+        bono_puntualidad:     c.punt,
+        bono_asistencia:      c.asis,
+        bono_desempeno:       c.desemp,
+        movilidad:            c.movil,
+        bono_dia_trabajador:  c.feria,
+        horas_extras_25:      c.he25,
+        horas_extras_35:      c.he35,
+        bono_excepcional:     c.bonoE,
+        otros_ingresos:       c.otrosI,
+        faltas:               gv('f-faltas'),
+        tardanzas:            gv('f-tardanzas'),
+        adelanto:             gv('f-adelanto'),
+        otros_descuentos:     gv('f-otros-dsc'),
+        total_ingresos:       c.totalIngresos,
+        total_descuentos:     c.totalDescuentos,
+        neto_pagar:           c.neto,
+        essalud:              c.essalud,
+        afp_obligatorio:      c.afpObl,
+        afp_comision:         c.afpCom,
+        afp_seguro:           c.afpSeg,
+        snp:                  c.snp,
       };
-      const { error } = await sbClient.from('planilla_detalle').upsert([payload], { onConflict: 'periodo_id,id_empleado' });
-      if (!error) {
-        alert('✅ Datos guardados');
-        await loadEmpleadosPeriodo();
-        document.getElementById(`emp-card-${currentEmpleado.id_empleado}`)?.classList.add('selected');
-      } else {
-        alert('Error: ' + error.message);
-      }
+      const { error } = await sbClient.from('planilla_detalle').upsert([payload], {onConflict:'periodo_id,id_empleado'});
+      if (error) { alert('Error: ' + error.message); return; }
+      // Actualizar detalleMap y tabs
+      detalleMap[currentEmpleado.id_empleado] = payload;
+      renderEmpTabs();
+      document.getElementById(`etab-${currentEmpleado.id_empleado}`)?.classList.add('active');
+      alert('✅ Guardado correctamente');
     }
 
     async function generarBoleta() {
-      if (!currentEmpleado || !window._calc) { calcular(); }
-      const e   = currentEmpleado;
-      const c   = window._calc;
-      const p   = currentPeriodo;
-      const extra = e.datos_extra ? JSON.parse(e.datos_extra) : {};
-
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ unit:'mm', format:'a4' });
-      const W = 210, M = 14;
-
-      function line(y) { doc.setDrawColor(200); doc.line(M, y, W-M, y); }
-      function box(x,y,w,h,fill) { if(fill){ doc.setFillColor(fill); doc.rect(x,y,w,h,'F'); } else { doc.rect(x,y,w,h); } }
-      function txt(text, x, y, size=10, bold=false, align='left') {
-        doc.setFontSize(size); doc.setFont('helvetica', bold?'bold':'normal');
-        doc.text(String(text||''), x, y, {align});
-      }
-
-      // ── COPIA EMPLEADOR ──
-      let y = 15;
-      box(M, y, W-2*M, 8, [27,43,94]);
-      txt('COPIA EMPLEADOR', W/2, y+5.5, 9, true, 'center'); doc.setTextColor(255,255,255);
-      txt('COPIA EMPLEADOR', W/2, y+5.5, 9, true, 'center'); doc.setTextColor(0,0,0);
-      y += 12;
-
-      txt(e.empresas?.razon_social||'', M, y, 11, true);
-      txt(`RUC: ${e.ruc_empresa}`, W-M, y, 9, false, 'right');
-      y += 5;
-      txt('BOLETA DE PAGO', W/2, y, 12, true, 'center');
-      txt(`AÑO ${p.anio}`, W-M, y, 9, false, 'right');
-      y += 6; line(y); y += 4;
-
-      // Encabezado empleado
-      const cols = [M, 35, 100, 135, 165];
-      txt('CÓDIGO', cols[0], y, 8, true); txt('APELLIDOS Y NOMBRES', cols[1], y, 8, true);
-      txt('DOC. IDENTIDAD', cols[2], y, 8, true); txt('MES', cols[3], y, 8, true); txt('AÑO', cols[4], y, 8, true);
-      y += 5;
-      txt(e.id_empleado, cols[0], y, 9); txt(`${e.nombres} ${e.apellidos}`, cols[1], y, 9);
-      txt(`${e.tipo_documento} ${e.numero_documento}`, cols[2], y, 9); txt(MESES[p.mes], cols[3], y, 9); txt(p.anio, cols[4], y, 9);
-      y += 5; line(y); y += 4;
-
-      txt('REGIMEN', cols[0], y, 8, true); txt('CATEGORÍA', cols[1], y, 8, true);
-      txt('CARGO', 65, y, 8, true); txt('LUGAR', cols[2], y, 8, true);
-      txt('F. INGRESO', cols[3], y, 8, true); txt('F. CESE', cols[4], y, 8, true);
-      y += 5;
-      txt(e.regimen?.toUpperCase()||'—', cols[0], y, 9); txt(e.categoria?.toUpperCase()||'—', cols[1], y, 9);
-      txt(e.cargo||'—', 65, y, 9); txt(e.locales?.nombre||'—', cols[2], y, 9);
-      txt(e.fecha_ingreso||'—', cols[3], y, 9); txt('—', cols[4], y, 9);
-      y += 5; line(y); y += 4;
-
-      txt('R. PENS.', cols[0], y, 8, true); txt('CUSPP', cols[1], y, 8, true);
-      txt('BANCO', cols[2], y, 8, true); txt('NUM. CUENTA', cols[3], y, 8, true);
-      txt('HABER MENSUAL', cols[4], y, 8, true);
-      y += 5;
-      txt(e.afp||e.sistema_pensionario||'—', cols[0], y, 9);
-      txt(e.cuspp||'—', cols[1], y, 9);
-      txt(extra.banco||e.banco||'—', cols[2], y, 9);
-      txt(e.numero_cuenta||'—', cols[3], y, 9);
-      txt(`S/ ${Number(e.sueldo_basico||0).toFixed(2)}`, cols[4], y, 9);
-      y += 5; line(y); y += 4;
-
-      // Resumen días
-      txt('RESUMEN DE DÍAS', M, y, 9, true); y += 5;
-      const dcols = [M, 35, 55, 75, 100, 125, 150, 165];
-      txt('TRABAJADOS', dcols[0], y, 8, true); txt('FERIADOS', dcols[1], y, 8, true);
-      txt('FALTAS', dcols[2], y, 8, true); txt('SAB. Y DOM.', dcols[3], y, 8, true);
-      txt('SUBSIDIADOS', dcols[4], y, 8, true); txt('DESC. S/G', dcols[5], y, 8, true);
-      txt('VACACIONES', dcols[6], y, 8, true); txt('TOTAL MES', dcols[7], y, 8, true);
-      y += 5;
-      txt(getVal('f-dias_laborados'), dcols[0], y, 9); txt(getVal('f-dias_feriados'), dcols[1], y, 9);
-      txt(getVal('f-faltas'), dcols[2], y, 9); txt('', dcols[3], y, 9);
-      txt(getVal('f-dias_subsidiados'), dcols[4], y, 9); txt('', dcols[5], y, 9);
-      txt(getVal('f-vacaciones_gozadas')>0?getVal('f-vacaciones_gozadas'):'0', dcols[6], y, 9);
-      txt('31', dcols[7], y, 9);
-      y += 5; line(y); y += 4;
-
-      // Ingresos y descuentos (3 columnas)
-      const ic = M, dc = 95, ac = 160;
-      txt('INGRESOS', ic, y, 9, true); txt('DESCUENTOS', dc, y, 9, true); txt('APORTES EMPLEADOR', ac, y, 9, true);
-      y += 5;
-
-      const ingresos = [
-        ['HABER BÁSICO',          Number(e.sueldo_basico||0).toFixed(2)],
-        ['ASIGNACIÓN FAMILIAR',   Number(e.asignacion_familiar||0).toFixed(2)],
-        ['HORAS EXTRAS 25%',      getVal('f-horas_extras_25').toFixed(2)],
-        ['HORAS EXTRAS 35%',      getVal('f-horas_extras_35').toFixed(2)],
-        ['FERIADOS/DESCANSO',     getVal('f-bono_dia_trabajador').toFixed(2)],
-        ['MOVILIDAD',             getVal('f-movilidad').toFixed(2)],
-        ['BONO ANTIGÜEDAD',       getVal('f-bono_antiguedad').toFixed(2)],
-        ['BONO PUNTUALIDAD',      getVal('f-bono_puntualidad').toFixed(2)],
-        ['ASISTENCIA PERFECTA',   getVal('f-bono_asistencia').toFixed(2)],
-        ['BUEN DESEMPEÑO',        getVal('f-bono_desempeno').toFixed(2)],
-        ['BONO EXCEPCIONAL',      getVal('f-bono_excepcional').toFixed(2)],
-        ['AGUINALDO',             getVal('f-aguinaldo').toFixed(2)],
-        ['CTS TRUNCO',            getVal('f-cts_trunco').toFixed(2)],
-        ['GRAT. ORDINARIA',       getVal('f-grat_trunca').toFixed(2)],
-        ['VAC. TRUNCAS',          getVal('f-vacaciones_truncas').toFixed(2)],
-        ['VAC. GOZADAS',          getVal('f-vacaciones_gozadas').toFixed(2)],
-        ['OTROS INGRESOS',        getVal('f-otros_ingresos').toFixed(2)],
-      ];
-      const descuentos = [
-        ['SNP (13%)',          c.snp.toFixed(2)],
-        ['AFP OBLIGATORIO',   c.afpObl.toFixed(2)],
-        ['AFP COMISIÓN',      c.afpCom.toFixed(2)],
-        ['AFP SEGURO',        c.afpSeg.toFixed(2)],
-        ['RETENCIÓN 5TA',     '0.00'],
-        ['FALTAS',            ((e.sueldo_basico/30)*getVal('f-faltas')).toFixed(2)],
-        ['TARDANZAS',         getVal('f-tardanzas').toFixed(2)],
-        ['ADELANTO',          getVal('f-adelanto').toFixed(2)],
-        ['OTROS DESCUENTOS',  getVal('f-otros_descuentos').toFixed(2)],
-      ];
-      const aportes = [['ESSALUD (9%)', c.essalud.toFixed(2)]];
-
-      const maxRows = Math.max(ingresos.length, descuentos.length, aportes.length);
-      for (let i=0; i<maxRows; i++) {
-        if (ingresos[i])   { txt(ingresos[i][0],   ic,    y, 8); txt(ingresos[i][1],   ic+75, y, 8, false,'right'); }
-        if (descuentos[i]) { txt(descuentos[i][0],  dc,    y, 8); txt(descuentos[i][1], dc+55, y, 8, false,'right'); }
-        if (aportes[i])    { txt(aportes[i][0],     ac,    y, 8); txt(aportes[i][1],    W-M,   y, 8, false,'right'); }
-        y += 5;
-      }
-      line(y); y += 4;
-
-      // Totales
-      txt('TOTAL INGRESOS', ic, y, 9, true);
-      txt(`S/ ${c.totalIngresos.toFixed(2)}`, ic+75, y, 9, true, 'right');
-      txt('TOTAL DESCUENTOS', dc, y, 9, true);
-      txt(`S/ ${c.totalDescuentos.toFixed(2)}`, dc+55, y, 9, true, 'right');
-      txt('TOTAL APORTES', ac, y, 9, true);
-      txt(`S/ ${c.essalud.toFixed(2)}`, W-M, y, 9, true, 'right');
-      y += 7;
-
-      box(M, y, W-2*M, 8, [27,43,94]);
-      doc.setTextColor(255,255,255);
-      txt('NETO A PAGAR', M+2, y+5.5, 11, true);
-      txt(`S/ ${c.neto.toFixed(2)}`, W-M-2, y+5.5, 13, true, 'right');
-      doc.setTextColor(0,0,0);
-      y += 14;
-
-      txt(`TRABAJADOR: ${e.nombres} ${e.apellidos}`, M, y, 9);
-      txt(`${e.tipo_documento}: ${e.numero_documento}`, W-M, y, 9, false, 'right');
-
-      // Guardar en Storage y en legajo
-      const pdfBytes = doc.output('arraybuffer');
-      const blob = new Blob([pdfBytes], {type:'application/pdf'});
-      const fileName = `Boleta_${MESES[p.mes]}_${p.anio}_${e.numero_documento}.pdf`;
-      const path = `${e.ruc_empresa}/${e.id_empleado}/boleta_${p.anio}_${p.mes}_${Date.now()}.pdf`;
-
-      const { error: storErr } = await sbClient.storage.from('Legajos').upload(path, blob, {upsert:true, contentType:'application/pdf'});
-      if (!storErr) {
-        await sbClient.from('legajo_documentos').upsert([{
-          id_empleado: e.id_empleado, ruc_empresa: e.ruc_empresa,
-          categoria: 'boleta', nombre_archivo: fileName,
-          storage_path: path, tamanio_kb: Math.round(blob.size/1024),
-          notas: `${MESES[p.mes]} ${p.anio}`
-        }], { onConflict: 'storage_path' });
-        await sbClient.from('planilla_detalle').update({boleta_path: path}).eq('periodo_id', currentPeriodo.id).eq('id_empleado', e.id_empleado);
-      }
-
-      doc.save(fileName);
-      alert('✅ Boleta generada y publicada en el portal del empleado');
+      if (!currentEmpleado) return;
+      calcular();
+      await generarBoletaEmp(currentEmpleado, window._calc);
     }
 
-    async function generarTodasBoletas(periodoId) {
-      currentPeriodo = periodos.find(p => p.id === periodoId);
-      const { data: detalles } = await sbClient.from('planilla_detalle').select('*').eq('periodo_id', periodoId);
-      if (!detalles || !detalles.length) { alert('No hay datos cargados para este período.'); return; }
-      // Cargar empleados
-      const { data: emps } = await sbClient.from('empleados').select('*, empresas(razon_social,abreviatura), locales(nombre), datos_extra').eq('ruc_empresa', currentPeriodo.ruc_empresa).eq('estado','activo');
-      empleados = emps || [];
-      for (const det of detalles) {
-        currentEmpleado = empleados.find(e => e.id_empleado === det.id_empleado);
-        if (!currentEmpleado) continue;
-        // Restaurar valores
-        window._calc = { totalIngresos: det.total_ingresos, totalDescuentos: det.total_descuentos, neto: det.neto_pagar, essalud: det.essalud, afpObl: det.afp_obligatorio, afpCom: det.afp_comision, afpSeg: det.afp_seguro, snp: det.snp };
-        // Para generar boleta sin form renderizado, usamos valores del detalle directamente
-        // ... simplificado: generar todas a la vez requiere el form, por ahora generamos una a la vez
+    async function generarTodasBoletas() {
+      let ok = 0;
+      for (const emp of empleados) {
+        const det = detalleMap[emp.id_empleado];
+        if (!det) { alert(`Falta guardar la planilla de ${emp.nombres} ${emp.apellidos}`); return; }
+        const c = {
+          totalIngresos: det.total_ingresos, totalDescuentos: det.total_descuentos,
+          neto: det.neto_pagar, essalud: det.essalud,
+          afpObl: det.afp_obligatorio, afpCom: det.afp_comision, afpSeg: det.afp_seguro, snp: det.snp,
+          punt: det.bono_puntualidad, asis: det.bono_asistencia, desemp: det.bono_desempeno,
+          movil: det.movilidad, feria: det.bono_dia_trabajador,
+          he25: det.horas_extras_25, he35: det.horas_extras_35,
+          bonoE: det.bono_excepcional, otrosI: det.otros_ingresos,
+          montFaltas: (emp.sueldo_basico/30)*det.faltas,
+          remun: (emp.sueldo_basico/30)*(det.dias_laborados||30),
+          asigP: emp.asignacion_familiar||0,
+        };
+        await generarBoletaEmp(emp, c);
+        ok++;
       }
-      alert('Para generar todas las boletas, abrí el período y generá una por una. Pronto: generación masiva.');
+      alert(`✅ ${ok} boletas generadas y publicadas`);
+    }
+
+    async function generarBoletaEmp(e, c) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({unit:'mm',format:'a4'});
+      const W=210, M=14;
+      function ln(y){ doc.setDrawColor(200); doc.line(M,y,W-M,y); }
+      function box(x,y,w,h,fill){ if(fill){doc.setFillColor(...fill);doc.rect(x,y,w,h,'F');}else{doc.rect(x,y,w,h);} }
+      function t(text,x,y,size=9,bold=false,align='left'){
+        doc.setFontSize(size);doc.setFont('helvetica',bold?'bold':'normal');
+        doc.text(String(text||'—'),x,y,{align});
+      }
+
+      const dibujarBoleta = (offsetY) => {
+        let y = offsetY + 10;
+        box(M,y,W-2*M,7,[27,43,94]);
+        doc.setTextColor(255,255,255);
+        t('COPIA EMPLEADOR',W/2,y+5,8,true,'center');
+        doc.setTextColor(0,0,0); y+=10;
+
+        t(e.empresas?.razon_social||'',M,y,11,true);
+        t(`RUC: ${e.ruc_empresa}`,W-M,y,8,false,'right'); y+=5;
+        t('BOLETA DE PAGO',W/2,y,12,true,'center');
+        t(`AÑO ${currentPeriodo.anio}`,W-M,y,8,false,'right'); y+=5; ln(y); y+=4;
+
+        t('CÓD',M,y,7,true); t('APELLIDOS Y NOMBRES',26,y,7,true);
+        t('DOC.',100,y,7,true); t('MES',125,y,7,true); t('DEL',148,y,7,true); t('AL',165,y,7,true);
+        y+=4;
+        t(e.id_empleado,M,y,8); t(`${e.nombres} ${e.apellidos}`,26,y,8);
+        t(`${e.tipo_documento} ${e.numero_documento}`,100,y,8); t(MESES[currentPeriodo.mes],125,y,8);
+        y+=4; ln(y); y+=3;
+
+        t('REGIMEN',M,y,7,true); t('CATEGORÍA',35,y,7,true); t('CARGO',62,y,7,true);
+        t('LUGAR',105,y,7,true); t('F.INGRESO',140,y,7,true); t('AFP/SNP',168,y,7,true);
+        y+=4;
+        t(e.regimen?.toUpperCase()||'—',M,y,8); t(e.categoria?.toUpperCase()||'—',35,y,8);
+        t(e.cargo||'—',62,y,8); t(e.locales?.nombre||'—',105,y,8);
+        t(e.fecha_ingreso||'—',140,y,8); t(`${e.sistema_pensionario} ${e.afp||''}`,168,y,8);
+        y+=4; ln(y); y+=3;
+
+        t('BANCO',M,y,7,true); t('CUENTA',38,y,7,true); t('HABER MENSUAL',130,y,7,true); t('HABER DIARIO',165,y,7,true);
+        y+=4;
+        t(e.banco||'—',M,y,8); t(e.numero_cuenta||'—',38,y,8);
+        t(`S/ ${Number(e.sueldo_basico||0).toFixed(2)}`,130,y,8);
+        t(`S/ ${(Number(e.sueldo_basico||0)/30).toFixed(2)}`,165,y,8);
+        y+=4; ln(y); y+=3;
+
+        // Ingresos | Descuentos | Aportes
+        const ic=M, dc=90, ac=165;
+        t('INGRESOS',ic,y,8,true); t('DESCUENTOS',dc,y,8,true); t('APORTES EMPLEADOR',ac,y,8,true); y+=5;
+
+        const ing = [
+          ['Haber básico',         c.remun],
+          ['Asig. familiar',       c.asigP],
+          ['HE 25%',               c.he25],
+          ['HE 35%',               c.he35],
+          ['Feriados/descanso',    c.feria],
+          ['Movilidad',            c.movil],
+          ['Bono puntualidad',     c.punt],
+          ['Asistencia perfecta',  c.asis],
+          ['Buen desempeño',       c.desemp],
+          ['Bono excepcional',     c.bonoE],
+          ['Otros ingresos',       c.otrosI],
+        ].filter(([,v])=>v>0);
+
+        const dsc = [
+          ['SNP (13%)',        c.snp],
+          ['AFP obligatorio',  c.afpObl],
+          ['AFP comisión',     c.afpCom],
+          ['AFP seguro',       c.afpSeg],
+          ['Faltas',           c.montFaltas],
+          ['Tardanzas',        parseFloat(document.getElementById('f-tardanzas')?.value||0)||detalleMap[e.id_empleado]?.tardanzas||0],
+          ['Adelanto',         parseFloat(document.getElementById('f-adelanto')?.value||0)||detalleMap[e.id_empleado]?.adelanto||0],
+          ['Otros descuentos', parseFloat(document.getElementById('f-otros-dsc')?.value||0)||detalleMap[e.id_empleado]?.otros_descuentos||0],
+        ].filter(([,v])=>v>0);
+
+        const apo = [['EsSalud (9%)', c.essalud]];
+        const maxR = Math.max(ing.length, dsc.length, apo.length);
+
+        for (let i=0;i<maxR;i++) {
+          if (ing[i]) { t(ing[i][0],ic,y,8); t(`S/${ing[i][1].toFixed(2)}`,ic+65,y,8,false,'right'); }
+          if (dsc[i]) { t(dsc[i][0],dc,y,8); t(`S/${dsc[i][1].toFixed(2)}`,dc+55,y,8,false,'right'); }
+          if (apo[i]) { t(apo[i][0],ac,y,8); t(`S/${apo[i][1].toFixed(2)}`,W-M,y,8,false,'right'); }
+          y+=5;
+        }
+        ln(y); y+=3;
+
+        t('TOTAL INGRESOS',ic,y,9,true);
+        t(`S/ ${c.totalIngresos.toFixed(2)}`,ic+65,y,9,true,'right');
+        t('TOTAL DESCUENTOS',dc,y,9,true);
+        t(`S/ ${c.totalDescuentos.toFixed(2)}`,dc+55,y,9,true,'right');
+        t('ESSALUD',ac,y,9,true);
+        t(`S/ ${c.essalud.toFixed(2)}`,W-M,y,9,true,'right');
+        y+=6;
+
+        box(M,y,W-2*M,9,[27,43,94]);
+        doc.setTextColor(255,255,255);
+        t('NETO A PAGAR',M+2,y+6,11,true);
+        t(`S/ ${c.neto.toFixed(2)}`,W-M-2,y+6,13,true,'right');
+        doc.setTextColor(0,0,0); y+=13;
+
+        t(`${e.nombres} ${e.apellidos}`,M,y,8);
+        t(`${e.tipo_documento}: ${e.numero_documento}`,W-M,y,8,false,'right');
+        return y;
+      };
+
+      dibujarBoleta(0);
+      // Segunda copia (trabajador)
+      doc.addPage();
+      const y2 = 10;
+      box(M,y2,W-2*M,7,[27,43,94]);
+      doc.setTextColor(255,255,255);
+      t('COPIA TRABAJADOR',W/2,y2+5,8,true,'center');
+      doc.setTextColor(0,0,0);
+      dibujarBoleta(15);
+
+      // Guardar en Storage
+      const fileName = `Boleta_${MESES[currentPeriodo.mes]}_${currentPeriodo.anio}_${e.numero_documento}.pdf`;
+      const path = `${e.ruc_empresa}/${e.id_empleado}/boleta_${currentPeriodo.anio}_${String(currentPeriodo.mes).padStart(2,'0')}.pdf`;
+      const pdfBytes = doc.output('arraybuffer');
+      const blob = new Blob([pdfBytes],{type:'application/pdf'});
+      const {error:sErr} = await sbClient.storage.from('Legajos').upload(path, blob, {upsert:true, contentType:'application/pdf'});
+      if (!sErr) {
+        await sbClient.from('legajo_documentos').upsert([{
+          id_empleado: e.id_empleado, ruc_empresa: e.ruc_empresa,
+          categoria:'boleta', nombre_archivo: fileName,
+          storage_path: path, tamanio_kb: Math.round(blob.size/1024),
+          notas: `${MESES[currentPeriodo.mes]} ${currentPeriodo.anio}`
+        }],{onConflict:'storage_path'});
+      }
+      doc.save(fileName);
     }
 
     async function cerrarPeriodo(id) {
       if (!confirm('¿Cerrar este período? No podrás modificar los datos.')) return;
-      await sbClient.from('planilla_periodos').update({estado:'cerrado'}).eq('id', id);
+      await sbClient.from('planilla_periodos').update({estado:'cerrado'}).eq('id',id);
       await loadPeriodos();
     }
 
     function volverLista() {
-      document.getElementById('vista-detalle').style.display = 'none';
-      document.getElementById('vista-lista').style.display   = 'block';
+      document.getElementById('vista-detalle').style.display='none';
+      document.getElementById('vista-lista').style.display='block';
       loadPeriodos();
     }
 
     function openNuevoPeriodo() { document.getElementById('modal-periodo').classList.remove('hidden'); }
-    function closeModal(id)     { document.getElementById(id).classList.add('hidden'); }
+    function closeModal()       { document.getElementById('modal-periodo').classList.add('hidden'); }
 
     async function crearPeriodo() {
       const empresa = document.getElementById('np-empresa').value;
       const mes     = parseInt(document.getElementById('np-mes').value);
       const anio    = parseInt(document.getElementById('np-anio').value);
       const errEl   = document.getElementById('modal-error');
-      errEl.style.display = 'none';
-      if (!empresa) { errEl.textContent = 'Seleccioná una empresa.'; errEl.style.display='block'; return; }
+      errEl.style.display='none';
+      if (!empresa) { errEl.textContent='Seleccioná una empresa.'; errEl.style.display='block'; return; }
       const session = await checkSession();
-      const { error } = await sbClient.from('planilla_periodos').insert([{ ruc_empresa:empresa, mes, anio, created_by: session.user.id }]);
-      if (error) { errEl.textContent = error.message.includes('unique') ? 'Ya existe un período para ese mes/año/empresa.' : 'Error al crear.'; errEl.style.display='block'; return; }
-      closeModal('modal-periodo');
+      const {error} = await sbClient.from('planilla_periodos').insert([{ruc_empresa:empresa,mes,anio,created_by:session.user.id}]);
+      if (error) { errEl.textContent=error.message.includes('unique')?'Ya existe ese período.':'Error al crear.'; errEl.style.display='block'; return; }
+      closeModal();
       await loadPeriodos();
     }
 
