@@ -28,15 +28,9 @@
       color: #fff; font-size: 12px; font-weight: 500; cursor: pointer;
     }
     .perfil-foto:hover .perfil-foto-overlay { opacity: 1; }
-    .perfil-info { flex: 1; }
-    .perfil-nombre { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-    .perfil-meta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
-    .perfil-meta span { font-size: 13px; color: var(--text-muted); }
-    .perfil-actions { display: flex; gap: 8px; flex-shrink: 0; }
-
-    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; }
     .tab {
-      padding: 10px 18px; font-size: 13px; font-weight: 500;
+      padding: 10px 16px; font-size: 13px; font-weight: 500;
       color: var(--text-muted); cursor: pointer; border: none;
       background: none; border-bottom: 2px solid transparent;
       margin-bottom: -1px; transition: all 0.15s; white-space: nowrap;
@@ -45,78 +39,48 @@
     .tab.active { color: var(--navy); border-bottom-color: var(--navy); }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
-
     .info-section { margin-bottom: 1.5rem; }
     .info-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
     .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-    .info-field label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 3px; }
-    .info-field .value { font-size: 13px; color: var(--text); font-weight: 500; }
-    .info-field input, .info-field select {
+    .info-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .info-field label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 4px; }
+    .info-field input, .info-field select, .info-field textarea {
       width: 100%; font-size: 13px; padding: 7px 10px;
       border: 1px solid var(--border-md); border-radius: var(--radius-md);
       background: var(--white); color: var(--text); outline: none;
       transition: border-color 0.15s;
     }
-    .info-field input:focus, .info-field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(46,77,176,0.1); }
+    .info-field input:focus, .info-field select:focus, .info-field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(46,77,176,0.1); }
     .info-field.full { grid-column: 1 / -1; }
     .info-field.span2 { grid-column: span 2; }
-
-    .doc-categorias { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.25rem; }
-    .doc-cat-btn {
-      padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
-      border: 1px solid var(--border-md); background: var(--white);
-      color: var(--text-muted); cursor: pointer; transition: all 0.15s;
-    }
-    .doc-cat-btn:hover { border-color: var(--navy); color: var(--navy); }
-    .doc-cat-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
-
-    .doc-upload-area {
-      border: 2px dashed var(--border-md); border-radius: var(--radius-lg);
-      padding: 1.5rem; text-align: center; cursor: pointer;
-      transition: all 0.2s; margin-bottom: 1.25rem;
-    }
+    .input-with-btn { display: flex; gap: 6px; }
+    .input-with-btn input { flex: 1; }
+    .btn-reniec { font-size: 12px; padding: 6px 10px; background: var(--navy-light); color: var(--navy); border: 1px solid var(--navy-light); border-radius: var(--radius-md); cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+    .btn-reniec:hover { background: #d0daf5; }
+    .doc-upload-area { border: 2px dashed var(--border-md); border-radius: var(--radius-lg); padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 1.25rem; }
     .doc-upload-area:hover { border-color: var(--navy); background: var(--navy-light); }
-    .doc-upload-area p { font-size: 13px; color: var(--text-muted); margin-top: 6px; }
     .doc-upload-area input { display: none; }
-
     .doc-list { display: flex; flex-direction: column; gap: 8px; }
-    .doc-item {
-      display: flex; align-items: center; gap: 12px;
-      padding: 10px 14px; background: var(--bg);
-      border-radius: var(--radius-md); border: 1px solid var(--border);
-    }
-    .doc-icon { width: 36px; height: 36px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; }
-    .doc-icon.pdf { background: #FEE2E2; }
-    .doc-icon.img { background: #DBEAFE; }
-    .doc-icon.doc { background: #EDE9FE; }
+    .doc-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--bg); border-radius: var(--radius-md); border: 1px solid var(--border); }
     .doc-info { flex: 1; min-width: 0; }
     .doc-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .doc-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
     .doc-actions { display: flex; gap: 6px; flex-shrink: 0; }
-
-    .historial-item {
-      display: flex; gap: 14px; padding: 12px 0;
-      border-bottom: 1px solid var(--border);
-    }
+    .historial-item { display: flex; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .historial-item:last-child { border-bottom: none; }
-    .historial-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      flex-shrink: 0; margin-top: 4px;
-    }
+    .historial-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
     .historial-dot.ingreso    { background: var(--success); }
     .historial-dot.disciplina { background: var(--error); }
     .historial-dot.documento  { background: var(--info); }
-    .historial-dot.contrato   { background: var(--warning); }
-    .historial-fecha { font-size: 11px; color: var(--text-muted); white-space: nowrap; min-width: 80px; }
-    .historial-desc { font-size: 13px; }
-
-    .save-bar {
-      position: fixed; bottom: 0; left: var(--sidebar-w); right: 0;
-      background: var(--white); border-top: 1px solid var(--border);
-      padding: 12px 2rem; display: flex; justify-content: flex-end; gap: 10px;
-      z-index: 50; display: none;
-    }
+    .historial-fecha { font-size: 11px; color: var(--text-muted); white-space: nowrap; min-width: 88px; }
+    .familiar-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1.5fr; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .familiar-row input, .familiar-row select { font-size: 12px; padding: 6px 8px; border: 1px solid var(--border-md); border-radius: var(--radius-md); width: 100%; }
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+    .checkbox-group label { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+    .checkbox-group input[type=checkbox] { accent-color: var(--navy); width: 15px; height: 15px; }
+    .save-bar { position: fixed; bottom: 0; left: var(--sidebar-w); right: 0; background: var(--white); border-top: 1px solid var(--border); padding: 12px 2rem; display: none; justify-content: space-between; align-items: center; z-index: 50; }
     .save-bar.visible { display: flex; }
+    .talla-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
   </style>
 </head>
 <body class="portal-layout">
@@ -138,8 +102,7 @@
     </div>
 
     <div class="page-body" id="page-body" style="display:none">
-
-      <!-- Header del perfil -->
+      <!-- Header perfil -->
       <div class="perfil-header">
         <div class="perfil-foto" id="foto-container" onclick="document.getElementById('foto-input').click()">
           <span id="foto-initials"></span>
@@ -147,35 +110,30 @@
           <div class="perfil-foto-overlay">Cambiar foto</div>
           <input type="file" id="foto-input" accept="image/jpeg,image/png,image/webp" onchange="subirFoto(this)" style="display:none" />
         </div>
-        <div class="perfil-info">
-          <div class="perfil-nombre" id="perfil-nombre">—</div>
+        <div style="flex:1">
+          <div style="font-size:20px;font-weight:700" id="perfil-nombre">—</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px" id="perfil-badges"></div>
-          <div class="perfil-meta" id="perfil-meta"></div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:13px;color:var(--text-muted)" id="perfil-meta"></div>
         </div>
       </div>
 
       <!-- Tabs -->
       <div class="tabs">
-        <button class="tab active" onclick="switchTab('personales')">Datos personales</button>
-        <button class="tab" onclick="switchTab('laborales')">Datos laborales</button>
-        <button class="tab" onclick="switchTab('previsionales')">Previsional y bancario</button>
-        <button class="tab" onclick="switchTab('documentos')">Documentos <span id="doc-count" class="nav-badge" style="background:var(--navy-light);color:var(--navy);margin-left:4px">0</span></button>
-        <button class="tab" onclick="switchTab('historial')">Historial</button>
+        <button class="tab active"  onclick="switchTab('personales')">Datos personales</button>
+        <button class="tab"         onclick="switchTab('laborales')">Laborales</button>
+        <button class="tab"         onclick="switchTab('previsionales')">Previsional</button>
+        <button class="tab"         onclick="switchTab('salud')">Salud</button>
+        <button class="tab"         onclick="switchTab('familia')">Familia</button>
+        <button class="tab"         onclick="switchTab('formacion')">Formación</button>
+        <button class="tab" id="tab-btn-docs"    onclick="switchTab('documentos')">Documentos <span id="doc-count" style="background:var(--navy-light);color:var(--navy);font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px">0</span></button>
+        <button class="tab" id="tab-btn-historial" onclick="switchTab('historial')">Historial</button>
       </div>
 
-      <!-- Tab: Datos personales -->
+      <!-- TAB: DATOS PERSONALES -->
       <div class="tab-content active" id="tab-personales">
         <div class="info-section">
           <div class="info-section-title">Identificación</div>
           <div class="info-grid">
-            <div class="info-field">
-              <label>Nombres <span class="req">*</span></label>
-              <input type="text" id="e-nombres" oninput="markDirty()" />
-            </div>
-            <div class="info-field">
-              <label>Apellidos <span class="req">*</span></label>
-              <input type="text" id="e-apellidos" oninput="markDirty()" />
-            </div>
             <div class="info-field">
               <label>Tipo documento</label>
               <select id="e-tipo-doc" onchange="markDirty()">
@@ -184,9 +142,24 @@
                 <option value="PAS">Pasaporte</option>
               </select>
             </div>
-            <div class="info-field">
+            <div class="info-field span2">
               <label>Número documento <span class="req">*</span></label>
-              <input type="text" id="e-num-doc" oninput="markDirty()" />
+              <div class="input-with-btn">
+                <input type="text" id="e-num-doc" placeholder="Nro. de documento" oninput="markDirty()" />
+                <button class="btn-reniec" onclick="consultarDocumento()">🔍 Consultar</button>
+              </div>
+            </div>
+            <div class="info-field">
+              <label>Apellido paterno <span class="req">*</span></label>
+              <input type="text" id="e-ap-paterno" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>Apellido materno <span class="req">*</span></label>
+              <input type="text" id="e-ap-materno" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>Nombres <span class="req">*</span></label>
+              <input type="text" id="e-nombres" oninput="markDirty()" />
             </div>
             <div class="info-field">
               <label>Fecha de nacimiento</label>
@@ -211,34 +184,106 @@
                 <option value="viudo">Viudo/a</option>
               </select>
             </div>
+            <div class="info-field">
+              <label>Nacionalidad</label>
+              <input type="text" id="e-nacionalidad" placeholder="Peruana" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>Lugar de nacimiento</label>
+              <input type="text" id="e-lugar-nac" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>Licencia de conducir</label>
+              <input type="text" id="e-licencia" oninput="markDirty()" />
+            </div>
           </div>
         </div>
         <div class="info-section">
-          <div class="info-section-title">Contacto</div>
+          <div class="info-section-title">Contacto y domicilio</div>
           <div class="info-grid">
             <div class="info-field">
-              <label>Teléfono</label>
+              <label>Teléfono / WhatsApp</label>
               <input type="text" id="e-tel" oninput="markDirty()" />
             </div>
-            <div class="info-field">
-              <label>Email</label>
+            <div class="info-field span2">
+              <label>Email personal</label>
               <input type="email" id="e-email" oninput="markDirty()" />
             </div>
             <div class="info-field full">
-              <label>Dirección</label>
+              <label>Dirección (Av./Jr./Calle)</label>
               <input type="text" id="e-dir" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>Número</label>
+              <input type="text" id="e-dir-nro" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>Lote / Manzana</label>
+              <input type="text" id="e-dir-lote" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>Urbanización</label>
+              <input type="text" id="e-dir-urb" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>Distrito</label>
+              <input type="text" id="e-distrito" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>Provincia</label>
+              <input type="text" id="e-provincia" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>Tipo de vivienda</label>
+              <select id="e-vivienda" onchange="markDirty()">
+                <option value="">—</option>
+                <option value="propia">Propia</option>
+                <option value="alquilada">Alquilada</option>
+                <option value="alojado">Alojado</option>
+                <option value="posesion">Posesión</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="info-section">
+          <div class="info-section-title">Contacto de emergencia</div>
+          <div class="info-grid">
+            <div class="info-field span2">
+              <label>Apellidos y nombres</label>
+              <input type="text" id="e-emerg-nombre" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>Parentesco</label>
+              <input type="text" id="e-emerg-parentesco" oninput="markDirty()" />
+            </div>
+            <div class="info-field full">
+              <label>Dirección</label>
+              <input type="text" id="e-emerg-dir" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>Teléfono</label>
+              <input type="text" id="e-emerg-tel" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>Celular</label>
+              <input type="text" id="e-emerg-cel" oninput="markDirty()" />
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Tab: Datos laborales -->
+      <!-- TAB: LABORALES -->
       <div class="tab-content" id="tab-laborales">
         <div class="info-section">
           <div class="info-section-title">Posición</div>
           <div class="info-grid">
+            <div class="info-field" id="campo-id-empleado" style="display:none">
+              <label>ID Empleado <span class="req">*</span></label>
+              <input type="text" id="e-id-empleado" placeholder="Ej: CYC-EMP-001" style="text-transform:uppercase" />
+              <div style="font-size:11px;color:var(--text-muted);margin-top:3px">Formato: EMPRESA-EMP-NRO</div>
+            </div>
             <div class="info-field">
-              <label>Empresa</label>
+              <label>Empresa <span class="req">*</span></label>
               <select id="e-empresa" onchange="loadLocalesPerfil();markDirty()">
                 <option value="">Seleccionar...</option>
               </select>
@@ -258,6 +303,10 @@
               <input type="text" id="e-area" oninput="markDirty()" />
             </div>
             <div class="info-field">
+              <label>Horario</label>
+              <input type="text" id="e-horario" placeholder="Ej: 09:00 - 18:00" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
               <label>Categoría</label>
               <select id="e-categoria" onchange="markDirty()">
                 <option value="empleado">Empleado</option>
@@ -273,7 +322,7 @@
           </div>
         </div>
         <div class="info-section">
-          <div class="info-section-title">Contrato</div>
+          <div class="info-section-title">Contrato y remuneración</div>
           <div class="info-grid">
             <div class="info-field">
               <label>Tipo contrato</label>
@@ -302,23 +351,6 @@
               <input type="date" id="e-fecha-ingreso" oninput="markDirty()" />
             </div>
             <div class="info-field">
-              <label>Estado</label>
-              <select id="e-estado" onchange="markDirty()">
-                <option value="activo">Activo</option>
-                <option value="inactivo">Inactivo</option>
-                <option value="cesado">Cesado</option>
-              </select>
-            </div>
-            <div class="info-field">
-              <label>Motivo cese</label>
-              <input type="text" id="e-motivo-cese" oninput="markDirty()" />
-            </div>
-          </div>
-        </div>
-        <div class="info-section">
-          <div class="info-section-title">Remuneración</div>
-          <div class="info-grid">
-            <div class="info-field">
               <label>Sueldo básico (S/)</label>
               <input type="number" id="e-sueldo" min="0" step="0.01" oninput="markDirty()" />
             </div>
@@ -326,11 +358,78 @@
               <label>Asignación familiar (S/)</label>
               <input type="number" id="e-asig-familiar" min="0" step="0.01" oninput="markDirty()" />
             </div>
+            <div class="info-field">
+              <label>Estado</label>
+              <select id="e-estado" onchange="markDirty()">
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+                <option value="cesado">Cesado</option>
+              </select>
+            </div>
+            <div class="info-field span2">
+              <label>Motivo de cese</label>
+              <input type="text" id="e-motivo-cese" oninput="markDirty()" />
+            </div>
+          </div>
+        </div>
+        <div class="info-section">
+          <div class="info-section-title">Tallas para uniformes</div>
+          <div class="talla-group">
+            <div class="info-field">
+              <label>Polo / Remera</label>
+              <select id="e-talla-polo" onchange="markDirty()">
+                <option value="">—</option>
+                <option value="XS">XS</option>
+                <option value="S">S</option>
+                <option value="M">M</option>
+                <option value="L">L</option>
+                <option value="XL">XL</option>
+                <option value="XXL">XXL</option>
+              </select>
+            </div>
+            <div class="info-field">
+              <label>Pantalón</label>
+              <select id="e-talla-pantalon" onchange="markDirty()">
+                <option value="">—</option>
+                <option value="XS">XS</option>
+                <option value="S">S</option>
+                <option value="M">M</option>
+                <option value="L">L</option>
+                <option value="XL">XL</option>
+                <option value="XXL">XXL</option>
+              </select>
+            </div>
+            <div class="info-field">
+              <label>Calzado (talla)</label>
+              <input type="text" id="e-talla-calzado" placeholder="Ej: 40" oninput="markDirty()" />
+            </div>
+          </div>
+        </div>
+        <div class="info-section">
+          <div class="info-section-title">Referencias laborales anteriores</div>
+          <div id="referencias-container">
+            <div class="familiar-row" style="grid-template-columns:2fr 1fr 1fr 1fr 2fr;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px">
+              <span>Empresa</span><span>Cargo</span><span>F. Ingreso</span><span>F. Cese</span><span>Motivo cese</span>
+            </div>
+            <div class="familiar-row" style="grid-template-columns:2fr 1fr 1fr 1fr 2fr" id="ref-0">
+              <input type="text" id="ref-empresa-0" placeholder="Empresa anterior" oninput="markDirty()" />
+              <input type="text" id="ref-cargo-0" placeholder="Cargo" oninput="markDirty()" />
+              <input type="date" id="ref-ingreso-0" oninput="markDirty()" />
+              <input type="date" id="ref-cese-0" oninput="markDirty()" />
+              <input type="text" id="ref-motivo-0" placeholder="Motivo" oninput="markDirty()" />
+            </div>
+            <div class="familiar-row" style="grid-template-columns:2fr 1fr 1fr 1fr 2fr" id="ref-1">
+              <input type="text" id="ref-empresa-1" oninput="markDirty()" />
+              <input type="text" id="ref-cargo-1" oninput="markDirty()" />
+              <input type="date" id="ref-ingreso-1" oninput="markDirty()" />
+              <input type="date" id="ref-cese-1" oninput="markDirty()" />
+              <input type="text" id="ref-motivo-1" oninput="markDirty()" />
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Tab: Previsional y bancario -->
+      <!-- TAB: PREVISIONAL -->
       <div class="tab-content" id="tab-previsionales">
         <div class="info-section">
           <div class="info-section-title">Sistema previsional</div>
@@ -356,6 +455,14 @@
               <label>CUSPP</label>
               <input type="text" id="e-cuspp" oninput="markDirty()" />
             </div>
+            <div class="info-field">
+              <label>Tipo de comisión</label>
+              <select id="e-tipo-comision" onchange="markDirty()">
+                <option value="">—</option>
+                <option value="flujo">Por flujo</option>
+                <option value="mixta">Mixta</option>
+              </select>
+            </div>
           </div>
         </div>
         <div class="info-section">
@@ -373,46 +480,171 @@
                 <option value="OTRO">Otro</option>
               </select>
             </div>
-            <div class="info-field span2">
+            <div class="info-field">
               <label>Número de cuenta</label>
               <input type="text" id="e-num-cuenta" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>CCI (Código interbancario)</label>
+              <input type="text" id="e-cci" oninput="markDirty()" />
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Tab: Documentos -->
-      <div class="tab-content" id="tab-documentos">
-        <div class="doc-categorias">
-          <button class="doc-cat-btn active" onclick="filterDocs('todos', this)">Todos</button>
-          <button class="doc-cat-btn" onclick="filterDocs('foto', this)">Foto</button>
-          <button class="doc-cat-btn" onclick="filterDocs('dni_ce', this)">DNI / CE</button>
-          <button class="doc-cat-btn" onclick="filterDocs('contrato', this)">Contrato</button>
-          <button class="doc-cat-btn" onclick="filterDocs('libreta_sanitaria', this)">Libreta sanitaria</button>
-          <button class="doc-cat-btn" onclick="filterDocs('permiso_residencia', this)">Permiso residencia</button>
-          <button class="doc-cat-btn" onclick="filterDocs('sancion', this)">Sanciones</button>
-          <button class="doc-cat-btn" onclick="filterDocs('notificacion', this)">Notificaciones</button>
-          <button class="doc-cat-btn" onclick="filterDocs('otro', this)">Otros</button>
+      <!-- TAB: SALUD -->
+      <div class="tab-content" id="tab-salud">
+        <div class="info-section">
+          <div class="info-section-title">Estado de salud</div>
+          <div class="info-grid">
+            <div class="info-field">
+              <label>¿Presenta problema de salud?</label>
+              <select id="e-tiene-prob-salud" onchange="markDirty()">
+                <option value="no">No</option>
+                <option value="si">Sí</option>
+              </select>
+            </div>
+            <div class="info-field span2">
+              <label>¿Cuál?</label>
+              <input type="text" id="e-prob-salud-desc" oninput="markDirty()" />
+            </div>
+            <div class="info-field">
+              <label>Dónde realiza tratamiento</label>
+              <select id="e-tratamiento" onchange="markDirty()">
+                <option value="">—</option>
+                <option value="posta">Posta médica</option>
+                <option value="hospital">Hospital</option>
+                <option value="seguro">Seguro</option>
+                <option value="minsa">MINSA</option>
+                <option value="clinica">Clínica</option>
+                <option value="otros">Otros</option>
+              </select>
+            </div>
+            <div class="info-field">
+              <label>Grupo de sangre</label>
+              <select id="e-grupo-sangre" onchange="markDirty()">
+                <option value="">—</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+              </select>
+            </div>
+            <div class="info-field">
+              <label>¿Tiene alergia?</label>
+              <select id="e-tiene-alergia" onchange="markDirty()">
+                <option value="no">No</option>
+                <option value="si">Sí</option>
+              </select>
+            </div>
+            <div class="info-field span2">
+              <label>Indicar alergia</label>
+              <input type="text" id="e-alergia-desc" oninput="markDirty()" />
+            </div>
+          </div>
         </div>
+        <div class="info-section">
+          <div class="info-section-title">Enfermedades previas</div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="enf-diabetes" onchange="markDirty()" /> Diabetes</label>
+            <label><input type="checkbox" id="enf-hipertension" onchange="markDirty()" /> Hipertensión</label>
+            <label><input type="checkbox" id="enf-epilepsia" onchange="markDirty()" /> Epilepsia</label>
+            <label><input type="checkbox" id="enf-cardiaca" onchange="markDirty()" /> Enf. cardíacas</label>
+            <label><input type="checkbox" id="enf-asma" onchange="markDirty()" /> Asma</label>
+          </div>
+          <div class="info-field" style="margin-top:12px;max-width:400px">
+            <label>Otras enfermedades</label>
+            <input type="text" id="enf-otras" oninput="markDirty()" />
+          </div>
+        </div>
+      </div>
 
+      <!-- TAB: FAMILIA -->
+      <div class="tab-content" id="tab-familia">
+        <div class="info-section">
+          <div class="info-section-title">Datos familiares</div>
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1.5fr;gap:8px;margin-bottom:6px;padding:0 2px">
+            <span>Apellidos y nombres</span><span>F. Nacimiento</span><span>Parentesco</span><span>Estado civil</span><span>Instrucción</span><span>Ocupación</span>
+          </div>
+          <div id="familiares-container">
+            <!-- Filas generadas dinámicamente -->
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: FORMACIÓN -->
+      <div class="tab-content" id="tab-formacion">
+        <div class="info-section">
+          <div class="info-section-title">Formación académica</div>
+          <table style="width:100%;font-size:13px;border-collapse:collapse">
+            <thead>
+              <tr style="font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border)">
+                <th style="text-align:left;padding:8px 6px">Nivel</th>
+                <th style="text-align:left;padding:8px 6px">Institución</th>
+                <th style="text-align:left;padding:8px 6px">Carrera/Profesión</th>
+                <th style="text-align:left;padding:8px 6px">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="padding:6px"><label style="font-size:13px;font-weight:500">Primaria</label></td>
+                <td style="padding:6px"><input type="text" id="ed-primaria-inst" style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" oninput="markDirty()" /></td>
+                <td style="padding:6px"><input type="text" id="ed-primaria-carr" style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" oninput="markDirty()" /></td>
+                <td style="padding:6px"><select id="ed-primaria-estado" style="font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" onchange="markDirty()"><option value="">—</option><option value="incompleto">Incompleto</option><option value="completo">Completo</option></select></td>
+              </tr>
+              <tr><td style="padding:6px"><label style="font-size:13px;font-weight:500">Secundaria</label></td>
+                <td style="padding:6px"><input type="text" id="ed-secundaria-inst" style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" oninput="markDirty()" /></td>
+                <td style="padding:6px"><input type="text" id="ed-secundaria-carr" style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" oninput="markDirty()" /></td>
+                <td style="padding:6px"><select id="ed-secundaria-estado" style="font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" onchange="markDirty()"><option value="">—</option><option value="incompleto">Incompleto</option><option value="completo">Completo</option></select></td>
+              </tr>
+              <tr><td style="padding:6px"><label style="font-size:13px;font-weight:500">Técnico</label></td>
+                <td style="padding:6px"><input type="text" id="ed-tecnico-inst" style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" oninput="markDirty()" /></td>
+                <td style="padding:6px"><input type="text" id="ed-tecnico-carr" style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" oninput="markDirty()" /></td>
+                <td style="padding:6px"><select id="ed-tecnico-estado" style="font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" onchange="markDirty()"><option value="">—</option><option value="incompleto">Incompleto</option><option value="completo">Completo</option></select></td>
+              </tr>
+              <tr><td style="padding:6px"><label style="font-size:13px;font-weight:500">Universitario</label></td>
+                <td style="padding:6px"><input type="text" id="ed-univ-inst" style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" oninput="markDirty()" /></td>
+                <td style="padding:6px"><input type="text" id="ed-univ-carr" style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" oninput="markDirty()" /></td>
+                <td style="padding:6px"><select id="ed-univ-estado" style="font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" onchange="markDirty()"><option value="">—</option><option value="incompleto">Incompleto</option><option value="completo">Completo</option></select></td>
+              </tr>
+              <tr><td style="padding:6px"><label style="font-size:13px;font-weight:500">Otros</label></td>
+                <td style="padding:6px"><input type="text" id="ed-otros-inst" style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" oninput="markDirty()" /></td>
+                <td style="padding:6px"><input type="text" id="ed-otros-carr" style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" oninput="markDirty()" /></td>
+                <td style="padding:6px"><select id="ed-otros-estado" style="font-size:13px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-md)" onchange="markDirty()"><option value="">—</option><option value="incompleto">Incompleto</option><option value="completo">Completo</option></select></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: DOCUMENTOS -->
+      <div class="tab-content" id="tab-documentos">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
+          <button class="btn btn-sm active" onclick="filterDocs('todos',this)" style="border-radius:20px">Todos</button>
+          <button class="btn btn-sm" onclick="filterDocs('foto',this)" style="border-radius:20px">Foto</button>
+          <button class="btn btn-sm" onclick="filterDocs('dni_ce',this)" style="border-radius:20px">DNI / CE</button>
+          <button class="btn btn-sm" onclick="filterDocs('contrato',this)" style="border-radius:20px">Contrato</button>
+          <button class="btn btn-sm" onclick="filterDocs('libreta_sanitaria',this)" style="border-radius:20px">Libreta sanitaria</button>
+          <button class="btn btn-sm" onclick="filterDocs('permiso_residencia',this)" style="border-radius:20px">Permiso residencia</button>
+          <button class="btn btn-sm" onclick="filterDocs('sancion',this)" style="border-radius:20px">Sanciones</button>
+          <button class="btn btn-sm" onclick="filterDocs('notificacion',this)" style="border-radius:20px">Notificaciones</button>
+          <button class="btn btn-sm" onclick="filterDocs('otro',this)" style="border-radius:20px">Otros</button>
+        </div>
         <div class="doc-upload-area" onclick="document.getElementById('doc-input').click()">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted)"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-          <p>Hacé clic para subir un documento</p>
-          <p style="font-size:11px;margin-top:2px">PDF, JPG, PNG, DOCX · Máx. 10 MB</p>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:6px">Hacé clic para subir un documento</p>
+          <p style="font-size:11px;color:var(--text-muted);margin-top:2px">PDF, JPG, PNG, DOCX · Máx. 10 MB</p>
           <input type="file" id="doc-input" accept="image/jpeg,image/png,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onchange="prepararSubida(this)" />
         </div>
-
-        <!-- Modal categoría -->
         <div class="modal-overlay hidden" id="modal-doc-cat">
           <div class="modal" style="max-width:400px">
-            <div class="modal-header">
-              <h3>Clasificar documento</h3>
-              <button class="modal-close" onclick="cancelarSubida()">×</button>
-            </div>
+            <div class="modal-header"><h3>Clasificar documento</h3><button class="modal-close" onclick="cancelarSubida()">×</button></div>
             <div class="modal-body">
               <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem" id="doc-filename-preview"></p>
-              <div class="field">
-                <label>Categoría <span class="req">*</span></label>
+              <div class="field"><label>Categoría <span class="req">*</span></label>
                 <select id="doc-categoria-sel">
                   <option value="dni_ce">DNI / CE</option>
                   <option value="contrato">Contrato</option>
@@ -423,46 +655,34 @@
                   <option value="otro">Otro</option>
                 </select>
               </div>
-              <div class="field">
-                <label>Notas (opcional)</label>
-                <input type="text" id="doc-notas" placeholder="Ej: Contrato 2024-2025" />
-              </div>
+              <div class="field"><label>Notas (opcional)</label><input type="text" id="doc-notas" placeholder="Ej: Contrato 2024-2025" /></div>
             </div>
             <div class="modal-footer">
               <button class="btn btn-ghost" onclick="cancelarSubida()">Cancelar</button>
-              <button class="btn btn-primary" id="btn-subir-doc" onclick="confirmarSubida()">Subir documento</button>
+              <button class="btn btn-primary" id="btn-subir-doc" onclick="confirmarSubida()">Subir</button>
             </div>
           </div>
         </div>
-
-        <div class="doc-list" id="doc-list">
-          <div class="loading">Cargando documentos...</div>
-        </div>
+        <div class="doc-list" id="doc-list"><div class="loading">Cargando...</div></div>
       </div>
 
-      <!-- Tab: Historial -->
+      <!-- TAB: HISTORIAL -->
       <div class="tab-content" id="tab-historial">
-        <div class="card">
-          <div class="card-header"><h2>Línea de tiempo</h2></div>
-          <div class="card-body">
-            <div id="historial-list"><div class="loading">Cargando historial...</div></div>
-          </div>
+        <div class="card"><div class="card-header"><h2>Línea de tiempo</h2></div>
+          <div class="card-body"><div id="historial-list"><div class="loading">Cargando...</div></div></div>
         </div>
       </div>
-
     </div>
 
-    <!-- Loading state -->
-    <div class="page-body" id="page-loading">
-      <div class="loading">Cargando perfil...</div>
-    </div>
+    <div class="page-body" id="page-loading"><div class="loading">Cargando perfil...</div></div>
   </div>
 
-  <!-- Save bar -->
   <div class="save-bar" id="save-bar">
-    <span style="font-size:13px;color:var(--text-muted);align-self:center">Tenés cambios sin guardar</span>
-    <button class="btn btn-ghost" onclick="cancelarCambios()">Descartar</button>
-    <button class="btn btn-primary" id="btn-guardar" onclick="guardarEmpleado()">Guardar cambios</button>
+    <span style="font-size:13px;color:var(--text-muted)">Tenés cambios sin guardar</span>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" onclick="cancelarCambios()">Descartar</button>
+      <button class="btn btn-primary" id="btn-guardar" onclick="guardarEmpleado()">Guardar cambios</button>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -470,29 +690,23 @@
   <script src="../../js/config.js"></script>
   <script src="../../js/auth.js"></script>
   <script>
-    let empleadoId  = null;
-    let empleado    = null;
-    let documentos  = [];
-    let localesList = [];
-    let isDirty     = false;
-    let pendingFile = null;
-    let perfil      = null;
+    const RENIEC_TOKEN = 'TDLajRBPVKrg62OjRIJQ7PAXzlCaSnGns5R1I98p4xYZbX0RJRxB16AJBBVq';
+    const SUNAT_TOKEN  = 'a26db6d95f35f6c3ffe47be304049b1a024c4103a279ab48ed2161a59dc72fa7';
+    const catLabels    = { foto:'Foto', dni_ce:'DNI/CE', contrato:'Contrato', libreta_sanitaria:'Libreta sanitaria', permiso_residencia:'Permiso residencia', sancion:'Sanción', notificacion:'Notificación', otro:'Otro' };
 
-    // ── Init ─────────────────────────────────────────────
+    let empleadoId = null, empleado = null, documentos = [], isDirty = false, pendingFile = null, perfilUser = null, isNuevo = false;
+
     async function init() {
-      perfil = await requireAuth(['admin','rrhh','gerencia']);
-      if (!perfil) return;
-      renderSidebar(perfil, 'empleados');
-
+      perfilUser = await requireAuth(['admin','rrhh','gerencia']);
+      if (!perfilUser) return;
+      renderSidebar(perfilUser, 'empleados');
+      renderFamiliares();
       const params = new URLSearchParams(window.location.search);
-      empleadoId   = params.get('id');
-      const isNuevo = params.get('nuevo') === '1';
-
+      empleadoId = params.get('id');
+      isNuevo    = params.get('nuevo') === '1';
       await loadEmpresas();
-
-      if (isNuevo) {
-        modoNuevo();
-      } else {
+      if (isNuevo) { modoNuevo(); }
+      else {
         if (!empleadoId) { window.location.href = 'empleados.html'; return; }
         await loadEmpleado();
         await loadDocumentos();
@@ -501,103 +715,25 @@
     }
 
     function modoNuevo() {
-      document.getElementById('page-title').textContent  = 'Nuevo empleado';
+      document.getElementById('page-title').textContent = 'Nuevo empleado';
       document.getElementById('perfil-nombre').textContent = 'Nuevo empleado';
       document.getElementById('foto-initials').textContent = '+';
-      document.getElementById('perfil-badges').innerHTML  = '<span class="badge badge-gray">Sin guardar</span>';
-      document.getElementById('perfil-meta').innerHTML    = '<span>Completá los datos y guardá</span>';
-      document.getElementById('btn-pdf').style.display    = 'none';
-
-      // Ocultar pestañas de documentos e historial hasta que se guarde
-      document.querySelectorAll('.tab')[3].style.display = 'none';
-      document.querySelectorAll('.tab')[4].style.display = 'none';
-
+      document.getElementById('perfil-badges').innerHTML = '<span class="badge badge-gray">Sin guardar</span>';
+      document.getElementById('btn-pdf').style.display = 'none';
+      document.getElementById('tab-btn-docs').style.display = 'none';
+      document.getElementById('tab-btn-historial').style.display = 'none';
+      document.getElementById('campo-id-empleado').style.display = 'block';
       document.getElementById('page-loading').style.display = 'none';
-      document.getElementById('page-body').style.display    = 'block';
-
-      // Agregar campo ID manual en pestaña laborales
-      const idField = document.createElement('div');
-      idField.className = 'info-field';
-      idField.innerHTML = `
-        <label>ID Empleado <span class="req">*</span></label>
-        <input type="text" id="e-id-empleado" placeholder="Ej: CYC-EMP-001" style="text-transform:uppercase" />
-        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">Formato: EMPRESA-EMP-NRO</div>
-      `;
-      const grid = document.querySelector('#tab-laborales .info-grid');
-      grid.insertBefore(idField, grid.firstChild);
-
-      // Cambiar botón guardar a "Crear empleado"
+      document.getElementById('page-body').style.display = 'block';
       document.getElementById('save-bar').classList.add('visible');
       document.getElementById('btn-guardar').textContent = 'Crear empleado';
       document.getElementById('btn-guardar').onclick = crearEmpleado;
     }
 
-    async function crearEmpleado() {
-      const idEmpleado = document.getElementById('e-id-empleado')?.value.trim().toUpperCase();
-      const nombres    = document.getElementById('e-nombres').value.trim();
-      const apellidos  = document.getElementById('e-apellidos').value.trim();
-      const numDoc     = document.getElementById('e-num-doc').value.trim();
-      const empresa    = document.getElementById('e-empresa').value;
-
-      if (!idEmpleado || !nombres || !apellidos || !numDoc || !empresa) {
-        alert('ID, nombres, apellidos, documento y empresa son obligatorios.');
-        return;
-      }
-
-      const btn = document.getElementById('btn-guardar');
-      btn.disabled = true; btn.textContent = 'Creando...';
-
-      const payload = {
-        id_empleado:        idEmpleado,
-        nombres, apellidos,
-        tipo_documento:     document.getElementById('e-tipo-doc').value,
-        numero_documento:   numDoc,
-        fecha_nacimiento:   document.getElementById('e-fecha-nac').value || null,
-        sexo:               document.getElementById('e-sexo').value || null,
-        estado_civil:       document.getElementById('e-estado-civil').value || null,
-        telefono:           document.getElementById('e-tel').value.trim() || null,
-        email:              document.getElementById('e-email').value.trim() || null,
-        direccion:          document.getElementById('e-dir').value.trim() || null,
-        ruc_empresa:        empresa,
-        id_local:           document.getElementById('e-local').value || null,
-        cargo:              document.getElementById('e-cargo').value.trim() || null,
-        area:               document.getElementById('e-area').value.trim() || null,
-        categoria:          document.getElementById('e-categoria').value,
-        pin_local:          document.getElementById('e-pin').value.trim() || null,
-        tipo_contrato:      document.getElementById('e-tipo-contrato').value,
-        regimen:            document.getElementById('e-regimen').value,
-        jornada_horas:      parseFloat(document.getElementById('e-jornada').value) || null,
-        fecha_ingreso:      document.getElementById('e-fecha-ingreso').value || null,
-        estado:             document.getElementById('e-estado').value,
-        sueldo_basico:      parseFloat(document.getElementById('e-sueldo').value) || 0,
-        asignacion_familiar:parseFloat(document.getElementById('e-asig-familiar').value) || 0,
-        sistema_pensionario:document.getElementById('e-sist-pension').value,
-        afp:                document.getElementById('e-afp').value || null,
-        cuspp:              document.getElementById('e-cuspp').value.trim() || null,
-        banco:              document.getElementById('e-banco').value || null,
-        numero_cuenta:      document.getElementById('e-num-cuenta').value.trim() || null,
-      };
-
-      const { error } = await sbClient.from('empleados').insert([payload]);
-      btn.disabled = false;
-
-      if (error) {
-        btn.textContent = 'Crear empleado';
-        alert('Error al crear: ' + (error.message.includes('duplicate') ? 'Ya existe un empleado con ese ID o documento.' : error.message));
-        return;
-      }
-
-      window.location.href = `perfil-empleado.html?id=${idEmpleado}`;
-    }
-
     async function loadEmpresas() {
       const { data } = await sbClient.from('empresas').select('ruc, razon_social, abreviatura').eq('estado','activa').order('razon_social');
       const sel = document.getElementById('e-empresa');
-      (data || []).forEach(e => {
-        const opt = document.createElement('option');
-        opt.value = e.ruc; opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
-        sel.appendChild(opt);
-      });
+      (data || []).forEach(e => { const o = document.createElement('option'); o.value = e.ruc; o.textContent = `${e.abreviatura} — ${e.razon_social}`; sel.appendChild(o); });
     }
 
     async function loadLocalesPerfil() {
@@ -606,58 +742,53 @@
       sel.innerHTML = '<option value="">Sin asignar</option>';
       if (!ruc) return;
       const { data } = await sbClient.from('locales').select('id_local, nombre').eq('ruc_empresa', ruc).eq('estado','activo').order('nombre');
-      localesList = data || [];
-      localesList.forEach(l => {
-        const opt = document.createElement('option');
-        opt.value = l.id_local; opt.textContent = l.nombre;
-        sel.appendChild(opt);
-      });
+      (data || []).forEach(l => { const o = document.createElement('option'); o.value = l.id_local; o.textContent = l.nombre; sel.appendChild(o); });
     }
 
     async function loadEmpleado() {
-      const { data } = await sbClient.from('empleados')
-        .select('*, locales(nombre), empresas(razon_social, abreviatura)')
-        .eq('id_empleado', empleadoId).single();
-
+      const { data } = await sbClient.from('empleados').select('*, locales(nombre), empresas(razon_social, abreviatura)').eq('id_empleado', empleadoId).single();
       if (!data) { window.location.href = 'empleados.html'; return; }
       empleado = data;
-
       document.getElementById('page-title').textContent = `${data.nombres} ${data.apellidos}`;
       document.getElementById('perfil-nombre').textContent = `${data.nombres} ${data.apellidos}`;
-      document.getElementById('foto-initials').textContent =
-        `${data.nombres[0]}${data.apellidos[0]}`.toUpperCase();
-
-      document.getElementById('perfil-badges').innerHTML =
-        `${getEstadoBadge(data.estado)}
-         <span class="badge badge-blue">${data.empresas?.abreviatura || '—'}</span>
-         ${data.locales?.nombre ? `<span class="badge badge-gray">${data.locales.nombre}</span>` : ''}`;
-
-      document.getElementById('perfil-meta').innerHTML =
-        `<span>${data.cargo || 'Sin cargo'}</span>
-         <span>·</span>
-         <span>${data.tipo_documento} ${data.numero_documento}</span>
-         <span>·</span>
-         <span>Desde ${data.fecha_ingreso || '—'}</span>`;
-
-      // Foto
+      const ini = `${(data.nombres||'')[0]||''}${(data.apellidos||'')[0]||''}`.toUpperCase();
+      document.getElementById('foto-initials').textContent = ini;
+      document.getElementById('perfil-badges').innerHTML = `${getEstadoBadge(data.estado)} <span class="badge badge-blue">${data.empresas?.abreviatura||'—'}</span> ${data.locales?.nombre?`<span class="badge badge-gray">${data.locales.nombre}</span>`:''}`;
+      document.getElementById('perfil-meta').innerHTML = `<span>${data.cargo||'Sin cargo'}</span><span>·</span><span>${data.tipo_documento} ${data.numero_documento}</span><span>·</span><span>Desde ${data.fecha_ingreso||'—'}</span>`;
       await loadFotoActual();
-
-      // Rellenar campos
+      // Cargar campos — parsear apellidos si están juntos
+      const extra = data.datos_extra ? JSON.parse(data.datos_extra) : {};
+      setVal('e-ap-paterno',    extra.ap_paterno || '');
+      setVal('e-ap-materno',    extra.ap_materno || '');
       setVal('e-nombres',       data.nombres);
-      setVal('e-apellidos',     data.apellidos);
       setVal('e-tipo-doc',      data.tipo_documento);
       setVal('e-num-doc',       data.numero_documento);
       setVal('e-fecha-nac',     data.fecha_nacimiento);
       setVal('e-sexo',          data.sexo);
       setVal('e-estado-civil',  data.estado_civil);
+      setVal('e-nacionalidad',  extra.nacionalidad||'');
+      setVal('e-lugar-nac',     extra.lugar_nacimiento||'');
+      setVal('e-licencia',      extra.licencia||'');
       setVal('e-tel',           data.telefono);
       setVal('e-email',         data.email);
       setVal('e-dir',           data.direccion);
+      setVal('e-dir-nro',       extra.dir_nro||'');
+      setVal('e-dir-lote',      extra.dir_lote||'');
+      setVal('e-dir-urb',       extra.dir_urb||'');
+      setVal('e-distrito',      extra.distrito||'');
+      setVal('e-provincia',     extra.provincia||'');
+      setVal('e-vivienda',      extra.vivienda||'');
+      setVal('e-emerg-nombre',  extra.emerg_nombre||'');
+      setVal('e-emerg-parentesco', extra.emerg_parentesco||'');
+      setVal('e-emerg-dir',     extra.emerg_dir||'');
+      setVal('e-emerg-tel',     extra.emerg_tel||'');
+      setVal('e-emerg-cel',     extra.emerg_cel||'');
       setVal('e-empresa',       data.ruc_empresa);
       await loadLocalesPerfil();
       setVal('e-local',         data.id_local);
       setVal('e-cargo',         data.cargo);
       setVal('e-area',          data.area);
+      setVal('e-horario',       extra.horario||'');
       setVal('e-categoria',     data.categoria);
       setVal('e-pin',           data.pin_local);
       setVal('e-tipo-contrato', data.tipo_contrato);
@@ -668,37 +799,136 @@
       setVal('e-motivo-cese',   data.motivo_cese);
       setVal('e-sueldo',        data.sueldo_basico);
       setVal('e-asig-familiar', data.asignacion_familiar);
+      setVal('e-talla-polo',    extra.talla_polo||'');
+      setVal('e-talla-pantalon',extra.talla_pantalon||'');
+      setVal('e-talla-calzado', extra.talla_calzado||'');
+      // Referencias laborales
+      (extra.referencias||[]).forEach((r,i) => {
+        if (i > 1) return;
+        setVal(`ref-empresa-${i}`, r.empresa||'');
+        setVal(`ref-cargo-${i}`,   r.cargo||'');
+        setVal(`ref-ingreso-${i}`, r.ingreso||'');
+        setVal(`ref-cese-${i}`,    r.cese||'');
+        setVal(`ref-motivo-${i}`,  r.motivo||'');
+      });
       setVal('e-sist-pension',  data.sistema_pensionario);
       setVal('e-afp',           data.afp);
       setVal('e-cuspp',         data.cuspp);
+      setVal('e-tipo-comision', extra.tipo_comision||'');
       setVal('e-banco',         data.banco);
       setVal('e-num-cuenta',    data.numero_cuenta);
+      setVal('e-cci',           extra.cci||'');
+      // Salud
+      setVal('e-tiene-prob-salud', extra.tiene_prob_salud||'no');
+      setVal('e-prob-salud-desc',  extra.prob_salud_desc||'');
+      setVal('e-tratamiento',      extra.tratamiento||'');
+      setVal('e-grupo-sangre',     extra.grupo_sangre||'');
+      setVal('e-tiene-alergia',    extra.tiene_alergia||'no');
+      setVal('e-alergia-desc',     extra.alergia_desc||'');
+      document.getElementById('enf-diabetes').checked    = extra.enf_diabetes||false;
+      document.getElementById('enf-hipertension').checked= extra.enf_hipertension||false;
+      document.getElementById('enf-epilepsia').checked   = extra.enf_epilepsia||false;
+      document.getElementById('enf-cardiaca').checked    = extra.enf_cardiaca||false;
+      document.getElementById('enf-asma').checked        = extra.enf_asma||false;
+      setVal('enf-otras', extra.enf_otras||'');
+      // Formación
+      const niv = ['primaria','secundaria','tecnico','univ','otros'];
+      niv.forEach(n => {
+        setVal(`ed-${n}-inst`,   (extra[`ed_${n}_inst`])||'');
+        setVal(`ed-${n}-carr`,   (extra[`ed_${n}_carr`])||'');
+        setVal(`ed-${n}-estado`, (extra[`ed_${n}_estado`])||'');
+      });
+      // Familiares
+      if (extra.familiares) {
+        extra.familiares.forEach((f,i) => {
+          setVal(`fam-nombre-${i}`,    f.nombre||'');
+          setVal(`fam-fnac-${i}`,      f.fnac||'');
+          setVal(`fam-parentesco-${i}`,f.parentesco||'');
+          setVal(`fam-ecivil-${i}`,    f.ecivil||'');
+          setVal(`fam-instruccion-${i}`,f.instruccion||'');
+          setVal(`fam-ocupacion-${i}`, f.ocupacion||'');
+        });
+      }
       toggleAFP();
-
       document.getElementById('page-loading').style.display = 'none';
       document.getElementById('page-body').style.display    = 'block';
     }
 
-    function setVal(id, val) {
-      const el = document.getElementById(id);
-      if (el && val !== null && val !== undefined) el.value = val;
+    function setVal(id, val) { const el = document.getElementById(id); if (el && val !== null && val !== undefined) el.value = val; }
+    function getVal(id) { return document.getElementById(id)?.value?.trim() || ''; }
+    function getChk(id) { return document.getElementById(id)?.checked || false; }
+    function toggleAFP() { const isA = getVal('e-sist-pension')==='AFP'; ['campo-afp','campo-cuspp'].forEach(id => document.getElementById(id).style.opacity = isA?'1':'0.4'); }
+    function markDirty() { isDirty = true; document.getElementById('save-bar').classList.add('visible'); }
+    function switchTab(name) {
+      const names = ['personales','laborales','previsionales','salud','familia','formacion','documentos','historial'];
+      document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', names[i]===name));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.getElementById('tab-'+name)?.classList.add('active');
     }
 
-    function toggleAFP() {
-      const isAFP = document.getElementById('e-sist-pension').value === 'AFP';
-      document.getElementById('campo-afp').style.opacity   = isAFP ? '1' : '0.4';
-      document.getElementById('campo-cuspp').style.opacity = isAFP ? '1' : '0.4';
+    function renderFamiliares() {
+      const c = document.getElementById('familiares-container');
+      c.innerHTML = '';
+      for (let i = 0; i < 6; i++) {
+        const row = document.createElement('div');
+        row.className = 'familiar-row';
+        row.style.marginBottom = '8px';
+        row.innerHTML = `
+          <input type="text" id="fam-nombre-${i}" placeholder="Apellidos y nombres" oninput="markDirty()" />
+          <input type="date" id="fam-fnac-${i}" oninput="markDirty()" />
+          <input type="text" id="fam-parentesco-${i}" placeholder="Madre, Hijo..." oninput="markDirty()" />
+          <select id="fam-ecivil-${i}" onchange="markDirty()">
+            <option value="">—</option><option value="soltero">Soltero/a</option><option value="casado">Casado/a</option><option value="conviviente">Conviviente</option><option value="viudo">Viudo/a</option>
+          </select>
+          <select id="fam-instruccion-${i}" onchange="markDirty()">
+            <option value="">—</option><option value="primaria">Primaria</option><option value="secundaria">Secundaria</option><option value="tecnico">Técnico</option><option value="superior">Superior</option>
+          </select>
+          <input type="text" id="fam-ocupacion-${i}" placeholder="Ocupación" oninput="markDirty()" />`;
+        c.appendChild(row);
+      }
+    }
+
+    // ── Consulta RENIEC / SUNAT ───────────────────────────
+    async function consultarDocumento() {
+      const tipo = getVal('e-tipo-doc');
+      const num  = getVal('e-num-doc');
+      if (!num) { alert('Ingresá el número de documento primero.'); return; }
+      try {
+        if (tipo === 'DNI') {
+          const res = await fetch('https://api.migo.pe/api/v1/dni', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: RENIEC_TOKEN, dni: num })
+          });
+          const d = await res.json();
+          if (!d.success) { alert('No se encontró el DNI en RENIEC.'); return; }
+          const nombres = d.nombres || d.nombre || '';
+          let ap = d.apellido_paterno || '', am = d.apellido_materno || '';
+          let nom = nombres;
+          if (nom && !ap) {
+            const p = nom.trim().split(/\s+/);
+            if (p.length >= 3) { ap = p[0]; am = p[1]; nom = p.slice(2).join(' '); }
+          }
+          let fn = d.fecha_nacimiento || '';
+          if (fn && fn.includes('/')) { const pf = fn.split('/'); if (pf.length===3) fn = `${pf[2]}-${pf[1]}-${pf[0]}`; }
+          setVal('e-ap-paterno', ap);
+          setVal('e-ap-materno', am);
+          setVal('e-nombres',    nom);
+          setVal('e-fecha-nac',  fn);
+          markDirty();
+          alert('✅ Datos cargados desde RENIEC');
+        }
+      } catch(e) { alert('Error al consultar: ' + e.message); }
     }
 
     // ── Foto ──────────────────────────────────────────────
     async function loadFotoActual() {
-      const { data } = await sbClient.from('legajo_documentos')
-        .select('storage_path').eq('id_empleado', empleadoId)
-        .eq('categoria', 'foto').order('created_at', { ascending: false }).limit(1);
+      if (!empleadoId) return;
+      const { data } = await sbClient.from('legajo_documentos').select('storage_path').eq('id_empleado', empleadoId).eq('categoria','foto').order('created_at',{ascending:false}).limit(1);
       if (data && data.length > 0) {
-        const { data: url } = sbClient.storage.from('legajos').getPublicUrl(data[0].storage_path);
-        if (url?.publicUrl) {
-          document.getElementById('foto-img').src = url.publicUrl;
+        const { data: urlData } = sbClient.storage.from('Legajos').getPublicUrl(data[0].storage_path);
+        if (urlData?.publicUrl) {
+          document.getElementById('foto-img').src = urlData.publicUrl;
           document.getElementById('foto-img').style.display = 'block';
           document.getElementById('foto-initials').style.display = 'none';
         }
@@ -706,333 +936,232 @@
     }
 
     async function subirFoto(input) {
-      const file = input.files[0];
-      if (!file) return;
-      const ext  = file.name.split('.').pop().toLowerCase();
-      const path = `${empleado.ruc_empresa}/${empleadoId}/foto_${Date.now()}.${ext}`;
-      const { error } = await sbClient.storage.from('legajos').upload(path, file, { upsert: true });
-      if (error) { alert('Error al subir la foto.'); return; }
-
-      // Guardar en legajo_documentos
-      await sbClient.from('legajo_documentos').insert([{
-        id_empleado: empleadoId, ruc_empresa: empleado.ruc_empresa,
-        categoria: 'foto', nombre_archivo: file.name,
-        storage_path: path, tamanio_kb: Math.round(file.size / 1024),
-        subido_por: (await checkSession()).user.id
-      }]);
-
-      // Mostrar foto
+      const file = input.files[0]; if (!file) return;
+      const ext = file.name.split('.').pop().toLowerCase();
+      const path = `${empleado?.ruc_empresa||'general'}/${empleadoId}/foto_${Date.now()}.${ext}`;
+      const { error } = await sbClient.storage.from('Legajos').upload(path, file, { upsert: true });
+      if (error) { alert('Error al subir foto: ' + error.message); return; }
+      const session = await checkSession();
+      await sbClient.from('legajo_documentos').insert([{ id_empleado: empleadoId, ruc_empresa: empleado.ruc_empresa, categoria: 'foto', nombre_archivo: file.name, storage_path: path, tamanio_kb: Math.round(file.size/1024), subido_por: session.user.id }]);
       const reader = new FileReader();
-      reader.onload = e => {
-        document.getElementById('foto-img').src = e.target.result;
-        document.getElementById('foto-img').style.display = 'block';
-        document.getElementById('foto-initials').style.display = 'none';
-      };
+      reader.onload = e => { document.getElementById('foto-img').src = e.target.result; document.getElementById('foto-img').style.display='block'; document.getElementById('foto-initials').style.display='none'; };
       reader.readAsDataURL(file);
       await loadDocumentos();
     }
 
     // ── Documentos ────────────────────────────────────────
     async function loadDocumentos() {
-      const { data } = await sbClient.from('legajo_documentos')
-        .select('*').eq('id_empleado', empleadoId)
-        .order('created_at', { ascending: false });
+      if (!empleadoId) return;
+      const { data } = await sbClient.from('legajo_documentos').select('*').eq('id_empleado', empleadoId).order('created_at',{ascending:false});
       documentos = data || [];
-      document.getElementById('doc-count').textContent = documentos.filter(d => d.categoria !== 'foto').length;
+      document.getElementById('doc-count').textContent = documentos.filter(d=>d.categoria!=='foto').length;
       renderDocs(documentos);
     }
 
     function filterDocs(cat, btn) {
-      document.querySelectorAll('.doc-cat-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#tab-documentos .btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const filtered = cat === 'todos' ? documentos : documentos.filter(d => d.categoria === cat);
-      renderDocs(filtered);
+      renderDocs(cat==='todos' ? documentos : documentos.filter(d=>d.categoria===cat));
     }
-
-    const catLabels = {
-      foto: 'Foto', dni_ce: 'DNI / CE', contrato: 'Contrato',
-      libreta_sanitaria: 'Libreta sanitaria', permiso_residencia: 'Permiso residencia',
-      sancion: 'Sanción', notificacion: 'Notificación', otro: 'Otro'
-    };
 
     function renderDocs(data) {
       const list = document.getElementById('doc-list');
-      if (!data.length) {
-        list.innerHTML = '<div class="empty-state"><p>No hay documentos en esta categoría</p></div>';
-        return;
-      }
+      if (!data.length) { list.innerHTML = '<div class="empty-state"><p>No hay documentos en esta categoría</p></div>'; return; }
       list.innerHTML = data.map(d => {
-        const ext  = d.nombre_archivo.split('.').pop().toLowerCase();
-        const icon = ['jpg','jpeg','png','webp'].includes(ext) ? '🖼️' : ext === 'pdf' ? '📄' : '📝';
-        const cls  = ['jpg','jpeg','png','webp'].includes(ext) ? 'img' : ext === 'pdf' ? 'pdf' : 'doc';
-        const fecha = new Date(d.created_at).toLocaleDateString('es-PE');
-        return `
-          <div class="doc-item">
-            <div class="doc-icon ${cls}">${icon}</div>
-            <div class="doc-info">
-              <div class="doc-name">${d.nombre_archivo}</div>
-              <div class="doc-meta">
-                <span class="badge badge-gray" style="font-size:10px;padding:1px 6px">${catLabels[d.categoria] || d.categoria}</span>
-                ${d.tamanio_kb ? `· ${d.tamanio_kb} KB` : ''}
-                · ${fecha}
-                ${d.notas ? `· <em>${d.notas}</em>` : ''}
-              </div>
-            </div>
-            <div class="doc-actions">
-              <button class="btn btn-sm btn-ghost" onclick="descargarDoc('${d.storage_path}', '${d.nombre_archivo}')">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Descargar
-              </button>
-              <button class="btn btn-sm btn-ghost" style="color:var(--error)" onclick="eliminarDoc(${d.id}, '${d.storage_path}')">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-              </button>
-            </div>
-          </div>`;
+        const ext = d.nombre_archivo.split('.').pop().toLowerCase();
+        const icon = ['jpg','jpeg','png','webp'].includes(ext)?'🖼️':ext==='pdf'?'📄':'📝';
+        return `<div class="doc-item">
+          <span style="font-size:22px">${icon}</span>
+          <div class="doc-info">
+            <div class="doc-name">${d.nombre_archivo}</div>
+            <div class="doc-meta"><span class="badge badge-gray" style="font-size:10px">${catLabels[d.categoria]||d.categoria}</span> ${d.tamanio_kb?'· '+d.tamanio_kb+' KB':''} · ${new Date(d.created_at).toLocaleDateString('es-PE')} ${d.notas?'· <em>'+d.notas+'</em>':''}</div>
+          </div>
+          <div class="doc-actions">
+            <button class="btn btn-sm btn-ghost" onclick="descargarDoc('${d.storage_path}','${d.nombre_archivo}')">⬇ Descargar</button>
+            <button class="btn btn-sm btn-ghost" style="color:var(--error)" onclick="eliminarDoc(${d.id},'${d.storage_path}')">✕</button>
+          </div>
+        </div>`;
       }).join('');
     }
 
     function prepararSubida(input) {
-      pendingFile = input.files[0];
-      if (!pendingFile) return;
+      pendingFile = input.files[0]; if (!pendingFile) return;
       document.getElementById('doc-filename-preview').textContent = `Archivo: ${pendingFile.name}`;
       document.getElementById('modal-doc-cat').classList.remove('hidden');
       input.value = '';
     }
-
-    function cancelarSubida() {
-      pendingFile = null;
-      document.getElementById('modal-doc-cat').classList.add('hidden');
-    }
+    function cancelarSubida() { pendingFile = null; document.getElementById('modal-doc-cat').classList.add('hidden'); }
 
     async function confirmarSubida() {
       if (!pendingFile) return;
-      const cat   = document.getElementById('doc-categoria-sel').value;
+      const cat = document.getElementById('doc-categoria-sel').value;
       const notas = document.getElementById('doc-notas').value.trim();
-      const ext   = pendingFile.name.split('.').pop().toLowerCase();
-      const path  = `${empleado.ruc_empresa}/${empleadoId}/${cat}_${Date.now()}.${ext}`;
-      const btn   = document.getElementById('btn-subir-doc');
+      const ext = pendingFile.name.split('.').pop().toLowerCase();
+      const path = `${empleado.ruc_empresa}/${empleadoId}/${cat}_${Date.now()}.${ext}`;
+      const btn = document.getElementById('btn-subir-doc');
       btn.disabled = true; btn.textContent = 'Subiendo...';
-
-      const { error } = await sbClient.storage.from('legajos').upload(path, pendingFile);
-      if (error) {
-        alert('Error al subir el archivo: ' + error.message);
-        btn.disabled = false; btn.textContent = 'Subir documento'; return;
-      }
-      await sbClient.from('legajo_documentos').insert([{
-        id_empleado: empleadoId, ruc_empresa: empleado.ruc_empresa,
-        categoria: cat, nombre_archivo: pendingFile.name,
-        storage_path: path, tamanio_kb: Math.round(pendingFile.size / 1024),
-        notas: notas || null,
-        subido_por: (await checkSession()).user.id
-      }]);
-
-      btn.disabled = false; btn.textContent = 'Subir documento';
+      const { error } = await sbClient.storage.from('Legajos').upload(path, pendingFile);
+      if (error) { alert('Error: ' + error.message); btn.disabled=false; btn.textContent='Subir'; return; }
+      const session = await checkSession();
+      await sbClient.from('legajo_documentos').insert([{ id_empleado: empleadoId, ruc_empresa: empleado.ruc_empresa, categoria: cat, nombre_archivo: pendingFile.name, storage_path: path, tamanio_kb: Math.round(pendingFile.size/1024), notas: notas||null, subido_por: session.user.id }]);
+      btn.disabled=false; btn.textContent='Subir';
       cancelarSubida();
       await loadDocumentos();
       await loadHistorial();
     }
 
     async function descargarDoc(path, nombre) {
-      const { data, error } = await sbClient.storage.from('legajos').download(path);
+      const { data, error } = await sbClient.storage.from('Legajos').download(path);
       if (error) { alert('Error al descargar.'); return; }
-      const url = URL.createObjectURL(data);
-      const a   = document.createElement('a');
-      a.href = url; a.download = nombre; a.click();
-      URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(data); const a = document.createElement('a'); a.href=url; a.download=nombre; a.click(); URL.revokeObjectURL(url);
     }
 
     async function eliminarDoc(id, path) {
       if (!confirm('¿Eliminar este documento?')) return;
-      await sbClient.storage.from('legajos').remove([path]);
+      await sbClient.storage.from('Legajos').remove([path]);
       await sbClient.from('legajo_documentos').delete().eq('id', id);
       await loadDocumentos();
     }
 
     // ── Historial ─────────────────────────────────────────
     async function loadHistorial() {
+      if (!empleadoId || !empleado) return;
       const eventos = [];
-
-      if (empleado.fecha_ingreso) eventos.push({
-        fecha: empleado.fecha_ingreso, tipo: 'ingreso',
-        desc: `Ingreso a ${empleado.empresas?.razon_social || 'la empresa'} como ${empleado.cargo || 'empleado'}`
-      });
-
-      const { data: meds } = await sbClient.from('medidas_disciplinarias')
-        .select('fecha_suceso, clasificacion, descripcion, estado')
-        .eq('nombre_trabajador', `${empleado.nombres} ${empleado.apellidos}`)
-        .order('fecha_suceso');
-      (meds || []).forEach(m => eventos.push({
-        fecha: m.fecha_suceso, tipo: 'disciplina',
-        desc: `Medida disciplinaria — ${m.clasificacion} (${m.estado})`
-      }));
-
-      const { data: docs } = await sbClient.from('legajo_documentos')
-        .select('created_at, categoria, nombre_archivo, notas')
-        .eq('id_empleado', empleadoId)
-        .neq('categoria', 'foto')
-        .order('created_at');
-      (docs || []).forEach(d => eventos.push({
-        fecha: d.created_at.split('T')[0], tipo: 'documento',
-        desc: `Documento cargado — ${catLabels[d.categoria] || d.categoria}: ${d.nombre_archivo}${d.notas ? ' ('+d.notas+')' : ''}`
-      }));
-
-      eventos.sort((a, b) => a.fecha > b.fecha ? 1 : -1);
-
+      if (empleado.fecha_ingreso) eventos.push({ fecha: empleado.fecha_ingreso, tipo: 'ingreso', desc: `Ingreso a ${empleado.empresas?.razon_social||'la empresa'} como ${empleado.cargo||'empleado'}` });
+      const { data: meds } = await sbClient.from('medidas_disciplinarias').select('fecha_suceso,clasificacion,estado').eq('nombre_trabajador',`${empleado.nombres} ${empleado.apellidos}`).order('fecha_suceso');
+      (meds||[]).forEach(m => eventos.push({ fecha: m.fecha_suceso, tipo: 'disciplina', desc: `Medida disciplinaria — ${m.clasificacion} (${m.estado})` }));
+      const { data: docs } = await sbClient.from('legajo_documentos').select('created_at,categoria,nombre_archivo,notas').eq('id_empleado', empleadoId).neq('categoria','foto').order('created_at');
+      (docs||[]).forEach(d => eventos.push({ fecha: d.created_at.split('T')[0], tipo: 'documento', desc: `Documento: ${catLabels[d.categoria]||d.categoria} — ${d.nombre_archivo}${d.notas?' ('+d.notas+')':''}` }));
+      eventos.sort((a,b)=>a.fecha>b.fecha?1:-1);
       const list = document.getElementById('historial-list');
-      if (!eventos.length) {
-        list.innerHTML = '<div class="empty-state"><p>Sin eventos registrados</p></div>';
-        return;
-      }
-      list.innerHTML = eventos.map(e => `
-        <div class="historial-item">
-          <div class="historial-dot ${e.tipo}"></div>
-          <div class="historial-fecha">${e.fecha}</div>
-          <div class="historial-desc">${e.desc}</div>
-        </div>
-      `).join('');
+      if (!eventos.length) { list.innerHTML='<div class="empty-state"><p>Sin eventos</p></div>'; return; }
+      list.innerHTML = eventos.map(e=>`<div class="historial-item"><div class="historial-dot ${e.tipo}"></div><div class="historial-fecha">${e.fecha}</div><div style="font-size:13px">${e.desc}</div></div>`).join('');
     }
 
-    // ── Guardar empleado ──────────────────────────────────
-    function markDirty() {
-      isDirty = true;
-      document.getElementById('save-bar').classList.add('visible');
+    // ── Recolectar datos extra ────────────────────────────
+    function collectExtra() {
+      const refs = [];
+      for (let i=0;i<2;i++) { if (getVal(`ref-empresa-${i}`)) refs.push({ empresa:getVal(`ref-empresa-${i}`), cargo:getVal(`ref-cargo-${i}`), ingreso:getVal(`ref-ingreso-${i}`), cese:getVal(`ref-cese-${i}`), motivo:getVal(`ref-motivo-${i}`) }); }
+      const fams = [];
+      for (let i=0;i<6;i++) { if (getVal(`fam-nombre-${i}`)) fams.push({ nombre:getVal(`fam-nombre-${i}`), fnac:getVal(`fam-fnac-${i}`), parentesco:getVal(`fam-parentesco-${i}`), ecivil:getVal(`fam-ecivil-${i}`), instruccion:getVal(`fam-instruccion-${i}`), ocupacion:getVal(`fam-ocupacion-${i}`) }); }
+      return {
+        ap_paterno:getVal('e-ap-paterno'), ap_materno:getVal('e-ap-materno'),
+        nacionalidad:getVal('e-nacionalidad'), lugar_nacimiento:getVal('e-lugar-nac'), licencia:getVal('e-licencia'),
+        dir_nro:getVal('e-dir-nro'), dir_lote:getVal('e-dir-lote'), dir_urb:getVal('e-dir-urb'),
+        distrito:getVal('e-distrito'), provincia:getVal('e-provincia'), vivienda:getVal('e-vivienda'),
+        emerg_nombre:getVal('e-emerg-nombre'), emerg_parentesco:getVal('e-emerg-parentesco'),
+        emerg_dir:getVal('e-emerg-dir'), emerg_tel:getVal('e-emerg-tel'), emerg_cel:getVal('e-emerg-cel'),
+        horario:getVal('e-horario'), talla_polo:getVal('e-talla-polo'), talla_pantalon:getVal('e-talla-pantalon'), talla_calzado:getVal('e-talla-calzado'),
+        tipo_comision:getVal('e-tipo-comision'), cci:getVal('e-cci'),
+        tiene_prob_salud:getVal('e-tiene-prob-salud'), prob_salud_desc:getVal('e-prob-salud-desc'), tratamiento:getVal('e-tratamiento'),
+        grupo_sangre:getVal('e-grupo-sangre'), tiene_alergia:getVal('e-tiene-alergia'), alergia_desc:getVal('e-alergia-desc'),
+        enf_diabetes:getChk('enf-diabetes'), enf_hipertension:getChk('enf-hipertension'), enf_epilepsia:getChk('enf-epilepsia'), enf_cardiaca:getChk('enf-cardiaca'), enf_asma:getChk('enf-asma'), enf_otras:getVal('enf-otras'),
+        ed_primaria_inst:getVal('ed-primaria-inst'), ed_primaria_carr:getVal('ed-primaria-carr'), ed_primaria_estado:getVal('ed-primaria-estado'),
+        ed_secundaria_inst:getVal('ed-secundaria-inst'), ed_secundaria_carr:getVal('ed-secundaria-carr'), ed_secundaria_estado:getVal('ed-secundaria-estado'),
+        ed_tecnico_inst:getVal('ed-tecnico-inst'), ed_tecnico_carr:getVal('ed-tecnico-carr'), ed_tecnico_estado:getVal('ed-tecnico-estado'),
+        ed_univ_inst:getVal('ed-univ-inst'), ed_univ_carr:getVal('ed-univ-carr'), ed_univ_estado:getVal('ed-univ-estado'),
+        ed_otros_inst:getVal('ed-otros-inst'), ed_otros_carr:getVal('ed-otros-carr'), ed_otros_estado:getVal('ed-otros-estado'),
+        referencias: refs, familiares: fams
+      };
     }
 
-    function cancelarCambios() {
-      isDirty = false;
-      document.getElementById('save-bar').classList.remove('visible');
-      loadEmpleado();
+    function collectPayload() {
+      const extra = collectExtra();
+      const apPat = getVal('e-ap-paterno'), apMat = getVal('e-ap-materno'), nom = getVal('e-nombres');
+      return {
+        nombres:            nom,
+        apellidos:          `${apPat} ${apMat}`.trim(),
+        tipo_documento:     getVal('e-tipo-doc'),
+        numero_documento:   getVal('e-num-doc'),
+        fecha_nacimiento:   getVal('e-fecha-nac') || null,
+        sexo:               getVal('e-sexo') || null,
+        estado_civil:       getVal('e-estado-civil') || null,
+        telefono:           getVal('e-tel') || null,
+        email:              getVal('e-email') || null,
+        direccion:          getVal('e-dir') || null,
+        ruc_empresa:        getVal('e-empresa') || null,
+        id_local:           getVal('e-local') || null,
+        cargo:              getVal('e-cargo') || null,
+        area:               getVal('e-area') || null,
+        categoria:          getVal('e-categoria'),
+        pin_local:          getVal('e-pin') || null,
+        tipo_contrato:      getVal('e-tipo-contrato'),
+        regimen:            getVal('e-regimen'),
+        jornada_horas:      parseFloat(getVal('e-jornada')) || null,
+        fecha_ingreso:      getVal('e-fecha-ingreso') || null,
+        estado:             getVal('e-estado'),
+        motivo_cese:        getVal('e-motivo-cese') || null,
+        sueldo_basico:      parseFloat(getVal('e-sueldo')) || 0,
+        asignacion_familiar:parseFloat(getVal('e-asig-familiar')) || 0,
+        sistema_pensionario:getVal('e-sist-pension'),
+        afp:                getVal('e-afp') || null,
+        cuspp:              getVal('e-cuspp') || null,
+        banco:              getVal('e-banco') || null,
+        numero_cuenta:      getVal('e-num-cuenta') || null,
+        datos_extra:        JSON.stringify(extra),
+      };
     }
+
+    // ── Guardar ───────────────────────────────────────────
+    function cancelarCambios() { isDirty=false; document.getElementById('save-bar').classList.remove('visible'); if (!isNuevo) loadEmpleado(); }
 
     async function guardarEmpleado() {
       const btn = document.getElementById('btn-guardar');
-      btn.disabled = true; btn.textContent = 'Guardando...';
-
-      const payload = {
-        nombres:            document.getElementById('e-nombres').value.trim(),
-        apellidos:          document.getElementById('e-apellidos').value.trim(),
-        tipo_documento:     document.getElementById('e-tipo-doc').value,
-        numero_documento:   document.getElementById('e-num-doc').value.trim(),
-        fecha_nacimiento:   document.getElementById('e-fecha-nac').value || null,
-        sexo:               document.getElementById('e-sexo').value || null,
-        estado_civil:       document.getElementById('e-estado-civil').value || null,
-        telefono:           document.getElementById('e-tel').value.trim() || null,
-        email:              document.getElementById('e-email').value.trim() || null,
-        direccion:          document.getElementById('e-dir').value.trim() || null,
-        ruc_empresa:        document.getElementById('e-empresa').value || null,
-        id_local:           document.getElementById('e-local').value || null,
-        cargo:              document.getElementById('e-cargo').value.trim() || null,
-        area:               document.getElementById('e-area').value.trim() || null,
-        categoria:          document.getElementById('e-categoria').value,
-        pin_local:          document.getElementById('e-pin').value.trim() || null,
-        tipo_contrato:      document.getElementById('e-tipo-contrato').value,
-        regimen:            document.getElementById('e-regimen').value,
-        jornada_horas:      parseFloat(document.getElementById('e-jornada').value) || null,
-        fecha_ingreso:      document.getElementById('e-fecha-ingreso').value || null,
-        estado:             document.getElementById('e-estado').value,
-        motivo_cese:        document.getElementById('e-motivo-cese').value.trim() || null,
-        sueldo_basico:      parseFloat(document.getElementById('e-sueldo').value) || 0,
-        asignacion_familiar:parseFloat(document.getElementById('e-asig-familiar').value) || 0,
-        sistema_pensionario:document.getElementById('e-sist-pension').value,
-        afp:                document.getElementById('e-afp').value || null,
-        cuspp:              document.getElementById('e-cuspp').value.trim() || null,
-        banco:              document.getElementById('e-banco').value || null,
-        numero_cuenta:      document.getElementById('e-num-cuenta').value.trim() || null,
-      };
-
+      btn.disabled=true; btn.textContent='Guardando...';
+      const payload = collectPayload();
       const { error } = await sbClient.from('empleados').update(payload).eq('id_empleado', empleadoId);
-      btn.disabled = false; btn.textContent = 'Guardar cambios';
-
-      if (error) { alert('Error al guardar: ' + error.message); return; }
-      isDirty = false;
-      document.getElementById('save-bar').classList.remove('visible');
+      btn.disabled=false; btn.textContent='Guardar cambios';
+      if (error) { alert('Error: ' + error.message); return; }
+      isDirty=false; document.getElementById('save-bar').classList.remove('visible');
       await loadEmpleado();
     }
 
-    // ── Tabs ──────────────────────────────────────────────
-    function switchTab(name) {
-      document.querySelectorAll('.tab').forEach((t, i) => {
-        const names = ['personales','laborales','previsionales','documentos','historial'];
-        t.classList.toggle('active', names[i] === name);
-      });
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      document.getElementById('tab-' + name).classList.add('active');
+    async function crearEmpleado() {
+      const idEmp = (getVal('e-id-empleado')||'').toUpperCase();
+      const nom   = getVal('e-nombres');
+      const apPat = getVal('e-ap-paterno');
+      const apMat = getVal('e-ap-materno');
+      const num   = getVal('e-num-doc');
+      const emp   = getVal('e-empresa');
+      if (!idEmp||!nom||(!apPat&&!apMat)||!num||!emp) { alert('ID, nombres, apellidos, documento y empresa son obligatorios.'); return; }
+      const btn = document.getElementById('btn-guardar');
+      btn.disabled=true; btn.textContent='Creando...';
+      const payload = { id_empleado: idEmp, ...collectPayload() };
+      const { error } = await sbClient.from('empleados').insert([payload]);
+      btn.disabled=false;
+      if (error) { btn.textContent='Crear empleado'; alert('Error: '+(error.message.includes('duplicate')?'Ya existe un empleado con ese ID o documento.':error.message)); return; }
+      window.location.href = `perfil-empleado.html?id=${idEmp}`;
     }
 
     // ── PDF ───────────────────────────────────────────────
     async function generarPDF() {
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      const e   = empleado;
-      let y     = 20;
-
-      doc.setFontSize(18); doc.setFont('helvetica','bold');
-      doc.text('MPC Soluciones — Legajo del empleado', 20, y); y += 10;
-
-      doc.setFontSize(11); doc.setFont('helvetica','normal');
-      doc.text(`Generado el: ${new Date().toLocaleDateString('es-PE')}`, 20, y); y += 12;
-
-      doc.setFontSize(14); doc.setFont('helvetica','bold');
-      doc.text(`${e.nombres} ${e.apellidos}`, 20, y); y += 8;
-
-      doc.setFontSize(10); doc.setFont('helvetica','normal');
-      doc.text(`ID: ${e.id_empleado}  |  ${e.tipo_documento}: ${e.numero_documento}  |  Estado: ${e.estado}`, 20, y); y += 12;
-
+      const doc = new jsPDF(); const e = empleado; let y = 20;
+      doc.setFontSize(16); doc.setFont('helvetica','bold'); doc.text('MPC Soluciones — Legajo del empleado', 20, y); y+=8;
+      doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.text(`Generado: ${new Date().toLocaleDateString('es-PE')}`, 20, y); y+=10;
+      doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.text(`${e.nombres} ${e.apellidos}`, 20, y); y+=7;
+      doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.text(`${e.tipo_documento}: ${e.numero_documento}  |  ID: ${e.id_empleado}  |  Estado: ${e.estado}`, 20, y); y+=12;
+      const extra = e.datos_extra ? JSON.parse(e.datos_extra) : {};
       const sections = [
-        ['Datos laborales', [
-          ['Empresa',     e.empresas?.razon_social || '—'],
-          ['Cargo',       e.cargo || '—'],
-          ['Área',        e.area || '—'],
-          ['Local',       e.locales?.nombre || '—'],
-          ['Tipo contrato', e.tipo_contrato || '—'],
-          ['Fecha ingreso', e.fecha_ingreso || '—'],
-          ['Sueldo básico', `S/ ${Number(e.sueldo_basico||0).toLocaleString('es-PE')}`],
-        ]],
-        ['Datos previsionales', [
-          ['Sistema',     e.sistema_pensionario || '—'],
-          ['AFP',         e.afp || '—'],
-          ['CUSPP',       e.cuspp || '—'],
-          ['Banco',       e.banco || '—'],
-          ['Cuenta',      e.numero_cuenta || '—'],
-        ]],
+        ['Laborales', [['Empresa',e.empresas?.razon_social||'—'],['Cargo',e.cargo||'—'],['Local',e.locales?.nombre||'—'],['Ingreso',e.fecha_ingreso||'—'],['Sueldo',`S/ ${Number(e.sueldo_basico||0).toLocaleString('es-PE')}`]]],
+        ['Previsional', [['Sistema',e.sistema_pensionario||'—'],['AFP',e.afp||'—'],['Banco',e.banco||'—'],['Cuenta',e.numero_cuenta||'—']]],
+        ['Salud', [['Grupo sangre',extra.grupo_sangre||'—'],['Alergias',extra.alergia_desc||'No'],['Enf. previas',[extra.enf_diabetes&&'Diabetes',extra.enf_hipertension&&'Hipertensión',extra.enf_epilepsia&&'Epilepsia',extra.enf_cardiaca&&'Cardíacas',extra.enf_asma&&'Asma'].filter(Boolean).join(', ')||'—']]],
       ];
-
-      sections.forEach(([title, fields]) => {
-        doc.setFontSize(12); doc.setFont('helvetica','bold');
-        doc.text(title, 20, y); y += 6;
-        doc.setDrawColor(200); doc.line(20, y, 190, y); y += 5;
-        doc.setFontSize(10); doc.setFont('helvetica','normal');
-        fields.forEach(([label, val]) => {
-          doc.setFont('helvetica','bold'); doc.text(`${label}:`, 22, y);
-          doc.setFont('helvetica','normal'); doc.text(String(val), 80, y); y += 6;
-        });
-        y += 4;
+      sections.forEach(([title,fields]) => {
+        if (y>240){doc.addPage();y=20;}
+        doc.setFontSize(12);doc.setFont('helvetica','bold');doc.text(title,20,y);y+=5;
+        doc.setDrawColor(200);doc.line(20,y,190,y);y+=5;
+        doc.setFontSize(10);doc.setFont('helvetica','normal');
+        fields.forEach(([l,v])=>{doc.setFont('helvetica','bold');doc.text(`${l}:`,22,y);doc.setFont('helvetica','normal');doc.text(String(v),80,y);y+=6;});
+        y+=4;
       });
-
-      // Historial
-      const eventos = [];
-      if (e.fecha_ingreso) eventos.push({ fecha: e.fecha_ingreso, desc: `Ingreso como ${e.cargo || 'empleado'}` });
-      const { data: meds } = await sbClient.from('medidas_disciplinarias')
-        .select('fecha_suceso, clasificacion, estado')
-        .eq('nombre_trabajador', `${e.nombres} ${e.apellidos}`)
-        .order('fecha_suceso');
-      (meds || []).forEach(m => eventos.push({ fecha: m.fecha_suceso, desc: `Medida disciplinaria — ${m.clasificacion}` }));
-      const { data: docs } = await sbClient.from('legajo_documentos')
-        .select('created_at, categoria').eq('id_empleado', empleadoId).neq('categoria','foto').order('created_at');
-      (docs || []).forEach(d => eventos.push({ fecha: d.created_at.split('T')[0], desc: `Documento: ${catLabels[d.categoria]}` }));
-      eventos.sort((a,b) => a.fecha > b.fecha ? 1 : -1);
-
-      if (y > 240) { doc.addPage(); y = 20; }
-      doc.setFontSize(12); doc.setFont('helvetica','bold');
-      doc.text('Historial cronológico', 20, y); y += 6;
-      doc.setDrawColor(200); doc.line(20, y, 190, y); y += 5;
-      doc.setFontSize(10); doc.setFont('helvetica','normal');
-      eventos.forEach(ev => {
-        if (y > 270) { doc.addPage(); y = 20; }
-        doc.text(`${ev.fecha}`, 22, y);
-        doc.text(ev.desc, 65, y); y += 6;
-      });
-
+      if (y>230){doc.addPage();y=20;}
+      doc.setFontSize(12);doc.setFont('helvetica','bold');doc.text('Historial',20,y);y+=5;
+      doc.setDrawColor(200);doc.line(20,y,190,y);y+=5;
+      doc.setFontSize(10);doc.setFont('helvetica','normal');
+      if (e.fecha_ingreso){doc.text(e.fecha_ingreso,22,y);doc.text(`Ingreso como ${e.cargo||'empleado'}`,65,y);y+=6;}
+      const {data:meds}=await sbClient.from('medidas_disciplinarias').select('fecha_suceso,clasificacion').eq('nombre_trabajador',`${e.nombres} ${e.apellidos}`).order('fecha_suceso');
+      (meds||[]).forEach(m=>{if(y>270){doc.addPage();y=20;}doc.text(m.fecha_suceso,22,y);doc.text(`Medida: ${m.clasificacion}`,65,y);y+=6;});
       doc.save(`Legajo_${e.id_empleado}_${e.apellidos}.pdf`);
     }
 
