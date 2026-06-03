@@ -485,13 +485,109 @@
       renderSidebar(perfil, 'empleados');
 
       const params = new URLSearchParams(window.location.search);
-      empleadoId = params.get('id');
-      if (!empleadoId) { window.location.href = 'empleados.html'; return; }
+      empleadoId   = params.get('id');
+      const isNuevo = params.get('nuevo') === '1';
 
       await loadEmpresas();
-      await loadEmpleado();
-      await loadDocumentos();
-      await loadHistorial();
+
+      if (isNuevo) {
+        modoNuevo();
+      } else {
+        if (!empleadoId) { window.location.href = 'empleados.html'; return; }
+        await loadEmpleado();
+        await loadDocumentos();
+        await loadHistorial();
+      }
+    }
+
+    function modoNuevo() {
+      document.getElementById('page-title').textContent  = 'Nuevo empleado';
+      document.getElementById('perfil-nombre').textContent = 'Nuevo empleado';
+      document.getElementById('foto-initials').textContent = '+';
+      document.getElementById('perfil-badges').innerHTML  = '<span class="badge badge-gray">Sin guardar</span>';
+      document.getElementById('perfil-meta').innerHTML    = '<span>Completá los datos y guardá</span>';
+      document.getElementById('btn-pdf').style.display    = 'none';
+
+      // Ocultar pestañas de documentos e historial hasta que se guarde
+      document.querySelectorAll('.tab')[3].style.display = 'none';
+      document.querySelectorAll('.tab')[4].style.display = 'none';
+
+      document.getElementById('page-loading').style.display = 'none';
+      document.getElementById('page-body').style.display    = 'block';
+
+      // Agregar campo ID manual en pestaña laborales
+      const idField = document.createElement('div');
+      idField.className = 'info-field';
+      idField.innerHTML = `
+        <label>ID Empleado <span class="req">*</span></label>
+        <input type="text" id="e-id-empleado" placeholder="Ej: CYC-EMP-001" style="text-transform:uppercase" />
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">Formato: EMPRESA-EMP-NRO</div>
+      `;
+      const grid = document.querySelector('#tab-laborales .info-grid');
+      grid.insertBefore(idField, grid.firstChild);
+
+      // Cambiar botón guardar a "Crear empleado"
+      document.getElementById('save-bar').classList.add('visible');
+      document.getElementById('btn-guardar').textContent = 'Crear empleado';
+      document.getElementById('btn-guardar').onclick = crearEmpleado;
+    }
+
+    async function crearEmpleado() {
+      const idEmpleado = document.getElementById('e-id-empleado')?.value.trim().toUpperCase();
+      const nombres    = document.getElementById('e-nombres').value.trim();
+      const apellidos  = document.getElementById('e-apellidos').value.trim();
+      const numDoc     = document.getElementById('e-num-doc').value.trim();
+      const empresa    = document.getElementById('e-empresa').value;
+
+      if (!idEmpleado || !nombres || !apellidos || !numDoc || !empresa) {
+        alert('ID, nombres, apellidos, documento y empresa son obligatorios.');
+        return;
+      }
+
+      const btn = document.getElementById('btn-guardar');
+      btn.disabled = true; btn.textContent = 'Creando...';
+
+      const payload = {
+        id_empleado:        idEmpleado,
+        nombres, apellidos,
+        tipo_documento:     document.getElementById('e-tipo-doc').value,
+        numero_documento:   numDoc,
+        fecha_nacimiento:   document.getElementById('e-fecha-nac').value || null,
+        sexo:               document.getElementById('e-sexo').value || null,
+        estado_civil:       document.getElementById('e-estado-civil').value || null,
+        telefono:           document.getElementById('e-tel').value.trim() || null,
+        email:              document.getElementById('e-email').value.trim() || null,
+        direccion:          document.getElementById('e-dir').value.trim() || null,
+        ruc_empresa:        empresa,
+        id_local:           document.getElementById('e-local').value || null,
+        cargo:              document.getElementById('e-cargo').value.trim() || null,
+        area:               document.getElementById('e-area').value.trim() || null,
+        categoria:          document.getElementById('e-categoria').value,
+        pin_local:          document.getElementById('e-pin').value.trim() || null,
+        tipo_contrato:      document.getElementById('e-tipo-contrato').value,
+        regimen:            document.getElementById('e-regimen').value,
+        jornada_horas:      parseFloat(document.getElementById('e-jornada').value) || null,
+        fecha_ingreso:      document.getElementById('e-fecha-ingreso').value || null,
+        estado:             document.getElementById('e-estado').value,
+        sueldo_basico:      parseFloat(document.getElementById('e-sueldo').value) || 0,
+        asignacion_familiar:parseFloat(document.getElementById('e-asig-familiar').value) || 0,
+        sistema_pensionario:document.getElementById('e-sist-pension').value,
+        afp:                document.getElementById('e-afp').value || null,
+        cuspp:              document.getElementById('e-cuspp').value.trim() || null,
+        banco:              document.getElementById('e-banco').value || null,
+        numero_cuenta:      document.getElementById('e-num-cuenta').value.trim() || null,
+      };
+
+      const { error } = await sbClient.from('empleados').insert([payload]);
+      btn.disabled = false;
+
+      if (error) {
+        btn.textContent = 'Crear empleado';
+        alert('Error al crear: ' + (error.message.includes('duplicate') ? 'Ya existe un empleado con ese ID o documento.' : error.message));
+        return;
+      }
+
+      window.location.href = `perfil-empleado.html?id=${idEmpleado}`;
     }
 
     async function loadEmpresas() {
@@ -600,7 +696,7 @@
         .select('storage_path').eq('id_empleado', empleadoId)
         .eq('categoria', 'foto').order('created_at', { ascending: false }).limit(1);
       if (data && data.length > 0) {
-        const { data: url } = sbClient.storage.from('Legajos').getPublicUrl(data[0].storage_path);
+        const { data: url } = sbClient.storage.from('legajos').getPublicUrl(data[0].storage_path);
         if (url?.publicUrl) {
           document.getElementById('foto-img').src = url.publicUrl;
           document.getElementById('foto-img').style.display = 'block';
@@ -614,7 +710,7 @@
       if (!file) return;
       const ext  = file.name.split('.').pop().toLowerCase();
       const path = `${empleado.ruc_empresa}/${empleadoId}/foto_${Date.now()}.${ext}`;
-      const { error } = await sbClient.storage.from('Legajos').upload(path, file, { upsert: true });
+      const { error } = await sbClient.storage.from('legajos').upload(path, file, { upsert: true });
       if (error) { alert('Error al subir la foto.'); return; }
 
       // Guardar en legajo_documentos
@@ -717,7 +813,7 @@
       const btn   = document.getElementById('btn-subir-doc');
       btn.disabled = true; btn.textContent = 'Subiendo...';
 
-      const { error } = await sbClient.storage.from('Legajos').upload(path, pendingFile);
+      const { error } = await sbClient.storage.from('legajos').upload(path, pendingFile);
       if (error) {
         alert('Error al subir el archivo: ' + error.message);
         btn.disabled = false; btn.textContent = 'Subir documento'; return;
@@ -737,7 +833,7 @@
     }
 
     async function descargarDoc(path, nombre) {
-      const { data, error } = await sbClient.storage.from('Legajos').download(path);
+      const { data, error } = await sbClient.storage.from('legajos').download(path);
       if (error) { alert('Error al descargar.'); return; }
       const url = URL.createObjectURL(data);
       const a   = document.createElement('a');
@@ -747,7 +843,7 @@
 
     async function eliminarDoc(id, path) {
       if (!confirm('¿Eliminar este documento?')) return;
-      await sbClient.storage.from('Legajos').remove([path]);
+      await sbClient.storage.from('legajos').remove([path]);
       await sbClient.from('legajo_documentos').delete().eq('id', id);
       await loadDocumentos();
     }
