@@ -211,7 +211,10 @@
             </div>
             <div class="info-field full">
               <label>Dirección (Av./Jr./Calle)</label>
-              <input type="text" id="e-dir" oninput="markDirty()" />
+              <input type="text" id="e-dir" placeholder="Escribí para buscar..." autocomplete="off" oninput="markDirty()" />
+            </div>
+            <div class="info-field full" id="mapa-container" style="display:none">
+              <div id="mapa" style="width:100%;height:220px;border-radius:var(--radius-md);border:1px solid var(--border-md)"></div>
             </div>
             <div class="info-field">
               <label>Número</label>
@@ -1162,5 +1165,30 @@
 
     init();
   </script>
+  <script>
+  function initGoogleMaps() {
+    const input = document.getElementById('e-dir');
+    const options = { componentRestrictions: { country: 'pe' }, fields: ['address_components','geometry','name','formatted_address'] };
+    const autocomplete = new google.maps.places.Autocomplete(input, options);
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (!place.geometry) return;
+      // Extraer componentes
+      const comps = place.address_components || [];
+      const get = (type) => comps.find(c => c.types.includes(type))?.long_name || '';
+      setVal('e-distrito',  get('administrative_area_level_3') || get('locality'));
+      setVal('e-provincia', get('administrative_area_level_2'));
+      const nro = get('street_number');
+      if (nro) setVal('e-dir-nro', nro);
+      // Mostrar mapa
+      const mapEl = document.getElementById('mapa');
+      document.getElementById('mapa-container').style.display = 'block';
+      const map = new google.maps.Map(mapEl, { center: place.geometry.location, zoom: 16, disableDefaultUI: true, zoomControl: true });
+      new google.maps.Marker({ position: place.geometry.location, map });
+      markDirty();
+    });
+  }
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB0N4DS4-6zKehujK6VSVw0i0A8CfRutNs&libraries=places&callback=initGoogleMaps" async defer></script>
 </body>
 </html>
