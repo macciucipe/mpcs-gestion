@@ -159,7 +159,7 @@ function renderSidebar(perfil, activePage) {
 
         ${isCompras ? `
         <div class="nav-section">
-          <div class="nav-section-label">Compras</div>
+          <div class="nav-section-label">Compras — Operaciones</div>
           ${perm.op ? `<a href="/pages/compras/pedidos.html" class="nav-item ${activePage==='pedidos'?'active':''}">
             ${icons.clipboard} Pedidos internos (OP)
           </a>` : ''}
@@ -175,6 +175,12 @@ function renderSidebar(perfil, activePage) {
           ${perm.cs ? `<a href="/pages/compras/conformidades.html" class="nav-item ${activePage==='cs'?'active':''}">
             ${icons.check} Conformidad servicios (CS)
           </a>` : ''}
+          ${perm.guias ? `<a href="/pages/compras/guias.html" class="nav-item ${activePage==='guias'?'active':''}">
+            ${icons.truck} Guías de remisión
+          </a>` : ''}
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-label">Compras — Maestros</div>
           ${perm.prov ? `<a href="/pages/compras/proveedores.html" class="nav-item ${activePage==='proveedores'?'active':''}">
             ${icons.users} Proveedores
           </a>` : ''}
@@ -183,9 +189,6 @@ function renderSidebar(perfil, activePage) {
           </a>
           ${isAdmin ? `<a href="/pages/compras/catalogo-local.html" class="nav-item ${activePage==='catalogo-local'?'active':''}">
             ${icons.clipboard} Catálogo de solicitud
-          </a>` : ''}
-          ${perm.guias ? `<a href="/pages/compras/guias.html" class="nav-item ${activePage==='guias'?'active':''}">
-            ${icons.truck} Guías de remisión
           </a>` : ''}
         </div>` : ''}
 
