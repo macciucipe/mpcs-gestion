@@ -470,6 +470,12 @@
         const codEmp   = empresa?.abreviatura || ruc.slice(-3);
         const numero   = `OP-${codEmp}-${codLocal}-${año}-${corr.toString().padStart(5,'0')}`;
 
+        // Incrementar correlativo ANTES de insertar para evitar duplicados
+        const { error: eCorr } = await sbClient.from('locales')
+          .update({ correlativo_op: corr + 1 })
+          .eq('id_local', local);
+        if (eCorr) console.warn('Error correlativo:', eCorr.message);
+
         // Insertar cabecera
         const { data: opData, error: e1 } = await sbClient.from('pedidos').insert({
           id_pedido:    numero,
@@ -494,9 +500,6 @@
         }));
         const { error: e2 } = await sbClient.from('pedidos_items').insert(itemsRows);
         if (e2) throw new Error(e2.message);
-
-        // Incrementar correlativo
-        await sbClient.from('locales').update({ correlativo_op: corr + 1 }).eq('id_local', local);
 
         await auditar(perfil, 'CREAR', 'pedidos', `Creó pedido ${numero} — ${local} — ${carritoItems.length} items`);
 
