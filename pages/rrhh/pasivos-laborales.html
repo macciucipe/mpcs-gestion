@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pasivos Laborales · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .toolbar { display:flex; align-items:center; gap:12px; margin-bottom:1.5rem; flex-wrap:wrap; }
+    .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:1.5rem; }
+    .kpi-card { background:var(--white); border-radius:var(--radius-lg); padding:1.25rem; border:1px solid var(--border); box-shadow:var(--shadow-sm); }
+    .kpi-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); margin-bottom:6px; }
+    .kpi-value { font-size:24px; font-weight:700; line-height:1; }
+    .kpi-sub   { font-size:12px; color:var(--text-muted); margin-top:4px; }
+    .kpi-alert { font-size:11px; font-weight:600; margin-top:6px; padding:3px 8px; border-radius:20px; display:inline-block; }
+    .kpi-alert.red  { background:var(--error-bg);   color:var(--error); }
+    .kpi-alert.yellow { background:var(--warning-bg); color:var(--warning); }
+    .kpi-alert.green  { background:var(--success-bg); color:var(--success); }
+
+    .emp-pasivo-card { background:var(--white); border:1px solid var(--border); border-radius:var(--radius-lg); margin-bottom:1.25rem; overflow:hidden; box-shadow:var(--shadow-sm); }
+    .emp-pasivo-header { padding:1rem 1.25rem; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:space-between; }
+    .emp-pasivo-header h3 { font-size:15px; font-weight:600; color:#fff; }
+    .emp-pasivo-header p  { font-size:12px; color:rgba(255,255,255,0.6); margin-top:2px; }
+    .emp-pasivo-body { padding:1.25rem; display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:1.25rem; }
+
+    .pasivo-seccion { border:1px solid var(--border); border-radius:var(--radius-lg); padding:1rem; }
+    .pasivo-seccion-title { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--accent); margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; }
+    .pasivo-fila { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border); font-size:13px; }
+    .pasivo-fila:last-child { border-bottom:none; }
+    .pasivo-fila.total { font-weight:700; font-size:14px; padding-top:8px; }
+    .pasivo-fila.alerta { color:var(--error); }
+
+    .btn-registrar { font-size:11px; padding:3px 8px; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.1); color:#fff; cursor:pointer; }
+    .btn-registrar:hover { background:rgba(255,255,255,0.2); }
+
+    .contingencia-box { background: linear-gradient(135deg, #FEF3C7, #FDE68A); border:1px solid #D97706; border-radius:var(--radius-lg); padding:1rem; }
+    .contingencia-box .pasivo-fila { border-color:rgba(217,119,6,0.2); }
+
+    .deposito-item { padding:6px 0; border-bottom:1px solid var(--border); font-size:12px; display:flex; justify-content:space-between; }
+    .deposito-item:last-child { border-bottom:none; }
+  </style>
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Pasivos laborales</h1>
+        <p>CTS, gratificaciones, vacaciones e indemnización contingente</p>
+      </div>
+      <div class="page-header-right">
+        <select id="sel-empresa" class="btn" onchange="onEmpresaChange()" style="padding:7px 12px">
+          <option value="">Seleccionar empresa...</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div id="page-empty" style="text-align:center;padding:3rem;color:var(--text-muted)">
+        <p>Seleccioná una empresa para ver sus pasivos laborales.</p>
+      </div>
+
+      <div id="page-body" style="display:none">
+        <!-- KPIs -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">CTS por depositar</div>
+            <div class="kpi-value" id="kpi-cts" style="color:var(--navy)">—</div>
+            <div class="kpi-sub" id="kpi-cts-sub">—</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Gratificación acumulada</div>
+            <div class="kpi-value" id="kpi-grat" style="color:var(--warning)">—</div>
+            <div class="kpi-sub" id="kpi-grat-sub">—</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Vacaciones por gozar</div>
+            <div class="kpi-value" id="kpi-vac" style="color:var(--success)">—</div>
+            <div class="kpi-sub" id="kpi-vac-sub">—</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Fondo contingencia</div>
+            <div class="kpi-value" id="kpi-indem" style="color:var(--error)">—</div>
+            <div class="kpi-sub">Indemnización máxima estimada</div>
+          </div>
+        </div>
+
+        <!-- Detalle por empleado -->
+        <div id="detalle-empleados"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal registrar depósito CTS -->
+  <div class="modal-overlay hidden" id="modal-cts">
+    <div class="modal" style="max-width:440px">
+      <div class="modal-header">
+        <h3 id="modal-cts-titulo">Registrar depósito CTS</h3>
+        <button class="modal-close" onclick="closeModal('modal-cts')">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="cts-error" class="alert alert-error" style="display:none"></div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Período <span class="req">*</span></label>
+            <select id="cts-periodo">
+              <option value="may-2026">Mayo 2026</option>
+              <option value="nov-2025">Noviembre 2025</option>
+              <option value="may-2025">Mayo 2025</option>
+              <option value="nov-2024">Noviembre 2024</option>
+              <option value="may-2024">Mayo 2024</option>
+              <option value="nov-2023">Noviembre 2023</option>
+              <option value="may-2023">Mayo 2023</option>
+              <option value="nov-2022">Noviembre 2022</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Fecha depósito <span class="req">*</span></label>
+            <input type="date" id="cts-fecha" />
+          </div>
+          <div class="field">
+            <label>Monto depositado <span class="req">*</span></label>
+            <input type="number" id="cts-monto" placeholder="0.00" step="0.01" min="0" />
+          </div>
+          <div class="field">
+            <label>Banco</label>
+            <input type="text" id="cts-banco" placeholder="Ej: BBVA" />
+          </div>
+          <div class="field full">
+            <label>Observación</label>
+            <input type="text" id="cts-obs" placeholder="Opcional" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('modal-cts')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarCts()">Registrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal registrar gratificación -->
+  <div class="modal-overlay hidden" id="modal-grat">
+    <div class="modal" style="max-width:440px">
+      <div class="modal-header">
+        <h3 id="modal-grat-titulo">Registrar pago gratificación</h3>
+        <button class="modal-close" onclick="closeModal('modal-grat')">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="grat-error" class="alert alert-error" style="display:none"></div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Tipo</label>
+            <select id="grat-tipo">
+              <option value="julio">Julio</option>
+              <option value="diciembre">Diciembre</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Año</label>
+            <input type="number" id="grat-anio" value="2026" min="2020" max="2030" />
+          </div>
+          <div class="field">
+            <label>Fecha de pago</label>
+            <input type="date" id="grat-fecha" />
+          </div>
+          <div class="field">
+            <label>Monto gratificación</label>
+            <input type="number" id="grat-monto" placeholder="0.00" step="0.01" min="0" />
+          </div>
+          <div class="field">
+            <label>Grat. EsSalud (9%)</label>
+            <input type="number" id="grat-essalud" placeholder="0.00" step="0.01" min="0" />
+          </div>
+          <div class="field">
+            <label>Observación</label>
+            <input type="text" id="grat-obs" placeholder="Opcional" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('modal-grat')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarGrat()">Registrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    let perfil = null, empleados = [], ctsDepositos = [], gratPagos = [];
+    let empresaActual = null, empModalId = null;
+
+    async function init() {
+      perfil = await requireAuth(['admin','rrhh','gerencia']);
+      if (!perfil) return;
+      renderSidebar(perfil, 'pasivos-laborales');
+      await loadEmpresas();
+    }
+
+    async function loadEmpresas() {
+      const { data } = await sbClient.from('empresas').select('ruc, razon_social, abreviatura').eq('estado','activa').order('razon_social');
+      const sel = document.getElementById('sel-empresa');
+      (data||[]).forEach(e => {
+        const o = document.createElement('option');
+        o.value = e.ruc; o.textContent = `${e.abreviatura} — ${e.razon_social}`;
+        sel.appendChild(o);
+      });
+      if (perfil.ruc_empresa) { sel.value = perfil.ruc_empresa; await onEmpresaChange(); }
+    }
+
+    async function onEmpresaChange() {
+      empresaActual = document.getElementById('sel-empresa').value;
+      if (!empresaActual) return;
+
+      const [empsRes, ctsRes, gratRes] = await Promise.all([
+        sbClient.from('empleados').select('*, locales(nombre)').eq('ruc_empresa', empresaActual).eq('estado','activo').order('apellidos'),
+        sbClient.from('cts_depositos').select('*').eq('ruc_empresa', empresaActual).order('fecha_deposito',{ascending:false}),
+        sbClient.from('gratificaciones_pagos').select('*').eq('ruc_empresa', empresaActual).order('anio',{ascending:false}),
+      ]);
+      empleados    = empsRes.data || [];
+      ctsDepositos = ctsRes.data  || [];
+      gratPagos    = gratRes.data || [];
+
+      renderPasivos();
+      document.getElementById('page-empty').style.display = 'none';
+      document.getElementById('page-body').style.display  = 'block';
+    }
+
+    function fmt(n) { return `S/ ${Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2})}`; }
+
+    function calcularAntiguedad(fechaIngreso) {
+      const ingreso = new Date(fechaIngreso);
+      const hoy     = new Date();
+      const años    = (hoy - ingreso) / (1000*60*60*24*365.25);
+      return años;
+    }
+
+    function calcularMesesTranscurridos(fechaIngreso) {
+      const ingreso = new Date(fechaIngreso);
+      const hoy     = new Date();
+      return (hoy.getFullYear() - ingreso.getFullYear()) * 12 + (hoy.getMonth() - ingreso.getMonth());
+    }
+
+    function renderPasivos() {
+      const hoy = new Date();
+      const mesActual = hoy.getMonth() + 1; // 1-12
+
+      let totalCts = 0, totalGrat = 0, totalVacMonto = 0, totalIndem = 0;
+
+      const detalleHTML = empleados.map(emp => {
+        const sueldo  = emp.sueldo_basico || 0;
+        const asigFam = emp.asignacion_familiar || 0;
+        const esGeneral = emp.regimen === 'general';
+        const esMype    = emp.regimen === 'mype';
+        const antiguedad = calcularAntiguedad(emp.fecha_ingreso);
+        const meses      = calcularMesesTranscurridos(emp.fecha_ingreso);
+
+        // Bonos regulares asumidos (si tiene historial los usamos, si no el básico)
+        // Para el cálculo de pasivos usamos remuneración computable estimada
+        const bonosRegEst = sueldo * 0.30; // 10% c/u puntualidad+asistencia+desempeño
+        const movilidad   = emp.id_empleado === 'ETW-EMP-002' ? 150 : 0;
+        const remunComp   = sueldo + asigFam + bonosRegEst + movilidad;
+
+        // ── CTS ──────────────────────────────────────────
+        // Período mayo: nov-abril (6 meses)
+        // Período noviembre: may-oct (6 meses)
+        // CTS por semestre = remunComp / 2 (general) o remunComp / 4 (mype)
+        const ctsPorSemestre = esGeneral ? remunComp / 2 : esMype ? remunComp / 4 : remunComp / 2;
+
+        // Meses en el semestre actual
+        // Semestre 1: nov-abr (meses 11,12,1,2,3,4)
+        // Semestre 2: may-oct (meses 5,6,7,8,9,10)
+        const enSemestre1 = [11,12,1,2,3,4].includes(mesActual);
+        const inicioSem   = enSemestre1
+          ? new Date(mesActual <= 4 ? hoy.getFullYear() : hoy.getFullYear()-1, 10, 1) // nov
+          : new Date(hoy.getFullYear(), 4, 1); // may
+        const mesesEnSemestre = Math.max(0, Math.min(6,
+          (hoy.getFullYear()-inicioSem.getFullYear())*12 + hoy.getMonth()-inicioSem.getMonth()
+        ));
+        const ctsAcumSemestre = ctsPorSemestre * (mesesEnSemestre / 6);
+
+        // Depósitos registrados del empleado
+        const depEmp = ctsDepositos.filter(d => d.id_empleado === emp.id_empleado);
+        const totalDepositado = depEmp.reduce((s,d) => s+(d.monto||0), 0);
+
+        // ── GRATIFICACIÓN ─────────────────────────────────
+        // Semestre julio: ene-jun (meses 1-6)
+        // Semestre diciembre: jul-dic (meses 7-12)
+        const enSemGrat1 = mesActual <= 6;
+        const inicioGrat = enSemGrat1
+          ? new Date(hoy.getFullYear(), 0, 1)  // ene
+          : new Date(hoy.getFullYear(), 6, 1); // jul
+        const mesesGrat  = Math.max(0, Math.min(6,
+          (hoy.getFullYear()-inicioGrat.getFullYear())*12 + hoy.getMonth()-inicioGrat.getMonth()
+        ));
+        // General: 1 sueldo por grat. MYPE: 0.5 sueldo
+        const gratCompleta   = esGeneral ? remunComp : esMype ? remunComp * 0.5 : remunComp;
+        const gratAcumMes    = gratCompleta * (mesesGrat / 6);
+        const gratEssaludMes = gratAcumMes * 0.09;
+        const proxGratTipo   = enSemGrat1 ? 'julio' : 'diciembre';
+
+        // Gratificaciones ya pagadas
+        const gratPagEmp = gratPagos.filter(g => g.id_empleado === emp.id_empleado);
+        const ultimaGrat = gratPagEmp.find(g => g.tipo === proxGratTipo && g.anio === hoy.getFullYear());
+
+        // ── VACACIONES ────────────────────────────────────
+        // General: 30 días/año. MYPE: 15 días/año
+        const diasPorAnio = esGeneral ? 30 : 15;
+        const diasGanados = Math.floor(antiguedad * diasPorAnio);
+        // No tenemos días gozados en BD aún — mostramos los ganados
+        const diasDisponibles = diasGanados;
+        const diasVencidos    = Math.max(0, diasGanados - diasPorAnio*2); // más de 2 años
+        const vacMonto        = (sueldo / 30) * diasDisponibles;
+
+        // ── INDEMNIZACIÓN CONTINGENTE ─────────────────────
+        // General: 1.5 sueldos por año, tope 12 sueldos
+        // MYPE: 20 días por año, tope 120 días
+        let indemMonto = 0;
+        if (esGeneral) {
+          const sueldosMes = Math.min(antiguedad * 1.5, 12);
+          indemMonto = remunComp * sueldosMes;
+        } else if (esMype) {
+          const diasIndem = Math.min(Math.floor(antiguedad * 20), 120);
+          indemMonto = (remunComp / 30) * diasIndem;
+        }
+
+        totalCts      += ctsAcumSemestre;
+        totalGrat     += gratAcumMes + gratEssaludMes;
+        totalVacMonto += vacMonto;
+        totalIndem    += indemMonto;
+
+        const ini = `${(emp.nombres||'')[0]||''}${(emp.apellidos||'')[0]||''}`.toUpperCase();
+
+        return `
+        <div class="emp-pasivo-card">
+          <div class="emp-pasivo-header">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0">${ini}</div>
+              <div>
+                <h3>${emp.nombres} ${emp.apellidos}</h3>
+                <p>${emp.cargo||'—'} · ${emp.regimen?.toUpperCase()||'—'} · Ingresó: ${emp.fecha_ingreso} (${antiguedad.toFixed(1)} años)</p>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:11px;color:rgba(255,255,255,0.5)">Pasivo total estimado</div>
+              <div style="font-size:20px;font-weight:700">${fmt(ctsAcumSemestre + gratAcumMes + gratEssaludMes + vacMonto + indemMonto)}</div>
+            </div>
+          </div>
+          <div class="emp-pasivo-body">
+
+            <!-- CTS -->
+            <div class="pasivo-seccion">
+              <div class="pasivo-seccion-title">
+                CTS
+                <button class="btn btn-sm btn-ghost" onclick="openModalCts('${emp.id_empleado}')" style="font-size:11px;padding:3px 8px">+ Registrar depósito</button>
+              </div>
+              <div class="pasivo-fila"><span>Remuneración computable</span><span style="font-weight:500">${fmt(remunComp)}</span></div>
+              <div class="pasivo-fila"><span>Por semestre (${esGeneral?'1 sueldo':'15 días'})</span><span style="font-weight:500">${fmt(ctsPorSemestre)}</span></div>
+              <div class="pasivo-fila"><span>Acumulado semestre actual (${mesesEnSemestre} mes${mesesEnSemestre!==1?'es':''})</span><span style="color:var(--warning);font-weight:600">${fmt(ctsAcumSemestre)}</span></div>
+              <div style="margin:8px 0;border-top:1px solid var(--border);padding-top:8px;font-size:11px;color:var(--text-muted);font-weight:600">DEPÓSITOS REGISTRADOS</div>
+              ${depEmp.length > 0
+                ? depEmp.slice(0,3).map(d=>`<div class="deposito-item"><span>${d.periodo} · ${d.fecha_deposito}</span><span style="color:var(--success);font-weight:500">${fmt(d.monto)}</span></div>`).join('')
+                : '<div style="font-size:12px;color:var(--text-muted)">Sin depósitos registrados</div>'
+              }
+              <div class="pasivo-fila total"><span>Total depositado</span><span style="color:var(--success)">${fmt(totalDepositado)}</span></div>
+            </div>
+
+            <!-- Gratificación -->
+            <div class="pasivo-seccion">
+              <div class="pasivo-seccion-title">
+                Gratificación
+                <button class="btn btn-sm btn-ghost" onclick="openModalGrat('${emp.id_empleado}')" style="font-size:11px;padding:3px 8px">+ Registrar pago</button>
+              </div>
+              <div class="pasivo-fila"><span>Grat. completa (${esGeneral?'1 sueldo':'½ sueldo'})</span><span style="font-weight:500">${fmt(gratCompleta)}</span></div>
+              <div class="pasivo-fila"><span>Próxima: ${proxGratTipo} ${hoy.getFullYear()}</span><span></span></div>
+              <div class="pasivo-fila"><span>Acumulado (${mesesGrat} mes${mesesGrat!==1?'es':''})</span><span style="color:var(--warning);font-weight:600">${fmt(gratAcumMes)}</span></div>
+              <div class="pasivo-fila"><span>Grat. EsSalud (9%)</span><span style="color:var(--warning);font-weight:600">${fmt(gratEssaludMes)}</span></div>
+              <div class="pasivo-fila total"><span>Total a pagar en ${proxGratTipo}</span><span style="color:var(--warning)">${fmt(gratAcumMes + gratEssaludMes)}</span></div>
+              ${gratPagEmp.length > 0
+                ? `<div style="margin-top:8px;font-size:11px;color:var(--text-muted);font-weight:600">PAGOS ANTERIORES</div>` +
+                  gratPagEmp.slice(0,2).map(g=>`<div class="deposito-item"><span>${g.tipo} ${g.anio}</span><span style="color:var(--success);font-weight:500">${fmt(g.monto_total)}</span></div>`).join('')
+                : ''
+              }
+            </div>
+
+            <!-- Vacaciones -->
+            <div class="pasivo-seccion">
+              <div class="pasivo-seccion-title">Vacaciones</div>
+              <div class="pasivo-fila"><span>Días por año (${esGeneral?'30':'15'} días)</span><span></span></div>
+              <div class="pasivo-fila"><span>Días ganados</span><span style="font-weight:600">${diasGanados} días</span></div>
+              <div class="pasivo-fila"><span>Días disponibles</span><span style="color:var(--success);font-weight:600">${diasDisponibles} días</span></div>
+              ${diasVencidos > 0
+                ? `<div class="pasivo-fila alerta"><span>⚠️ Días vencidos</span><span>${diasVencidos} días</span></div>`
+                : ''
+              }
+              <div class="pasivo-fila"><span>Valor día (${fmt(sueldo)}/30)</span><span>${fmt(sueldo/30)}</span></div>
+              <div class="pasivo-fila total"><span>Pasivo vacaciones</span><span style="color:var(--success)">${fmt(vacMonto)}</span></div>
+              <div style="margin-top:8px;font-size:11px;color:var(--text-muted)">
+                * Días gozados se registran en el módulo de asistencia
+              </div>
+            </div>
+
+            <!-- Indemnización contingente -->
+            <div class="pasivo-seccion contingencia-box">
+              <div class="pasivo-seccion-title" style="color:var(--warning)">⚠️ Fondo contingencia</div>
+              <div class="pasivo-fila"><span>Años trabajados</span><span style="font-weight:600">${antiguedad.toFixed(2)}</span></div>
+              ${esGeneral
+                ? `<div class="pasivo-fila"><span>1.5 sueldos × año (tope 12)</span><span>${Math.min(antiguedad*1.5,12).toFixed(2)} sueldos</span></div>`
+                : `<div class="pasivo-fila"><span>20 días × año (tope 120)</span><span>${Math.min(Math.floor(antiguedad*20),120)} días</span></div>`
+              }
+              <div class="pasivo-fila"><span>Remun. computable</span><span>${fmt(remunComp)}</span></div>
+              <div class="pasivo-fila total" style="color:var(--warning)"><span>Indemnización máxima</span><span>${fmt(indemMonto)}</span></div>
+              <div style="margin-top:10px;font-size:11px;color:var(--warning);background:rgba(217,119,6,0.1);padding:8px;border-radius:var(--radius-sm);line-height:1.5">
+                💡 Este monto debería estar apartado en un plazo fijo. Es lo que corresponde si el empleado es despedido sin causa justificada.
+              </div>
+            </div>
+
+          </div>
+        </div>`;
+      }).join('');
+
+      document.getElementById('detalle-empleados').innerHTML = detalleHTML;
+
+      // KPIs
+      document.getElementById('kpi-cts').textContent     = fmt(totalCts);
+      document.getElementById('kpi-cts-sub').textContent  = 'Acumulado semestre actual';
+      document.getElementById('kpi-grat').textContent    = fmt(totalGrat);
+      document.getElementById('kpi-grat-sub').textContent = 'Incluyendo grat. EsSalud';
+      document.getElementById('kpi-vac').textContent     = fmt(totalVacMonto);
+      document.getElementById('kpi-vac-sub').textContent  = `${empleados.reduce((s,e)=>s+Math.floor(calcularAntiguedad(e.fecha_ingreso)*(e.regimen==='mype'?15:30)),0)} días totales`;
+      document.getElementById('kpi-indem').textContent   = fmt(totalIndem);
+    }
+
+    // ── Modales CTS ───────────────────────────────────────
+    function openModalCts(empId) {
+      empModalId = empId;
+      const emp = empleados.find(e => e.id_empleado === empId);
+      document.getElementById('modal-cts-titulo').textContent = `Depósito CTS — ${emp.nombres} ${emp.apellidos}`;
+      document.getElementById('cts-error').style.display = 'none';
+      document.getElementById('cts-fecha').value  = '';
+      document.getElementById('cts-monto').value  = '';
+      document.getElementById('cts-banco').value  = emp.banco || '';
+      document.getElementById('cts-obs').value    = '';
+      document.getElementById('modal-cts').classList.remove('hidden');
+    }
+
+    async function guardarCts() {
+      const monto = parseFloat(document.getElementById('cts-monto').value);
+      const fecha = document.getElementById('cts-fecha').value;
+      const errEl = document.getElementById('cts-error');
+      errEl.style.display = 'none';
+      if (!monto || !fecha) { errEl.textContent = 'Completá fecha y monto.'; errEl.style.display='block'; return; }
+      const session = await checkSession();
+      const emp = empleados.find(e => e.id_empleado === empModalId);
+      const { error } = await sbClient.from('cts_depositos').insert([{
+        id_empleado:    empModalId,
+        ruc_empresa:    emp.ruc_empresa,
+        periodo:        document.getElementById('cts-periodo').value,
+        fecha_deposito: fecha,
+        monto,
+        banco:          document.getElementById('cts-banco').value.trim() || null,
+        observacion:    document.getElementById('cts-obs').value.trim() || null,
+        created_by:     session.user.id,
+      }]);
+      if (error) { errEl.textContent = 'Error: ' + error.message; errEl.style.display='block'; return; }
+      closeModal('modal-cts');
+      await onEmpresaChange();
+    }
+
+    // ── Modales Gratificación ─────────────────────────────
+    function openModalGrat(empId) {
+      empModalId = empId;
+      const emp = empleados.find(e => e.id_empleado === empId);
+      document.getElementById('modal-grat-titulo').textContent = `Pago Gratificación — ${emp.nombres} ${emp.apellidos}`;
+      document.getElementById('grat-error').style.display = 'none';
+      document.getElementById('grat-fecha').value   = '';
+      document.getElementById('grat-monto').value   = '';
+      document.getElementById('grat-essalud').value = '';
+      document.getElementById('grat-obs').value     = '';
+      document.getElementById('modal-grat').classList.remove('hidden');
+    }
+
+    async function guardarGrat() {
+      const monto   = parseFloat(document.getElementById('grat-monto').value) || 0;
+      const essalud = parseFloat(document.getElementById('grat-essalud').value) || 0;
+      const errEl   = document.getElementById('grat-error');
+      errEl.style.display = 'none';
+      if (!monto) { errEl.textContent = 'Ingresá el monto.'; errEl.style.display='block'; return; }
+      const session = await checkSession();
+      const emp = empleados.find(e => e.id_empleado === empModalId);
+      const { error } = await sbClient.from('gratificaciones_pagos').upsert([{
+        id_empleado:  empModalId,
+        ruc_empresa:  emp.ruc_empresa,
+        tipo:         document.getElementById('grat-tipo').value,
+        anio:         parseInt(document.getElementById('grat-anio').value),
+        fecha_pago:   document.getElementById('grat-fecha').value || null,
+        monto_grat:   monto,
+        monto_essalud:essalud,
+        monto_total:  monto + essalud,
+        observacion:  document.getElementById('grat-obs').value.trim() || null,
+        created_by:   session.user.id,
+      }], { onConflict: 'id_empleado,tipo,anio' });
+      if (error) { errEl.textContent = 'Error: ' + error.message; errEl.style.display='block'; return; }
+      closeModal('modal-grat');
+      await onEmpresaChange();
+    }
+
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    init();
+  </script>
+</body>
+</html>
