@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catálogo de Productos · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Catálogo de productos</h1>
+        <p>Maestro de ítems por empresa</p>
+      </div>
+      <div class="page-header-right">
+        <select id="filtro-empresa" class="btn" onchange="cargar()" style="padding:7px 12px">
+          <option value="">Todas las empresas</option>
+        </select>
+        <div class="search-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="search" placeholder="Buscar producto..." oninput="filtrar()" />
+        </div>
+        <button class="btn btn-primary" onclick="abrirNuevo()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nuevo producto
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- Stats -->
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1.5rem">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-label">Total productos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-activos" style="color:var(--success)">—</div>
+          <div class="stat-label">Activos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-globales" style="color:var(--info)">—</div>
+          <div class="stat-label">Globales</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-inactivos" style="color:var(--text-muted)">—</div>
+          <div class="stat-label">Inactivos</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 id="count-label">Productos</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="filtro-unidad" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
+              <option value="">Todas las unidades</option>
+            </select>
+            <select id="filtro-estado" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
+              <option value="">Todos los estados</option>
+              <option value="activo">Activos</option>
+              <option value="inactivo">Inactivos</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Unidad</th>
+                <th>Precio ref.</th>
+                <th>IGV</th>
+                <th>Global</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL NUEVO/EDITAR -->
+  <div class="modal-overlay hidden" id="modal-form">
+    <div class="modal" style="max-width:560px">
+      <div class="modal-header">
+        <h3 id="modal-titulo">Nuevo producto</h3>
+        <button class="modal-close" onclick="cerrarForm()">×</button>
+      </div>
+      <div class="modal-body">
+
+        <div class="form-grid">
+          <div class="field full">
+            <label>Nombre del producto *</label>
+            <input type="text" id="nombre" placeholder="Ej: BIFE ANGOSTO" 
+                   oninput="this.value=this.value.toUpperCase()" />
+          </div>
+          <div class="field">
+            <label>Empresa *</label>
+            <select id="ruc-empresa">
+              <option value="">-- Seleccionar --</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Unidad de medida *</label>
+            <select id="unidad-medida">
+              <option value="">-- Seleccionar --</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Precio referencial (S/)</label>
+            <input type="number" id="precio-ref" placeholder="0.00" min="0" step="0.01" />
+          </div>
+          <div class="field">
+            <label>Afecto a IGV</label>
+            <select id="afecto-igv">
+              <option value="true">Sí (18%)</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Disponible para todas las empresas</label>
+            <select id="es-global">
+              <option value="false">No — solo esta empresa</option>
+              <option value="true">Sí — global</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Estado</label>
+            <select id="estado-prod">
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label>Notas / Descripción</label>
+            <textarea id="notas" placeholder="Descripción adicional o notas internas" rows="2"></textarea>
+          </div>
+        </div>
+
+        <div id="msg-guardar" class="alert" style="display:none;margin-top:8px"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="cerrarForm()">Cancelar</button>
+        <button class="btn btn-primary" id="btn-guardar" onclick="guardar()">Guardar producto</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let perfil = null;
+    let productos = [];
+    let empresas = [];
+    let unidades = [];
+    let idEditando = null;
+
+    async function init() {
+      perfil = await requireAuth(['admin','compras','gerencia']);
+      if (!perfil) return;
+      renderSidebar(perfil, 'productos');
+      await Promise.all([cargarEmpresas(), cargarUnidades()]);
+      await cargar();
+    }
+
+    async function cargarEmpresas() {
+      const { data } = await sbClient.from('empresas')
+        .select('ruc, razon_social, abreviatura')
+        .eq('estado','activa').order('razon_social');
+      empresas = data || [];
+
+      // Filtro en header
+      const sel = document.getElementById('filtro-empresa');
+      empresas.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.ruc;
+        opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
+        sel.appendChild(opt);
+      });
+
+      // Select en modal
+      const selModal = document.getElementById('ruc-empresa');
+      empresas.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.ruc;
+        opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
+        selModal.appendChild(opt);
+      });
+
+      // Si no es admin, fijar empresa
+      if (perfil.rol !== 'admin' && perfil.ruc_empresa) {
+        sel.value = perfil.ruc_empresa;
+        sel.disabled = true;
+        selModal.value = perfil.ruc_empresa;
+        selModal.disabled = true;
+      }
+    }
+
+    async function cargarUnidades() {
+      const { data } = await sbClient.from('unidades_medida')
+        .select('codigo, descripcion, es_comun')
+        .eq('activa', true)
+        .order('es_comun', { ascending: false })
+        .order('codigo');
+      unidades = data || [];
+
+      const selModal = document.getElementById('unidad-medida');
+      const selFiltro = document.getElementById('filtro-unidad');
+
+      unidades.forEach(u => {
+        const label = `${u.codigo} — ${u.descripcion}`;
+        const opt1 = document.createElement('option');
+        opt1.value = u.codigo; opt1.textContent = label;
+        selModal.appendChild(opt1);
+
+        const opt2 = document.createElement('option');
+        opt2.value = u.codigo; opt2.textContent = u.codigo;
+        selFiltro.appendChild(opt2);
+      });
+    }
+
+    async function cargar() {
+      document.getElementById('tbody').innerHTML =
+        '<tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>';
+
+      const ruc = document.getElementById('filtro-empresa').value;
+      let query = sbClient.from('productos')
+        .select('*')
+        .order('nombre');
+
+      if (ruc) {
+        query = query.or(`ruc_empresa.eq.${ruc},es_global.eq.true`);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        document.getElementById('tbody').innerHTML =
+          `<tr><td colspan="8"><div class="empty-state"><p>Error: ${error.message}</p></div></td></tr>`;
+        return;
+      }
+
+      productos = data || [];
+      const activos   = productos.filter(p => p.estado === 'activo').length;
+      const inactivos = productos.filter(p => p.estado === 'inactivo').length;
+      const globales  = productos.filter(p => p.es_global).length;
+      document.getElementById('stat-total').textContent    = productos.length;
+      document.getElementById('stat-activos').textContent  = activos;
+      document.getElementById('stat-inactivos').textContent= inactivos;
+      document.getElementById('stat-globales').textContent = globales;
+      filtrar();
+    }
+
+    function filtrar() {
+      const q      = document.getElementById('search').value.toLowerCase();
+      const unidad = document.getElementById('filtro-unidad').value;
+      const estado = document.getElementById('filtro-estado').value;
+
+      const lista = productos.filter(p =>
+        (!q      || (p.nombre||'').toLowerCase().includes(q)) &&
+        (!unidad || p.unidad_medida === unidad) &&
+        (!estado || p.estado === estado)
+      );
+
+      document.getElementById('count-label').textContent = `Productos (${lista.length})`;
+      renderTabla(lista);
+    }
+
+    function renderTabla(lista) {
+      const tbody = document.getElementById('tbody');
+      if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          <h3>Sin productos</h3><p>Agregá el primero con "Nuevo producto"</p>
+        </div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = lista.map(p => {
+        const emp = empresas.find(e => e.ruc === p.ruc_empresa);
+        return `
+          <tr>
+            <td style="font-size:11px;color:var(--text-muted);font-family:monospace">${p.id_producto}</td>
+            <td>
+              <strong>${p.nombre}</strong>
+              ${p.es_global ? '<span class="badge badge-blue" style="margin-left:6px;font-size:10px">Global</span>' : ''}
+              ${emp ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${emp.abreviatura}</div>` : ''}
+            </td>
+            <td><span class="badge badge-gray">${p.unidad_medida||'—'}</span></td>
+            <td style="font-size:13px">S/ ${parseFloat(p.precio_ref||0).toFixed(2)}</td>
+            <td>${p.afecto_igv ? '<span class="badge badge-yellow">18%</span>' : '<span class="badge badge-gray">No</span>'}</td>
+            <td>${p.es_global ? '<span class="badge badge-blue">Sí</span>' : '—'}</td>
+            <td>${getEstadoBadge(p.estado||'activo')}</td>
+            <td>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-sm btn-ghost" onclick="editar('${p.id_producto}')">
+                  ${icons.edit} Editar
+                </button>
+                <button class="btn btn-sm btn-ghost" onclick="toggleEstado('${p.id_producto}', '${p.estado}')">
+                  ${p.estado === 'activo' ? '⏸ Desactivar' : '▶ Activar'}
+                </button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    function abrirNuevo() {
+      idEditando = null;
+      document.getElementById('modal-titulo').textContent = 'Nuevo producto';
+      limpiarForm();
+      document.getElementById('modal-form').classList.remove('hidden');
+    }
+
+    function editar(id) {
+      const p = productos.find(x => x.id_producto === id);
+      if (!p) return;
+      idEditando = id;
+      document.getElementById('modal-titulo').textContent = 'Editar producto';
+      limpiarForm();
+
+      document.getElementById('nombre').value        = p.nombre || '';
+      document.getElementById('ruc-empresa').value   = p.ruc_empresa || '';
+      document.getElementById('unidad-medida').value = p.unidad_medida || '';
+      document.getElementById('precio-ref').value    = p.precio_ref || '';
+      document.getElementById('afecto-igv').value    = p.afecto_igv ? 'true' : 'false';
+      document.getElementById('es-global').value     = p.es_global ? 'true' : 'false';
+      document.getElementById('estado-prod').value   = p.estado || 'activo';
+      document.getElementById('notas').value         = p.notas || '';
+
+      document.getElementById('modal-form').classList.remove('hidden');
+    }
+
+    async function guardar() {
+      const msg  = document.getElementById('msg-guardar');
+      const btn  = document.getElementById('btn-guardar');
+      const nom  = document.getElementById('nombre').value.trim();
+      const ruc  = document.getElementById('ruc-empresa').value;
+      const um   = document.getElementById('unidad-medida').value;
+
+      if (!nom) { showMsg(msg, 'alert-error', 'El nombre es obligatorio.'); return; }
+      if (!ruc) { showMsg(msg, 'alert-error', 'Seleccioná una empresa.'); return; }
+      if (!um)  { showMsg(msg, 'alert-error', 'Seleccioná una unidad de medida.'); return; }
+
+      btn.disabled = true; btn.textContent = 'Guardando...'; msg.style.display = 'none';
+
+      try {
+        const datos = {
+          ruc_empresa:   ruc,
+          nombre:        nom,
+          unidad_medida: um,
+          precio_ref:    parseFloat(document.getElementById('precio-ref').value) || 0,
+          afecto_igv:    document.getElementById('afecto-igv').value === 'true',
+          es_global:     document.getElementById('es-global').value === 'true',
+          estado:        document.getElementById('estado-prod').value,
+          notas:         document.getElementById('notas').value.trim() || null,
+        };
+
+        if (idEditando) {
+          const { error } = await sbClient.from('productos').update(datos).eq('id_producto', idEditando);
+          if (error) throw new Error(error.message);
+        } else {
+          // Generar ID
+          const { count } = await sbClient.from('productos').select('*', {count:'exact'}).eq('ruc_empresa', ruc);
+          const num = (count || 0) + 1;
+          datos.id_producto = `PROD-${ruc.slice(-4)}-${num.toString().padStart(5,'0')}`;
+          const { error } = await sbClient.from('productos').insert(datos);
+          if (error) throw new Error(error.message);
+        }
+
+        cerrarForm();
+        await cargar();
+      } catch(e) {
+        showMsg(msg, 'alert-error', 'Error: ' + e.message);
+      }
+      btn.disabled = false; btn.textContent = 'Guardar producto';
+    }
+
+    async function toggleEstado(id, estadoActual) {
+      const nuevoEstado = estadoActual === 'activo' ? 'inactivo' : 'activo';
+      const { error } = await sbClient.from('productos').update({ estado: nuevoEstado }).eq('id_producto', id);
+      if (!error) await cargar();
+    }
+
+    function limpiarForm() {
+      ['nombre','precio-ref','notas'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+      });
+      document.getElementById('unidad-medida').value = '';
+      document.getElementById('afecto-igv').value    = 'true';
+      document.getElementById('es-global').value     = 'false';
+      document.getElementById('estado-prod').value   = 'activo';
+      const msg = document.getElementById('msg-guardar');
+      if (msg) msg.style.display = 'none';
+
+      // Si no es admin, fijar empresa
+      if (perfil.rol !== 'admin' && perfil.ruc_empresa) {
+        document.getElementById('ruc-empresa').value = perfil.ruc_empresa;
+      } else {
+        document.getElementById('ruc-empresa').value = '';
+      }
+    }
+
+    function showMsg(el, cls, txt) { el.className = `alert ${cls}`; el.textContent = txt; el.style.display = 'block'; }
+    function cerrarForm() { document.getElementById('modal-form').classList.add('hidden'); }
+
+    document.getElementById('modal-form').addEventListener('click', function(e) {
+      if (e.target === this) cerrarForm();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarForm(); });
+
+    init();
+  </script>
+</body>
+</html>
