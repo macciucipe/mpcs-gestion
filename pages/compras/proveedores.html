@@ -3,634 +3,613 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Proveedores · MPCS Compras</title>
+  <title>Proveedores · MPC Gestión</title>
   <link rel="stylesheet" href="../../css/style.css" />
 </head>
-<body>
-
-<div class="main-content">
-
-  <div class="page-header">
-    <div>
-      <div class="page-title">Proveedores</div>
-      <div class="page-subtitle">Padrón de proveedores del grupo empresarial</div>
-    </div>
-    <button class="btn btn-primary" onclick="abrirModalNuevo()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Nuevo proveedor
-    </button>
-  </div>
-
-  <div class="toolbar">
-    <div class="search-box">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="busqueda" placeholder="Buscar por nombre, RUC, DNI..." oninput="filtrar()" />
-    </div>
-    <select class="filter-select" id="filtroEstado" onchange="filtrar()">
-      <option value="">Todos</option>
-      <option value="activo">Activos</option>
-      <option value="inactivo">Inactivos</option>
-    </select>
-    <select class="filter-select" id="filtroTipo" onchange="filtrar()">
-      <option value="">Todos los tipos</option>
-      <option value="RUC">RUC</option>
-      <option value="DNI">DNI</option>
-      <option value="CE">CE</option>
-    </select>
-    <button class="btn btn-outline btn-sm" onclick="cargarProveedores()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-      Actualizar
-    </button>
-    <span id="contador" class="text-muted text-sm"></span>
-  </div>
-
-  <div class="card">
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Documento</th>
-            <th>Razón social</th>
-            <th>Nombre comercial</th>
-            <th>Banco</th>
-            <th>Email pagos</th>
-            <th>Teléfono</th>
-            <th>Estado</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="tbody">
-          <tr class="loading-row"><td colspan="8"><span class="spinner"></span> Cargando...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL NUEVO/EDITAR -->
-<div class="modal-overlay hidden" id="modalProv">
-  <div class="modal modal-lg">
-    <div class="modal-header">
-      <div class="modal-title" id="modalTitulo">Nuevo proveedor</div>
-      <button class="modal-close" onclick="cerrar('modalProv')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="modal-body">
-
-      <!-- 1. Identificación -->
-      <div class="sec-titulo">1. Identificación</div>
-      <div class="field-row cols-3">
-        <div class="field">
-          <label>Tipo de documento *</label>
-          <select id="tipoDoc" onchange="onTipoDocChange()">
-            <option value="RUC">RUC (empresa)</option>
-            <option value="DNI">DNI (persona natural)</option>
-            <option value="CE">CE (carnet extranjería)</option>
-          </select>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Proveedores</h1>
+        <p>Padrón de proveedores del grupo empresarial</p>
+      </div>
+      <div class="page-header-right">
+        <div class="search-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="search" placeholder="Buscar por nombre, RUC, DNI..." oninput="filtrar()" />
         </div>
-        <div class="field" style="grid-column:span 2">
-          <label>Número de documento *</label>
-          <div style="display:flex;gap:8px">
-            <input type="text" id="numDoc" placeholder="11 dígitos" maxlength="11"
-                   oninput="this.value=this.value.replace(/\D/g,'')" style="flex:1" />
-            <button class="btn btn-outline" id="btnBuscar" onclick="buscarAPI()" style="white-space:nowrap">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              Buscar SUNAT/RENIEC
-            </button>
+        <button class="btn btn-primary" onclick="abrirNuevo()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nuevo proveedor
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- Stats -->
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:1.5rem">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-label">Total proveedores</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-activos" style="color:var(--success)">—</div>
+          <div class="stat-label">Activos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-inactivos" style="color:var(--text-muted)">—</div>
+          <div class="stat-label">Inactivos</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 id="count-label">Proveedores</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="filtro-tipo" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
+              <option value="">Todos los tipos</option>
+              <option value="RUC">RUC</option>
+              <option value="DNI">DNI</option>
+              <option value="CE">CE</option>
+            </select>
+            <select id="filtro-estado" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
+              <option value="">Todos los estados</option>
+              <option value="activo">Activos</option>
+              <option value="inactivo">Inactivos</option>
+            </select>
           </div>
-          <div id="msgAPI" class="alert mt-4" style="display:none"></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Documento</th>
+                <th>Razón social</th>
+                <th>Nombre comercial</th>
+                <th>Banco</th>
+                <th>Email pagos</th>
+                <th>Teléfono</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
-      <div class="field-row cols-2">
-        <div class="field">
-          <label>Razón social / Nombre *</label>
-          <input type="text" id="razonSocial" placeholder="Nombre oficial según SUNAT o RENIEC" />
-        </div>
-        <div class="field">
-          <label>Nombre comercial</label>
-          <input type="text" id="nombreComercial" placeholder="Como lo conocés (si difiere de la razón social)" />
-        </div>
-      </div>
-      <div class="field-row cols-2">
-        <div class="field">
-          <label>Domicilio</label>
-          <select id="esDomiciliado">
-            <option value="true">Domiciliado (Perú)</option>
-            <option value="false">No domiciliado (Extranjero)</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Estado</label>
-          <select id="estadoProv">
-            <option value="activo">Activo</option>
-            <option value="inactivo">Inactivo</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="sec-divider"></div>
-
-      <!-- 2. Datos bancarios -->
-      <div class="sec-titulo">2. Datos bancarios <span class="sec-opt">opcional</span></div>
-      <div class="field-row cols-3">
-        <div class="field">
-          <label>Banco</label>
-          <select id="banco">
-            <option value="">-- Seleccionar --</option>
-            <option>BBVA</option><option>BCP</option><option>Interbank</option>
-            <option>Scotiabank</option><option>BanBif</option><option>Pichincha</option><option>Otro</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Tipo de cuenta</label>
-          <select id="tipoCuenta">
-            <option value="">-- Seleccionar --</option>
-            <option value="Cuenta Corriente">Cuenta corriente</option>
-            <option value="Cuenta Ahorros">Cuenta ahorros</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Moneda</label>
-          <select id="moneda">
-            <option value="PEN">Soles (PEN)</option>
-            <option value="USD">Dólares (USD)</option>
-          </select>
-        </div>
-      </div>
-      <div class="field-row cols-2">
-        <div class="field">
-          <label>Número de cuenta</label>
-          <input type="text" id="numCuenta" placeholder="Número de cuenta" />
-        </div>
-        <div class="field">
-          <label>CCI (interbancario)</label>
-          <input type="text" id="cci" placeholder="20 dígitos" maxlength="20"
-                 oninput="this.value=this.value.replace(/\D/g,'')" />
-        </div>
-      </div>
-
-      <div class="sec-divider"></div>
-
-      <!-- 3. Contacto pagos -->
-      <div class="sec-titulo">3. Contacto de pagos <span class="sec-opt">opcional</span></div>
-      <div class="field-row cols-3">
-        <div class="field">
-          <label>Nombre del contacto</label>
-          <input type="text" id="pagosNombre" placeholder="Quien recibe el pago" />
-        </div>
-        <div class="field">
-          <label>Email</label>
-          <input type="email" id="pagosEmail" placeholder="pagos@proveedor.com" />
-        </div>
-        <div class="field">
-          <label>Email con copia (CC)</label>
-          <input type="email" id="pagosCC" placeholder="cc@proveedor.com" />
-        </div>
-      </div>
-
-      <div class="sec-divider"></div>
-
-      <!-- 4. Contacto comercial -->
-      <div class="sec-titulo">4. Contacto comercial / Vendedor <span class="sec-opt">opcional</span></div>
-      <div class="field-row cols-3">
-        <div class="field">
-          <label>Nombre del vendedor</label>
-          <input type="text" id="vendNombre" placeholder="Nombre del asesor o vendedor" />
-        </div>
-        <div class="field">
-          <label>Email</label>
-          <input type="email" id="vendEmail" placeholder="ventas@proveedor.com" />
-        </div>
-        <div class="field">
-          <label>Teléfono</label>
-          <input type="text" id="vendTel" placeholder="999 999 999" />
-        </div>
-      </div>
-      <div class="field" style="max-width:300px">
-        <label>Condiciones de pago</label>
-        <input type="text" id="condiciones" placeholder="Ej: Contado, 30 días, 50% adelanto" />
-      </div>
-
-      <div id="msgGuardar" class="alert mt-8" style="display:none"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="cerrar('modalProv')">Cancelar</button>
-      <button class="btn btn-primary" id="btnGuardar" onclick="guardar()">Guardar proveedor</button>
     </div>
   </div>
-</div>
 
-<!-- MODAL DETALLE -->
-<div class="modal-overlay hidden" id="modalDet">
-  <div class="modal modal-md">
-    <div class="modal-header">
-      <div class="modal-title" id="detTitulo">Detalle</div>
-      <button class="modal-close" onclick="cerrar('modalDet')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="modal-body" id="detBody"></div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="cerrar('modalDet')">Cerrar</button>
-      <button class="btn btn-primary" id="btnEditDet">Editar</button>
+  <!-- MODAL NUEVO/EDITAR -->
+  <div class="modal-overlay hidden" id="modal-form">
+    <div class="modal" style="max-width:720px">
+      <div class="modal-header">
+        <h3 id="modal-titulo">Nuevo proveedor</h3>
+        <button class="modal-close" onclick="cerrarForm()">×</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- 1. Identificación -->
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:12px">1. Identificación</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Tipo de documento *</label>
+            <select id="tipoDoc" onchange="onTipoDocChange()">
+              <option value="RUC">RUC (empresa)</option>
+              <option value="DNI">DNI (persona natural)</option>
+              <option value="CE">CE (carnet extranjería)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Número de documento *</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="numDoc" placeholder="11 dígitos" maxlength="11"
+                     oninput="this.value=this.value.replace(/\D/g,'')" style="flex:1" />
+              <button class="btn btn-sm" id="btnBuscar" onclick="buscarAPI()" style="white-space:nowrap;flex-shrink:0">Buscar SUNAT</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Razón social / Nombre *</label>
+            <input type="text" id="razonSocial" placeholder="Nombre oficial según SUNAT o RENIEC" />
+          </div>
+          <div class="field">
+            <label>Nombre comercial</label>
+            <input type="text" id="nombreComercial" placeholder="Como lo conocés (si difiere)" />
+          </div>
+          <div class="field">
+            <label>Domicilio</label>
+            <select id="esDomiciliado">
+              <option value="true">Domiciliado (Perú)</option>
+              <option value="false">No domiciliado (Extranjero)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Estado</label>
+            <select id="estadoProv">
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+            </select>
+          </div>
+        </div>
+        <div id="msgAPI" class="alert" style="display:none;margin-top:-8px;margin-bottom:12px"></div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:16px 0" />
+
+        <!-- 2. Datos bancarios -->
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:12px">
+          2. Datos bancarios <span style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0;color:var(--text-light)">(opcional)</span>
+        </div>
+        <div class="form-grid-3">
+          <div class="field">
+            <label>Banco</label>
+            <select id="banco">
+              <option value="">-- Seleccionar --</option>
+              <option>BBVA</option><option>BCP</option><option>Interbank</option>
+              <option>Scotiabank</option><option>BanBif</option><option>Pichincha</option><option>Otro</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Tipo de cuenta</label>
+            <select id="tipoCuenta">
+              <option value="">-- Seleccionar --</option>
+              <option value="Cuenta Corriente">Cuenta corriente</option>
+              <option value="Cuenta Ahorros">Cuenta ahorros</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Moneda</label>
+            <select id="moneda">
+              <option value="PEN">Soles (PEN)</option>
+              <option value="USD">Dólares (USD)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Número de cuenta</label>
+            <input type="text" id="numCuenta" placeholder="Número de cuenta" />
+          </div>
+          <div class="field">
+            <label>CCI (interbancario)</label>
+            <input type="text" id="cci" placeholder="20 dígitos" maxlength="20"
+                   oninput="this.value=this.value.replace(/\D/g,'')" />
+          </div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:16px 0" />
+
+        <!-- 3. Contacto pagos -->
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:12px">
+          3. Contacto de pagos <span style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0;color:var(--text-light)">(opcional)</span>
+        </div>
+        <div class="form-grid-3">
+          <div class="field">
+            <label>Nombre del contacto</label>
+            <input type="text" id="pagosNombre" placeholder="Quien recibe el pago" />
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="pagosEmail" placeholder="pagos@proveedor.com" />
+          </div>
+          <div class="field">
+            <label>Email con copia (CC)</label>
+            <input type="email" id="pagosCC" placeholder="cc@proveedor.com" />
+          </div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:16px 0" />
+
+        <!-- 4. Contacto comercial -->
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:12px">
+          4. Contacto comercial / Vendedor <span style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0;color:var(--text-light)">(opcional)</span>
+        </div>
+        <div class="form-grid-3">
+          <div class="field">
+            <label>Nombre del vendedor</label>
+            <input type="text" id="vendNombre" placeholder="Nombre del asesor o vendedor" />
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="vendEmail" placeholder="ventas@proveedor.com" />
+          </div>
+          <div class="field">
+            <label>Teléfono</label>
+            <input type="text" id="vendTel" placeholder="999 999 999" />
+          </div>
+        </div>
+        <div class="field" style="max-width:320px">
+          <label>Condiciones de pago</label>
+          <input type="text" id="condiciones" placeholder="Ej: Contado, 30 días, 50% adelanto" />
+        </div>
+
+        <div id="msgGuardar" class="alert" style="display:none;margin-top:8px"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="cerrarForm()">Cancelar</button>
+        <button class="btn btn-primary" id="btnGuardar" onclick="guardar()">Guardar proveedor</button>
+      </div>
     </div>
   </div>
-</div>
 
-<style>
-.sec-titulo { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
-.sec-opt    { font-size:10px; font-weight:500; background:var(--surface-2); border:1px solid var(--border); color:var(--text-light); padding:1px 6px; border-radius:10px; text-transform:none; letter-spacing:0; }
-.sec-divider{ border:none; border-top:1px solid var(--border-light); margin:20px 0; }
-.df         { margin-bottom:10px; }
-.df-label   { font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; }
-.df-val     { font-size:13px; color:var(--text); }
-.det-grupo  { margin-bottom:16px; }
-.det-gtitle { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); border-bottom:1px solid var(--border-light); padding-bottom:6px; margin-bottom:12px; }
-</style>
+  <!-- MODAL DETALLE -->
+  <div class="modal-overlay hidden" id="modal-detalle">
+    <div class="modal" style="max-width:620px">
+      <div class="modal-header">
+        <h3 id="det-titulo">Detalle del proveedor</h3>
+        <button class="modal-close" onclick="cerrarDetalle()">×</button>
+      </div>
+      <div class="modal-body" id="det-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="cerrarDetalle()">Cerrar</button>
+        <button class="btn btn-primary" id="btnEditDet">Editar</button>
+      </div>
+    </div>
+  </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../../js/config.js"></script>
-<script src="../../js/auth.js"></script>
-<script>
-let perfil = null;
-let proveedores = [];
-let docEditando = null;
-const TOKEN_API = 'a26db6d95f35f6c3ffe47be304049b1a024c4103a279ab48ed2161a59dc72fa7';
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let proveedores = [];
+    let perfil = null;
+    let docEditando = null;
+    const TOKEN_API = 'a26db6d95f35f6c3ffe47be304049b1a024c4103a279ab48ed2161a59dc72fa7';
 
-window.onload = async function() {
-  perfil = await requireAuth();
-  if (!perfil) return;
-  renderSidebar(perfil, 'proveedores');
-  await cargarProveedores();
-};
+    async function init() {
+      perfil = await requireAuth();
+      if (!perfil) return;
+      renderSidebar(perfil, 'proveedores');
+      await cargar();
+    }
 
-async function cargarProveedores() {
-  document.getElementById('tbody').innerHTML =
-    '<tr class="loading-row"><td colspan="8"><span class="spinner"></span> Cargando...</td></tr>';
+    async function cargar() {
+      document.getElementById('tbody').innerHTML =
+        '<tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>';
 
-  const { data, error } = await sbClient
-    .from('proveedores')
-    .select('*, proveedores_bancos(*), proveedores_contactos(*)')
-    .order('razon_social');
+      const { data, error } = await sbClient
+        .from('proveedores')
+        .select('*, proveedores_bancos(*), proveedores_contactos(*)')
+        .order('razon_social');
 
-  if (error) {
-    document.getElementById('tbody').innerHTML =
-      `<tr><td colspan="8" class="text-center text-muted">Error: ${error.message}</td></tr>`;
-    return;
-  }
-  proveedores = data || [];
-  filtrar();
-}
+      if (error) {
+        document.getElementById('tbody').innerHTML =
+          `<tr><td colspan="8"><div class="empty-state"><p>Error: ${error.message}</p></div></td></tr>`;
+        return;
+      }
 
-function filtrar() {
-  const q  = document.getElementById('busqueda').value.toLowerCase();
-  const st = document.getElementById('filtroEstado').value;
-  const tp = document.getElementById('filtroTipo').value;
+      proveedores = data || [];
+      const activos   = proveedores.filter(p => p.estado === 'activo').length;
+      const inactivos = proveedores.filter(p => p.estado === 'inactivo').length;
+      document.getElementById('stat-total').textContent    = proveedores.length;
+      document.getElementById('stat-activos').textContent  = activos;
+      document.getElementById('stat-inactivos').textContent= inactivos;
+      filtrar();
+    }
 
-  const lista = proveedores.filter(p =>
-    (!q  || (p.razon_social||'').toLowerCase().includes(q) ||
-             (p.nombre_comercial||'').toLowerCase().includes(q) ||
-             (p.documento||'').includes(q)) &&
-    (!st || p.estado === st) &&
-    (!tp || p.tipo_documento === tp)
-  );
+    function filtrar() {
+      const q    = document.getElementById('search').value.toLowerCase();
+      const tipo = document.getElementById('filtro-tipo').value;
+      const est  = document.getElementById('filtro-estado').value;
 
-  document.getElementById('contador').textContent = `${lista.length} de ${proveedores.length}`;
-  renderTabla(lista);
-}
+      const lista = proveedores.filter(p =>
+        (!q   || (p.razon_social||'').toLowerCase().includes(q) ||
+                  (p.nombre_comercial||'').toLowerCase().includes(q) ||
+                  (p.documento||'').includes(q)) &&
+        (!tipo || p.tipo_documento === tipo) &&
+        (!est  || p.estado === est)
+      );
 
-function renderTabla(lista) {
-  if (!lista.length) {
-    document.getElementById('tbody').innerHTML = `
-      <tr><td colspan="8">
-        <div class="empty-state">
+      document.getElementById('count-label').textContent = `Proveedores (${lista.length})`;
+      renderTabla(lista);
+    }
+
+    function renderTabla(lista) {
+      const tbody = document.getElementById('tbody');
+      if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
           <h3>Sin proveedores</h3><p>Agregá el primero con "Nuevo proveedor"</p>
+        </div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = lista.map(p => {
+        const banco  = p.proveedores_bancos?.find(b => b.es_principal) || p.proveedores_bancos?.[0];
+        const cpag   = p.proveedores_contactos?.find(c => c.tipo === 'Pagos');
+        const cven   = p.proveedores_contactos?.find(c => c.tipo === 'Ventas');
+        const nomCom = p.nombre_comercial && p.nombre_comercial !== p.razon_social ? p.nombre_comercial : '—';
+        const bancoStr = banco ? `${banco.banco||''}${banco.tipo_cuenta?' · '+banco.tipo_cuenta:''}` : '—';
+        const emailStr = cpag?.email || cven?.email || '—';
+        const telStr   = cven?.telefono || '—';
+        return `
+          <tr>
+            <td style="font-size:12px;color:var(--text-muted)">
+              <strong style="font-family:monospace;color:var(--text)">${fmtDoc(p.documento, p.tipo_documento)}</strong><br>
+              ${p.tipo_documento||'RUC'}
+            </td>
+            <td><strong>${p.razon_social||'—'}</strong></td>
+            <td style="font-size:12px;color:var(--text-muted)">${nomCom}</td>
+            <td style="font-size:12px;color:var(--text-muted)">${bancoStr}</td>
+            <td style="font-size:12px;color:var(--text-muted)">${emailStr}</td>
+            <td style="font-size:12px;color:var(--text-muted)">${telStr}</td>
+            <td>${getEstadoBadge(p.estado||'activo')}</td>
+            <td>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-sm btn-ghost" onclick="verDetalle('${p.documento}')">
+                  ${icons.eye} Ver
+                </button>
+                <button class="btn btn-sm btn-ghost" onclick="editar('${p.documento}')">
+                  ${icons.edit} Editar
+                </button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    function fmtDoc(doc, tipo) {
+      if (!doc) return '—';
+      if (tipo === 'DNI') return doc.padStart(8, '0');
+      if (tipo === 'CE')  return doc.padStart(9, '0');
+      return doc;
+    }
+
+    function onTipoDocChange() {
+      const tipo  = document.getElementById('tipoDoc').value;
+      const input = document.getElementById('numDoc');
+      const btn   = document.getElementById('btnBuscar');
+      if (tipo === 'RUC') {
+        input.maxLength = 11; input.placeholder = '11 dígitos';
+        btn.style.display = ''; document.getElementById('esDomiciliado').value = 'true';
+      } else if (tipo === 'DNI') {
+        input.maxLength = 8; input.placeholder = '8 dígitos';
+        btn.style.display = ''; document.getElementById('esDomiciliado').value = 'true';
+      } else {
+        input.maxLength = 12; input.placeholder = '9 dígitos';
+        btn.style.display = 'none'; document.getElementById('esDomiciliado').value = 'false';
+      }
+    }
+
+    async function buscarAPI() {
+      const tipo   = document.getElementById('tipoDoc').value;
+      const numDoc = document.getElementById('numDoc').value.trim();
+      const msg    = document.getElementById('msgAPI');
+      const btn    = document.getElementById('btnBuscar');
+
+      if (tipo === 'RUC' && numDoc.length !== 11) { showMsg(msg,'alert-info','El RUC debe tener exactamente 11 dígitos.'); return; }
+      if (tipo === 'DNI' && numDoc.length !== 8)  { showMsg(msg,'alert-info','El DNI debe tener exactamente 8 dígitos (incluí ceros adelante si aplica).'); return; }
+
+      if (!docEditando) {
+        const { data: existe } = await sbClient.from('proveedores').select('razon_social').eq('documento', numDoc).maybeSingle();
+        if (existe) { showMsg(msg,'alert-info',`Ya existe: ${existe.razon_social}. Editalo desde la lista.`); return; }
+      }
+
+      btn.disabled = true; btn.textContent = 'Buscando...';
+      msg.style.display = 'none';
+
+      try {
+        const esRuc = tipo === 'RUC';
+        const resp  = await fetch(esRuc ? 'https://apiperu.dev/api/ruc' : 'https://apiperu.dev/api/dni', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${TOKEN_API}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(esRuc ? { ruc: numDoc } : { dni: numDoc })
+        });
+        const info = await resp.json();
+        if (info.success && info.data) {
+          const nombre = esRuc
+            ? info.data.nombre_o_razon_social?.trim()
+            : [info.data.nombres, info.data.apellido_paterno, info.data.apellido_materno].filter(Boolean).join(' ').trim();
+          document.getElementById('razonSocial').value = nombre;
+          showMsg(msg,'alert-success',`✓ Encontrado: ${nombre}`);
+        } else {
+          showMsg(msg,'alert-info','No encontrado. Completá los datos manualmente.');
+        }
+      } catch(e) {
+        showMsg(msg,'alert-info','No se pudo conectar con SUNAT/RENIEC. Completá manualmente.');
+      }
+      btn.disabled = false; btn.textContent = 'Buscar SUNAT';
+    }
+
+    function abrirNuevo() {
+      docEditando = null;
+      document.getElementById('modal-titulo').textContent = 'Nuevo proveedor';
+      limpiarForm();
+      document.getElementById('numDoc').readOnly  = false;
+      document.getElementById('tipoDoc').disabled = false;
+      document.getElementById('modal-form').classList.remove('hidden');
+    }
+
+    function editar(documento) {
+      const p = proveedores.find(x => x.documento === documento);
+      if (!p) return;
+      docEditando = documento;
+      document.getElementById('modal-titulo').textContent = 'Editar proveedor';
+      limpiarForm();
+
+      document.getElementById('tipoDoc').value     = p.tipo_documento || 'RUC';
+      document.getElementById('tipoDoc').disabled  = true;
+      document.getElementById('numDoc').value      = p.documento || '';
+      document.getElementById('numDoc').readOnly   = true;
+      document.getElementById('razonSocial').value    = p.razon_social || '';
+      document.getElementById('nombreComercial').value = p.nombre_comercial || '';
+      document.getElementById('esDomiciliado').value  = p.es_peruano === false ? 'false' : 'true';
+      document.getElementById('estadoProv').value     = p.estado || 'activo';
+
+      const banco = p.proveedores_bancos?.find(b => b.es_principal) || p.proveedores_bancos?.[0];
+      if (banco) {
+        document.getElementById('banco').value    = banco.banco || '';
+        document.getElementById('tipoCuenta').value= banco.tipo_cuenta || '';
+        document.getElementById('moneda').value   = banco.moneda || 'PEN';
+        document.getElementById('numCuenta').value= banco.numero_cuenta || '';
+        document.getElementById('cci').value      = banco.cci || '';
+      }
+
+      const cpag = p.proveedores_contactos?.find(c => c.tipo === 'Pagos');
+      if (cpag) {
+        document.getElementById('pagosNombre').value = cpag.nombre || '';
+        document.getElementById('pagosEmail').value  = cpag.email || '';
+        document.getElementById('pagosCC').value     = cpag.cargo || '';
+      }
+
+      const cven = p.proveedores_contactos?.find(c => c.tipo === 'Ventas');
+      if (cven) {
+        document.getElementById('vendNombre').value = cven.nombre || '';
+        document.getElementById('vendEmail').value  = cven.email || '';
+        document.getElementById('vendTel').value    = cven.telefono || '';
+        document.getElementById('condiciones').value= cven.cargo || '';
+      }
+
+      cerrarDetalle();
+      document.getElementById('modal-form').classList.remove('hidden');
+    }
+
+    async function guardar() {
+      const msg    = document.getElementById('msgGuardar');
+      const btn    = document.getElementById('btnGuardar');
+      const tipo   = document.getElementById('tipoDoc').value;
+      let numDoc   = document.getElementById('numDoc').value.trim();
+      const razon  = document.getElementById('razonSocial').value.trim();
+
+      if (!numDoc) { showMsg(msg,'alert-error','El número de documento es obligatorio.'); return; }
+      if (!razon)  { showMsg(msg,'alert-error','La razón social / nombre es obligatorio.'); return; }
+
+      if (tipo === 'RUC' && numDoc.length !== 11) { showMsg(msg,'alert-error','El RUC debe tener exactamente 11 dígitos.'); return; }
+      if (tipo === 'DNI') {
+        if (numDoc.length > 8) { showMsg(msg,'alert-error','El DNI no puede tener más de 8 dígitos.'); return; }
+        numDoc = numDoc.padStart(8, '0');
+      }
+      if (tipo === 'CE') {
+        if (numDoc.length > 9) { showMsg(msg,'alert-error','El CE no puede tener más de 9 dígitos.'); return; }
+        numDoc = numDoc.padStart(9, '0');
+      }
+
+      btn.disabled = true; btn.textContent = 'Guardando...'; msg.style.display = 'none';
+
+      try {
+        const nomCom = document.getElementById('nombreComercial').value.trim() || razon;
+
+        const { error: e1 } = await sbClient.from('proveedores').upsert({
+          documento: numDoc, tipo_documento: tipo,
+          razon_social: razon, nombre_comercial: nomCom,
+          es_peruano: document.getElementById('esDomiciliado').value === 'true',
+          estado: document.getElementById('estadoProv').value,
+        }, { onConflict: 'documento' });
+        if (e1) throw new Error(e1.message);
+
+        const banco = document.getElementById('banco').value;
+        const numCuenta = document.getElementById('numCuenta').value.trim();
+        const cci = document.getElementById('cci').value.trim();
+        if (banco || numCuenta || cci) {
+          const id = `BCO-${numDoc}-01`;
+          const { data: bEx } = await sbClient.from('proveedores_bancos').select('id_banco').eq('id_banco', id).maybeSingle();
+          const bd = { id_banco: id, documento_prov: numDoc, banco: banco||null,
+                       tipo_cuenta: document.getElementById('tipoCuenta').value||null,
+                       moneda: document.getElementById('moneda').value,
+                       numero_cuenta: numCuenta||null, cci: cci||null,
+                       es_titular: true, es_principal: true, estado: 'activo' };
+          if (bEx) await sbClient.from('proveedores_bancos').update(bd).eq('id_banco', id);
+          else     await sbClient.from('proveedores_bancos').insert(bd);
+        }
+
+        const pNom = document.getElementById('pagosNombre').value.trim();
+        const pEm  = document.getElementById('pagosEmail').value.trim();
+        if (pNom || pEm) {
+          const id = `CON-${numDoc}-PAG`;
+          const { data: cEx } = await sbClient.from('proveedores_contactos').select('id_contacto').eq('id_contacto', id).maybeSingle();
+          const cd = { id_contacto: id, documento_prov: numDoc, tipo: 'Pagos',
+                       nombre: pNom || razon, cargo: document.getElementById('pagosCC').value.trim()||null,
+                       email: pEm||null, es_principal: true };
+          if (cEx) await sbClient.from('proveedores_contactos').update(cd).eq('id_contacto', id);
+          else     await sbClient.from('proveedores_contactos').insert(cd);
+        }
+
+        const vNom = document.getElementById('vendNombre').value.trim();
+        const vEm  = document.getElementById('vendEmail').value.trim();
+        const vTel = document.getElementById('vendTel').value.trim();
+        if (vNom || vEm || vTel) {
+          const id = `CON-${numDoc}-VEN`;
+          const { data: cEx } = await sbClient.from('proveedores_contactos').select('id_contacto').eq('id_contacto', id).maybeSingle();
+          const cd = { id_contacto: id, documento_prov: numDoc, tipo: 'Ventas',
+                       nombre: vNom || razon, cargo: document.getElementById('condiciones').value.trim()||null,
+                       email: vEm||null, telefono: vTel||null, es_principal: false };
+          if (cEx) await sbClient.from('proveedores_contactos').update(cd).eq('id_contacto', id);
+          else     await sbClient.from('proveedores_contactos').insert(cd);
+        }
+
+        cerrarForm();
+        await cargar();
+      } catch(e) {
+        showMsg(msg,'alert-error','Error al guardar: ' + e.message);
+      }
+      btn.disabled = false; btn.textContent = 'Guardar proveedor';
+    }
+
+    function verDetalle(documento) {
+      const p = proveedores.find(x => x.documento === documento);
+      if (!p) return;
+      const banco = p.proveedores_bancos?.find(b => b.es_principal) || p.proveedores_bancos?.[0];
+      const cpag  = p.proveedores_contactos?.find(c => c.tipo === 'Pagos');
+      const cven  = p.proveedores_contactos?.find(c => c.tipo === 'Ventas');
+
+      document.getElementById('det-titulo').textContent = p.razon_social;
+      document.getElementById('btnEditDet').onclick = () => editar(documento);
+      document.getElementById('det-body').innerHTML = `
+        <div class="form-grid">
+          ${df('Tipo / Documento', `${p.tipo_documento||'RUC'} ${fmtDoc(p.documento, p.tipo_documento)}`)}
+          ${df('Nombre comercial', p.nombre_comercial && p.nombre_comercial !== p.razon_social ? p.nombre_comercial : '—')}
+          ${df('Domicilio', p.es_peruano === false ? 'No domiciliado' : 'Domiciliado (Perú)')}
+          ${df('Estado', getEstadoBadge(p.estado||'activo'))}
         </div>
-      </td></tr>`;
-    return;
-  }
-
-  document.getElementById('tbody').innerHTML = lista.map(p => {
-    const banco = p.proveedores_bancos?.find(b => b.es_principal) || p.proveedores_bancos?.[0];
-    const cpag  = p.proveedores_contactos?.find(c => c.tipo === 'Pagos');
-    const cven  = p.proveedores_contactos?.find(c => c.tipo === 'Ventas');
-    const nomCom = p.nombre_comercial && p.nombre_comercial !== p.razon_social ? p.nombre_comercial : '—';
-    const bancoStr = banco ? `${banco.banco||''}${banco.tipo_cuenta?' · '+banco.tipo_cuenta:''}` : '—';
-    const emailStr = cpag?.email || cven?.email || '—';
-    const telStr   = cven?.telefono || cpag?.telefono || '—';
-    return `
-      <tr>
-        <td>
-          <span class="td-mono fw-600">${fmtDoc(p.documento, p.tipo_documento)}</span>
-          <div class="td-muted">${p.tipo_documento||'RUC'}</div>
-        </td>
-        <td class="fw-600">${p.razon_social||'—'}</td>
-        <td class="td-muted">${nomCom}</td>
-        <td class="td-muted text-sm">${bancoStr}</td>
-        <td class="td-muted text-sm">${emailStr}</td>
-        <td class="td-muted text-sm">${telStr}</td>
-        <td>${getEstadoBadge(p.estado||'activo')}</td>
-        <td>
-          <div class="flex gap-8">
-            <button class="btn btn-ghost btn-icon btn-sm" onclick="verDetalle('${p.documento}')" title="Ver">${icons.eye}</button>
-            <button class="btn btn-ghost btn-icon btn-sm" onclick="editar('${p.documento}')" title="Editar">${icons.edit}</button>
-          </div>
-        </td>
-      </tr>`;
-  }).join('');
-}
-
-function fmtDoc(doc, tipo) {
-  if (!doc) return '—';
-  if (tipo === 'DNI') return doc.padStart(8, '0');
-  if (tipo === 'CE')  return doc.padStart(9, '0');
-  return doc;
-}
-
-function onTipoDocChange() {
-  const tipo  = document.getElementById('tipoDoc').value;
-  const input = document.getElementById('numDoc');
-  const btn   = document.getElementById('btnBuscar');
-  if (tipo === 'RUC') {
-    input.maxLength = 11; input.placeholder = '11 dígitos';
-    btn.style.display = ''; document.getElementById('esDomiciliado').value = 'true';
-  } else if (tipo === 'DNI') {
-    input.maxLength = 8; input.placeholder = '8 dígitos (con ceros adelante si aplica)';
-    btn.style.display = ''; document.getElementById('esDomiciliado').value = 'true';
-  } else {
-    input.maxLength = 12; input.placeholder = '9 dígitos';
-    btn.style.display = 'none'; document.getElementById('esDomiciliado').value = 'false';
-  }
-}
-
-async function buscarAPI() {
-  const tipo   = document.getElementById('tipoDoc').value;
-  const numDoc = document.getElementById('numDoc').value.trim();
-  const msg    = document.getElementById('msgAPI');
-  const btn    = document.getElementById('btnBuscar');
-
-  if (tipo === 'RUC' && numDoc.length !== 11) {
-    mostrarMsg(msg, 'warning', 'El RUC debe tener exactamente 11 dígitos.'); return;
-  }
-  if (tipo === 'DNI' && numDoc.length !== 8) {
-    mostrarMsg(msg, 'warning', 'El DNI debe tener exactamente 8 dígitos (incluí ceros adelante si aplica).'); return;
-  }
-
-  // Verificar duplicado solo en modo nuevo
-  if (!docEditando) {
-    const { data: existe } = await sbClient
-      .from('proveedores').select('razon_social').eq('documento', numDoc).maybeSingle();
-    if (existe) {
-      mostrarMsg(msg, 'warning', `Ya existe: ${existe.razon_social}. Editalo desde la lista.`); return;
-    }
-  }
-
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px"></span> Buscando...';
-  msg.style.display = 'none';
-
-  try {
-    const esRuc = tipo === 'RUC';
-    const resp  = await fetch(esRuc ? 'https://apiperu.dev/api/ruc' : 'https://apiperu.dev/api/dni', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${TOKEN_API}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(esRuc ? { ruc: numDoc } : { dni: numDoc })
-    });
-    const info = await resp.json();
-    if (info.success && info.data) {
-      const nombre = esRuc
-        ? info.data.nombre_o_razon_social?.trim()
-        : [info.data.nombres, info.data.apellido_paterno, info.data.apellido_materno].filter(Boolean).join(' ').trim();
-      document.getElementById('razonSocial').value = nombre;
-      mostrarMsg(msg, 'success', `✓ Encontrado: ${nombre}`);
-    } else {
-      mostrarMsg(msg, 'warning', 'No encontrado. Completá los datos manualmente.');
-    }
-  } catch(e) {
-    mostrarMsg(msg, 'warning', 'No se pudo conectar con SUNAT/RENIEC. Completá manualmente.');
-  }
-
-  btn.disabled = false;
-  btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Buscar SUNAT/RENIEC';
-}
-
-function abrirModalNuevo() {
-  docEditando = null;
-  document.getElementById('modalTitulo').textContent = 'Nuevo proveedor';
-  limpiarForm();
-  document.getElementById('numDoc').readOnly = false;
-  document.getElementById('tipoDoc').disabled = false;
-  abrir('modalProv');
-}
-
-function editar(documento) {
-  const p = proveedores.find(x => x.documento === documento);
-  if (!p) return;
-  docEditando = documento;
-  document.getElementById('modalTitulo').textContent = 'Editar proveedor';
-  limpiarForm();
-
-  document.getElementById('tipoDoc').value    = p.tipo_documento || 'RUC';
-  document.getElementById('tipoDoc').disabled = true;
-  document.getElementById('numDoc').value     = p.documento || '';
-  document.getElementById('numDoc').readOnly  = true;
-  document.getElementById('razonSocial').value    = p.razon_social || '';
-  document.getElementById('nombreComercial').value = p.nombre_comercial || '';
-  document.getElementById('esDomiciliado').value  = p.es_peruano === false ? 'false' : 'true';
-  document.getElementById('estadoProv').value     = p.estado || 'activo';
-
-  const banco = p.proveedores_bancos?.find(b => b.es_principal) || p.proveedores_bancos?.[0];
-  if (banco) {
-    document.getElementById('banco').value    = banco.banco || '';
-    document.getElementById('tipoCuenta').value= banco.tipo_cuenta || '';
-    document.getElementById('moneda').value   = banco.moneda || 'PEN';
-    document.getElementById('numCuenta').value= banco.numero_cuenta || '';
-    document.getElementById('cci').value      = banco.cci || '';
-  }
-
-  const cpag = p.proveedores_contactos?.find(c => c.tipo === 'Pagos');
-  if (cpag) {
-    document.getElementById('pagosNombre').value = cpag.nombre || '';
-    document.getElementById('pagosEmail').value  = cpag.email || '';
-    document.getElementById('pagosCC').value     = cpag.cargo || '';
-  }
-
-  const cven = p.proveedores_contactos?.find(c => c.tipo === 'Ventas');
-  if (cven) {
-    document.getElementById('vendNombre').value = cven.nombre || '';
-    document.getElementById('vendEmail').value  = cven.email || '';
-    document.getElementById('vendTel').value    = cven.telefono || '';
-    document.getElementById('condiciones').value= cven.cargo || '';
-  }
-
-  cerrar('modalDet');
-  abrir('modalProv');
-}
-
-async function guardar() {
-  const msg    = document.getElementById('msgGuardar');
-  const btn    = document.getElementById('btnGuardar');
-  const tipo   = document.getElementById('tipoDoc').value;
-  let numDoc   = document.getElementById('numDoc').value.trim();
-  const razon  = document.getElementById('razonSocial').value.trim();
-
-  if (!numDoc) { mostrarMsg(msg, 'error', 'El número de documento es obligatorio.'); return; }
-  if (!razon)  { mostrarMsg(msg, 'error', 'La razón social / nombre es obligatorio.'); return; }
-
-  // Normalizar con ceros adelante
-  if (tipo === 'RUC' && numDoc.length !== 11) {
-    mostrarMsg(msg, 'error', 'El RUC debe tener exactamente 11 dígitos.'); return;
-  }
-  if (tipo === 'DNI') {
-    if (numDoc.length > 8) { mostrarMsg(msg, 'error', 'El DNI no puede tener más de 8 dígitos.'); return; }
-    numDoc = numDoc.padStart(8, '0');
-  }
-  if (tipo === 'CE') {
-    if (numDoc.length > 9) { mostrarMsg(msg, 'error', 'El CE no puede tener más de 9 dígitos.'); return; }
-    numDoc = numDoc.padStart(9, '0');
-  }
-
-  btn.disabled = true; btn.textContent = 'Guardando...'; msg.style.display = 'none';
-
-  try {
-    const nomCom = document.getElementById('nombreComercial').value.trim() || razon;
-
-    // 1. Proveedor
-    const { error: e1 } = await sbClient.from('proveedores').upsert({
-      documento: numDoc, tipo_documento: tipo,
-      razon_social: razon, nombre_comercial: nomCom,
-      es_peruano: document.getElementById('esDomiciliado').value === 'true',
-      estado: document.getElementById('estadoProv').value,
-    }, { onConflict: 'documento' });
-    if (e1) throw new Error(e1.message);
-
-    // 2. Banco
-    const banco     = document.getElementById('banco').value;
-    const tipoCuenta= document.getElementById('tipoCuenta').value;
-    const numCuenta = document.getElementById('numCuenta').value.trim();
-    const cci       = document.getElementById('cci').value.trim();
-    if (banco || numCuenta || cci) {
-      const id = `BCO-${numDoc}-01`;
-      const { data: bEx } = await sbClient.from('proveedores_bancos').select('id_banco').eq('id_banco', id).maybeSingle();
-      const bd = { id_banco: id, documento_prov: numDoc, banco: banco||null, tipo_cuenta: tipoCuenta||null,
-                   moneda: document.getElementById('moneda').value, numero_cuenta: numCuenta||null,
-                   cci: cci||null, es_titular: true, es_principal: true, estado: 'activo' };
-      if (bEx) await sbClient.from('proveedores_bancos').update(bd).eq('id_banco', id);
-      else     await sbClient.from('proveedores_bancos').insert(bd);
+        ${banco ? `<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px">Datos bancarios</div>
+        <div class="form-grid-3">
+          ${df('Banco', banco.banco)} ${df('Tipo', banco.tipo_cuenta)} ${df('Moneda', banco.moneda)}
+          ${df('N° Cuenta', `<span style="font-family:monospace;font-size:12px">${banco.numero_cuenta||'—'}</span>`)}
+          ${df('CCI', `<span style="font-family:monospace;font-size:12px">${banco.cci||'—'}</span>`)}
+        </div>` : ''}
+        ${cpag ? `<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px">Contacto de pagos</div>
+        <div class="form-grid-3">${df('Nombre', cpag.nombre)} ${df('Email', cpag.email)} ${df('CC', cpag.cargo)}</div>` : ''}
+        ${cven ? `<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px">Contacto comercial</div>
+        <div class="form-grid-3">${df('Vendedor', cven.nombre)} ${df('Email', cven.email)} ${df('Teléfono', cven.telefono)}
+        ${df('Condiciones', cven.cargo)}</div>` : ''}
+      `;
+      document.getElementById('modal-detalle').classList.remove('hidden');
     }
 
-    // 3. Contacto pagos
-    const pNom = document.getElementById('pagosNombre').value.trim();
-    const pEm  = document.getElementById('pagosEmail').value.trim();
-    const pCC  = document.getElementById('pagosCC').value.trim();
-    if (pNom || pEm) {
-      const id = `CON-${numDoc}-PAG`;
-      const { data: cEx } = await sbClient.from('proveedores_contactos').select('id_contacto').eq('id_contacto', id).maybeSingle();
-      const cd = { id_contacto: id, documento_prov: numDoc, tipo: 'Pagos',
-                   nombre: pNom || razon, cargo: pCC||null, email: pEm||null, es_principal: true };
-      if (cEx) await sbClient.from('proveedores_contactos').update(cd).eq('id_contacto', id);
-      else     await sbClient.from('proveedores_contactos').insert(cd);
+    function df(label, val) {
+      return `<div>
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">${label}</div>
+        <div style="font-size:13px;font-weight:500">${val||'—'}</div>
+      </div>`;
     }
 
-    // 4. Contacto ventas
-    const vNom = document.getElementById('vendNombre').value.trim();
-    const vEm  = document.getElementById('vendEmail').value.trim();
-    const vTel = document.getElementById('vendTel').value.trim();
-    const vCon = document.getElementById('condiciones').value.trim();
-    if (vNom || vEm || vTel) {
-      const id = `CON-${numDoc}-VEN`;
-      const { data: cEx } = await sbClient.from('proveedores_contactos').select('id_contacto').eq('id_contacto', id).maybeSingle();
-      const cd = { id_contacto: id, documento_prov: numDoc, tipo: 'Ventas',
-                   nombre: vNom || razon, cargo: vCon||null, email: vEm||null, telefono: vTel||null, es_principal: false };
-      if (cEx) await sbClient.from('proveedores_contactos').update(cd).eq('id_contacto', id);
-      else     await sbClient.from('proveedores_contactos').insert(cd);
+    function limpiarForm() {
+      ['numDoc','razonSocial','nombreComercial','banco','numCuenta','cci',
+       'pagosNombre','pagosEmail','pagosCC','vendNombre','vendEmail','vendTel','condiciones']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      document.getElementById('tipoDoc').value       = 'RUC';
+      document.getElementById('tipoDoc').disabled    = false;
+      document.getElementById('tipoCuenta').value    = '';
+      document.getElementById('moneda').value        = 'PEN';
+      document.getElementById('esDomiciliado').value = 'true';
+      document.getElementById('estadoProv').value    = 'activo';
+      ['msgAPI','msgGuardar'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+      onTipoDocChange();
     }
 
-    cerrar('modalProv');
-    await cargarProveedores();
+    function showMsg(el, cls, txt) { el.className = `alert ${cls}`; el.textContent = txt; el.style.display = 'block'; }
+    function cerrarForm()    { document.getElementById('modal-form').classList.add('hidden'); }
+    function cerrarDetalle() { document.getElementById('modal-detalle').classList.add('hidden'); }
 
-  } catch(e) {
-    mostrarMsg(msg, 'error', 'Error al guardar: ' + e.message);
-  }
-  btn.disabled = false; btn.textContent = 'Guardar proveedor';
-}
+    document.getElementById('modal-form').addEventListener('click', function(e) { if (e.target === this) cerrarForm(); });
+    document.getElementById('modal-detalle').addEventListener('click', function(e) { if (e.target === this) cerrarDetalle(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { cerrarForm(); cerrarDetalle(); } });
 
-function verDetalle(documento) {
-  const p = proveedores.find(x => x.documento === documento);
-  if (!p) return;
-  const banco = p.proveedores_bancos?.find(b => b.es_principal) || p.proveedores_bancos?.[0];
-  const cpag  = p.proveedores_contactos?.find(c => c.tipo === 'Pagos');
-  const cven  = p.proveedores_contactos?.find(c => c.tipo === 'Ventas');
-
-  document.getElementById('detTitulo').textContent = p.razon_social;
-  document.getElementById('btnEditDet').onclick = () => editar(documento);
-
-  document.getElementById('detBody').innerHTML = `
-    <div class="det-grupo">
-      <div class="det-gtitle">Identificación</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        ${df('Tipo / Documento', `${p.tipo_documento||'RUC'} ${fmtDoc(p.documento, p.tipo_documento)}`)}
-        ${df('Nombre comercial', p.nombre_comercial && p.nombre_comercial !== p.razon_social ? p.nombre_comercial : '—')}
-        ${df('Domicilio', p.es_peruano === false ? 'No domiciliado' : 'Domiciliado (Perú)')}
-        ${df('Estado', getEstadoBadge(p.estado||'activo'))}
-      </div>
-    </div>
-    ${banco ? `
-    <div class="det-grupo">
-      <div class="det-gtitle">Datos bancarios</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-        ${df('Banco', banco.banco)} ${df('Tipo', banco.tipo_cuenta)} ${df('Moneda', banco.moneda)}
-        ${df('N° Cuenta', `<span class="td-mono">${banco.numero_cuenta||'—'}</span>`)}
-        ${df('CCI', `<span class="td-mono">${banco.cci||'—'}</span>`)}
-      </div>
-    </div>` : ''}
-    ${cpag ? `
-    <div class="det-grupo">
-      <div class="det-gtitle">Contacto de pagos</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-        ${df('Nombre', cpag.nombre)} ${df('Email', cpag.email)} ${df('CC', cpag.cargo)}
-      </div>
-    </div>` : ''}
-    ${cven ? `
-    <div class="det-grupo">
-      <div class="det-gtitle">Contacto comercial</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-        ${df('Vendedor', cven.nombre)} ${df('Email', cven.email)} ${df('Teléfono', cven.telefono)}
-        ${df('Condiciones', cven.cargo)}
-      </div>
-    </div>` : ''}`;
-
-  abrir('modalDet');
-}
-
-function df(label, val) {
-  return `<div class="df"><div class="df-label">${label}</div><div class="df-val">${val||'<span style="color:var(--text-light)">—</span>'}</div></div>`;
-}
-
-function limpiarForm() {
-  ['numDoc','razonSocial','nombreComercial','banco','numCuenta','cci',
-   'pagosNombre','pagosEmail','pagosCC','vendNombre','vendEmail','vendTel','condiciones']
-    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  document.getElementById('tipoDoc').value      = 'RUC';
-  document.getElementById('tipoDoc').disabled   = false;
-  document.getElementById('tipoCuenta').value   = '';
-  document.getElementById('moneda').value       = 'PEN';
-  document.getElementById('esDomiciliado').value= 'true';
-  document.getElementById('estadoProv').value   = 'activo';
-  ['msgAPI','msgGuardar'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
-  onTipoDocChange();
-}
-
-function mostrarMsg(el, tipo, txt) { el.className = `alert alert-${tipo} mt-4`; el.textContent = txt; el.style.display = 'block'; }
-function abrir(id) { document.getElementById(id).classList.remove("hidden"); }
-function cerrar(id){ document.getElementById(id).classList.add('hidden'); }
-
-['modalProv','modalDet'].forEach(id => {
-  document.getElementById(id)?.addEventListener('click', function(e) { if (e.target === this) cerrar(id); });
-});
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { cerrar('modalProv'); cerrar('modalDet'); } });
-</script>
+    init();
+  </script>
 </body>
 </html>
