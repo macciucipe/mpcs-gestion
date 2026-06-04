@@ -144,10 +144,12 @@
     }
 
     async function cargarConceptos() {
-      const { data } = await sbClient.from('conceptos')
+      const { data, error } = await sbClient.from('conceptos')
         .select('id_concepto, nombre, nombre_corto')
         .order('nombre');
+      if (error) { console.error('Error conceptos:', error); }
       conceptos = data || [];
+      console.log('Conceptos cargados:', conceptos.length, conceptos);
 
       const selFiltro = document.getElementById('filtro-concepto');
       const selModal  = document.getElementById('id-concepto');
