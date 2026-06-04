@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catálogo de Solicitud · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Catálogo de solicitud</h1>
+        <p>Items que los locales pueden pedir por concepto</p>
+      </div>
+      <div class="page-header-right">
+        <select id="filtro-concepto" class="btn" onchange="cargar()" style="padding:7px 12px">
+          <option value="">Seleccionar concepto...</option>
+        </select>
+        <div class="search-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="search" placeholder="Buscar item..." oninput="filtrar()" />
+        </div>
+        <button class="btn btn-primary" onclick="abrirNuevo()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nuevo item
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- Stats -->
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:1.5rem">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-label">Total items</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-activos" style="color:var(--success)">—</div>
+          <div class="stat-label">Activos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-categorias" style="color:var(--info)">—</div>
+          <div class="stat-label">Categorías</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 id="count-label">Items</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="filtro-categoria" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
+              <option value="">Todas las categorías</option>
+            </select>
+            <select id="filtro-estado" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
+              <option value="">Todos</option>
+              <option value="true">Activos</option>
+              <option value="false">Inactivos</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Categoría</th>
+                <th>Nombre del item</th>
+                <th>Unidad</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="5"><div class="empty-state"><p>Seleccioná un concepto para ver su catálogo</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL NUEVO/EDITAR -->
+  <div class="modal-overlay hidden" id="modal-form">
+    <div class="modal" style="max-width:480px">
+      <div class="modal-header">
+        <h3 id="modal-titulo">Nuevo item</h3>
+        <button class="modal-close" onclick="cerrarForm()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>Concepto *</label>
+          <select id="id-concepto">
+            <option value="">-- Seleccionar --</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Categoría *</label>
+          <input type="text" id="categoria" placeholder="Ej: CÁRNICOS, LIMPIEZA, ABARROTES"
+                 list="lista-categorias" oninput="this.value=this.value.toUpperCase()" />
+          <datalist id="lista-categorias"></datalist>
+        </div>
+        <div class="field">
+          <label>Nombre del item *</label>
+          <input type="text" id="nombre" placeholder="Ej: BIFE ANGOSTO"
+                 oninput="this.value=this.value.toUpperCase()" />
+        </div>
+        <div class="field">
+          <label>Unidad de medida *</label>
+          <select id="unidad-medida">
+            <option value="">-- Seleccionar --</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Estado</label>
+          <select id="estado-item">
+            <option value="true">Activo</option>
+            <option value="false">Inactivo</option>
+          </select>
+        </div>
+        <div id="msg-guardar" class="alert" style="display:none;margin-top:8px"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="cerrarForm()">Cancelar</button>
+        <button class="btn btn-primary" id="btn-guardar" onclick="guardar()">Guardar item</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let perfil   = null;
+    let items    = [];
+    let conceptos = [];
+    let unidades = [];
+    let idEditando = null;
+
+    async function init() {
+      perfil = await requireAuth(['admin','compras','gerencia']);
+      if (!perfil) return;
+      renderSidebar(perfil, 'catalogo-local');
+      await Promise.all([cargarConceptos(), cargarUnidades()]);
+    }
+
+    async function cargarConceptos() {
+      const { data } = await sbClient.from('conceptos')
+        .select('id_concepto, nombre, nombre_corto')
+        .eq('activo', true)
+        .order('nombre');
+      conceptos = data || [];
+
+      const selFiltro = document.getElementById('filtro-concepto');
+      const selModal  = document.getElementById('id-concepto');
+      conceptos.forEach(c => {
+        [selFiltro, selModal].forEach(sel => {
+          const opt = document.createElement('option');
+          opt.value = c.id_concepto;
+          opt.textContent = c.nombre;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    async function cargarUnidades() {
+      const { data } = await sbClient.from('unidades_medida')
+        .select('codigo, descripcion')
+        .eq('activa', true)
+        .order('es_comun', { ascending: false })
+        .order('codigo');
+      unidades = data || [];
+
+      const sel = document.getElementById('unidad-medida');
+      unidades.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.codigo;
+        opt.textContent = `${u.codigo} — ${u.descripcion}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function cargar() {
+      const concepto = document.getElementById('filtro-concepto').value;
+      if (!concepto) {
+        document.getElementById('tbody').innerHTML =
+          '<tr><td colspan="5"><div class="empty-state"><p>Seleccioná un concepto para ver su catálogo</p></div></td></tr>';
+        document.getElementById('stat-total').textContent = '—';
+        document.getElementById('stat-activos').textContent = '—';
+        document.getElementById('stat-categorias').textContent = '—';
+        return;
+      }
+
+      document.getElementById('tbody').innerHTML =
+        '<tr><td colspan="5"><div class="loading">Cargando...</div></td></tr>';
+
+      const { data, error } = await sbClient
+        .from('catalogo_local')
+        .select('*')
+        .eq('id_concepto', concepto)
+        .order('categoria')
+        .order('nombre');
+
+      if (error) {
+        document.getElementById('tbody').innerHTML =
+          `<tr><td colspan="5"><div class="empty-state"><p>Error: ${error.message}</p></div></td></tr>`;
+        return;
+      }
+
+      items = data || [];
+
+      // Stats
+      const activos    = items.filter(i => i.activo).length;
+      const categorias = new Set(items.map(i => i.categoria).filter(Boolean)).size;
+      document.getElementById('stat-total').textContent     = items.length;
+      document.getElementById('stat-activos').textContent   = activos;
+      document.getElementById('stat-categorias').textContent= categorias;
+
+      // Poblar filtro de categorías
+      const cats = [...new Set(items.map(i => i.categoria).filter(Boolean))].sort();
+      const selCat = document.getElementById('filtro-categoria');
+      const valActual = selCat.value;
+      selCat.innerHTML = '<option value="">Todas las categorías</option>';
+      cats.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        selCat.appendChild(opt);
+      });
+      selCat.value = valActual;
+
+      // Poblar datalist de categorías en modal
+      const dl = document.getElementById('lista-categorias');
+      dl.innerHTML = '';
+      cats.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        dl.appendChild(opt);
+      });
+
+      filtrar();
+    }
+
+    function filtrar() {
+      const q    = document.getElementById('search').value.toLowerCase();
+      const cat  = document.getElementById('filtro-categoria').value;
+      const est  = document.getElementById('filtro-estado').value;
+
+      const lista = items.filter(i =>
+        (!q   || (i.nombre||'').toLowerCase().includes(q)) &&
+        (!cat || i.categoria === cat) &&
+        (est === '' || i.activo.toString() === est)
+      );
+
+      document.getElementById('count-label').textContent = `Items (${lista.length})`;
+      renderTabla(lista);
+    }
+
+    function renderTabla(lista) {
+      const tbody = document.getElementById('tbody');
+      if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+          <h3>Sin items</h3><p>Agregá el primero con "Nuevo item"</p>
+        </div></td></tr>`;
+        return;
+      }
+
+      // Agrupar por categoría
+      const porCategoria = {};
+      lista.forEach(i => {
+        const cat = i.categoria || 'Sin categoría';
+        if (!porCategoria[cat]) porCategoria[cat] = [];
+        porCategoria[cat].push(i);
+      });
+
+      let html = '';
+      Object.keys(porCategoria).sort().forEach(cat => {
+        html += `<tr style="background:var(--bg)">
+          <td colspan="5" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);padding:8px 14px">
+            ${cat} <span style="font-weight:400">(${porCategoria[cat].length})</span>
+          </td>
+        </tr>`;
+        porCategoria[cat].forEach(i => {
+          html += `<tr>
+            <td class="td-muted text-sm">${i.categoria||'—'}</td>
+            <td><strong>${i.nombre}</strong></td>
+            <td><span class="badge badge-gray">${i.unidad_medida||'—'}</span></td>
+            <td>${i.activo
+              ? '<span class="badge badge-green">Activo</span>'
+              : '<span class="badge badge-gray">Inactivo</span>'}</td>
+            <td>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-sm btn-ghost" onclick="editar('${i.id_producto_local}')">
+                  ${icons.edit} Editar
+                </button>
+                <button class="btn btn-sm btn-ghost" onclick="toggleEstado('${i.id_producto_local}', ${i.activo})">
+                  ${i.activo ? '⏸ Desactivar' : '▶ Activar'}
+                </button>
+              </div>
+            </td>
+          </tr>`;
+        });
+      });
+      tbody.innerHTML = html;
+    }
+
+    function abrirNuevo() {
+      idEditando = null;
+      document.getElementById('modal-titulo').textContent = 'Nuevo item';
+      limpiarForm();
+      // Preseleccionar concepto activo
+      const concepto = document.getElementById('filtro-concepto').value;
+      if (concepto) document.getElementById('id-concepto').value = concepto;
+      document.getElementById('modal-form').classList.remove('hidden');
+    }
+
+    function editar(id) {
+      const item = items.find(x => x.id_producto_local === id);
+      if (!item) return;
+      idEditando = id;
+      document.getElementById('modal-titulo').textContent = 'Editar item';
+      limpiarForm();
+      document.getElementById('id-concepto').value    = item.id_concepto || '';
+      document.getElementById('categoria').value      = item.categoria || '';
+      document.getElementById('nombre').value         = item.nombre || '';
+      document.getElementById('unidad-medida').value  = item.unidad_medida || '';
+      document.getElementById('estado-item').value    = item.activo ? 'true' : 'false';
+      document.getElementById('modal-form').classList.remove('hidden');
+    }
+
+    async function guardar() {
+      const msg      = document.getElementById('msg-guardar');
+      const btn      = document.getElementById('btn-guardar');
+      const concepto = document.getElementById('id-concepto').value;
+      const cat      = document.getElementById('categoria').value.trim();
+      const nom      = document.getElementById('nombre').value.trim();
+      const um       = document.getElementById('unidad-medida').value;
+
+      if (!concepto) { showMsg(msg,'alert-error','Seleccioná un concepto.'); return; }
+      if (!cat)      { showMsg(msg,'alert-error','La categoría es obligatoria.'); return; }
+      if (!nom)      { showMsg(msg,'alert-error','El nombre es obligatorio.'); return; }
+      if (!um)       { showMsg(msg,'alert-error','Seleccioná una unidad de medida.'); return; }
+
+      btn.disabled = true; btn.textContent = 'Guardando...'; msg.style.display = 'none';
+
+      try {
+        const datos = {
+          id_concepto:   concepto,
+          categoria:     cat,
+          nombre:        nom,
+          unidad_medida: um,
+          activo:        document.getElementById('estado-item').value === 'true',
+        };
+
+        if (idEditando) {
+          const { error } = await sbClient.from('catalogo_local').update(datos).eq('id_producto_local', idEditando);
+          if (error) throw new Error(error.message);
+        } else {
+          const { count } = await sbClient.from('catalogo_local')
+            .select('*', {count:'exact'}).eq('id_concepto', concepto);
+          const num = (count || 0) + 1;
+          datos.id_producto_local = `CAT-${concepto}-${num.toString().padStart(5,'0')}`;
+          const { error } = await sbClient.from('catalogo_local').insert(datos);
+          if (error) throw new Error(error.message);
+        }
+
+        await auditar(perfil,
+          idEditando ? 'EDITAR' : 'CREAR',
+          'catalogo_local',
+          `${idEditando ? 'Editó' : 'Creó'} item "${nom}" en catálogo ${concepto}`
+        );
+
+        cerrarForm();
+        await cargar();
+      } catch(e) {
+        showMsg(msg,'alert-error','Error: ' + e.message);
+      }
+      btn.disabled = false; btn.textContent = 'Guardar item';
+    }
+
+    async function toggleEstado(id, estadoActual) {
+      const nuevoEstado = !estadoActual;
+      const item = items.find(x => x.id_producto_local === id);
+      const { error } = await sbClient.from('catalogo_local')
+        .update({ activo: nuevoEstado }).eq('id_producto_local', id);
+      if (!error) {
+        await auditar(perfil, 'EDITAR', 'catalogo_local',
+          `${nuevoEstado ? 'Activó' : 'Desactivó'} item "${item?.nombre || id}"`
+        );
+        await cargar();
+      }
+    }
+
+    function limpiarForm() {
+      ['id-concepto','categoria','nombre','unidad-medida'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+      });
+      document.getElementById('estado-item').value = 'true';
+      const msg = document.getElementById('msg-guardar');
+      if (msg) msg.style.display = 'none';
+    }
+
+    function showMsg(el, cls, txt) { el.className = `alert ${cls}`; el.textContent = txt; el.style.display = 'block'; }
+    function cerrarForm() { document.getElementById('modal-form').classList.add('hidden'); }
+
+    document.getElementById('modal-form').addEventListener('click', function(e) {
+      if (e.target === this) cerrarForm();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarForm(); });
+
+    init();
+  </script>
+</body>
+</html>
