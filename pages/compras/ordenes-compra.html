@@ -900,180 +900,183 @@
     // ── GENERAR PDF con jsPDF ─────────────────────────────────────
     async function generarPDF(d, numero, localData, emp) {
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-      const margenL  = 15;
-      const margenR  = 195;
-      const ancho    = 180;
-      const azul     = [27, 43, 94];
-      const gris     = [100, 100, 100];
-      const grisCla  = [240, 240, 240];
-      const negro    = [30, 30, 30];
-      const fmt2 = n => parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2 });
-
+      const doc  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const mL   = 15, mR = 195, ancho = 180;
+      const azul = [27, 43, 94], gris = [100,100,100], grisCla = [220,220,220], negro = [30,30,30];
+      const fmt2 = n => parseFloat(n||0).toLocaleString('en-US', { minimumFractionDigits: 2 });
       const fecha = new Date().toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'numeric' });
+      const prov  = proveedoresGlobal.find(p => p.razon_social === d.proveedor || p.documento === d.docProveedor);
 
-      // ── ENCABEZADO ─────────────────────────────────────────────
-      // Logo
+      // ── LOGO ────────────────────────────────────────────────────
       const logoUrl = LOGOS[d.rucEmpresa];
       if (logoUrl) {
         try {
           const imgData = await cargarImagenBase64(logoUrl);
-          doc.addImage(imgData, 'PNG', margenL, 10, 50, 20);
-        } catch(e) { console.warn('Logo no cargado:', e); }
+          doc.addImage(imgData, 'PNG', mL, 8, 45, 22);
+        } catch(e) { console.warn('Logo:', e); }
       }
 
-      // Datos empresa (derecha)
-      doc.setFontSize(9).setFont('helvetica','bold').setTextColor(...azul);
-      doc.text(d.empresa, margenR, 14, { align: 'right' });
-      doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...gris);
-      doc.text(`RUC: ${d.rucEmpresa}`, margenR, 19, { align: 'right' });
-      if (localData?.direccion) doc.text(localData.direccion, margenR, 23, { align: 'right' });
+      // ── NÚMERO OC (arriba derecha) ───────────────────────────────
+      doc.setFont('helvetica','bold').setFontSize(8).setTextColor(...azul);
+      doc.text(d.tipo === 'OS' ? 'ORDEN DE SERVICIO N°:' : 'ORDEN DE COMPRA N°:', mR, 12, { align:'right' });
+      doc.setFontSize(11).setTextColor(...azul);
+      doc.text(numero, mR, 18, { align:'right' });
+      doc.setFontSize(8).setFont('helvetica','normal').setTextColor(...gris);
+      doc.text(`Fecha de Emisión: ${fecha}`, mR, 23, { align:'right' });
 
-      // Caja número OC
-      doc.setFillColor(...azul);
-      doc.roundedRect(margenR - 55, 28, 56, 16, 2, 2, 'F');
-      doc.setFont('helvetica','bold').setFontSize(8).setTextColor(255,255,255);
-      doc.text(d.tipo === 'OS' ? 'ORDEN DE SERVICIO' : 'ORDEN DE COMPRA', margenR - 27, 34, { align: 'center' });
-      doc.setFontSize(11);
-      doc.text(numero, margenR - 27, 40, { align: 'center' });
+      // ── EMPRESA Y LOCAL (centrado) ───────────────────────────────
+      let y = 35;
+      doc.setFont('helvetica','bold').setFontSize(11).setTextColor(...azul);
+      doc.text(`${d.rucEmpresa}  ${d.empresa}`, 105, y, { align:'center' });
+      y += 6;
+      doc.setFontSize(10).setTextColor(...negro);
+      doc.text(d.local, 105, y, { align:'center' });
+      y += 5;
 
-      // Línea separadora
-      doc.setDrawColor(...azul).setLineWidth(0.5);
-      doc.line(margenL, 48, margenR, 48);
-
-      // ── DATOS PROVEEDOR / ENTREGA ──────────────────────────────
-      let y = 53;
-      doc.setFontSize(8).setFont('helvetica','bold').setTextColor(...azul);
-      doc.text('PROVEEDOR:', margenL, y);
-      doc.setFont('helvetica','normal').setTextColor(...negro);
-      doc.text(d.proveedor, margenL + 22, y);
-
-      // Buscar RUC del proveedor
-      const prov = proveedoresGlobal.find(p => p.razon_social === d.proveedor);
-      if (prov) {
-        doc.setFont('helvetica','bold').setTextColor(...azul);
-        doc.text('RUC/DNI:', margenL, y + 5);
-        doc.setFont('helvetica','normal').setTextColor(...negro);
-        doc.text(prov.documento, margenL + 22, y + 5);
-      }
-
-      doc.setFont('helvetica','bold').setTextColor(...azul);
-      doc.text('FECHA:', margenR - 60, y);
-      doc.setFont('helvetica','normal').setTextColor(...negro);
-      doc.text(fecha, margenR - 42, y);
-
-      doc.setFont('helvetica','bold').setTextColor(...azul);
-      doc.text('LOCAL:', margenR - 60, y + 5);
-      doc.setFont('helvetica','normal').setTextColor(...negro);
-      doc.text(d.local, margenR - 42, y + 5);
-
+      // Dirección, teléfono, horario
       if (localData?.direccion) {
-        doc.setFont('helvetica','bold').setTextColor(...azul);
-        doc.text('DIRECCIÓN:', margenL, y + 10);
-        doc.setFont('helvetica','normal').setTextColor(...negro);
-        doc.text(localData.direccion, margenL + 22, y + 10);
+        doc.setFont('helvetica','bold').setFontSize(9).setTextColor(...azul);
+        doc.text(localData.direccion, 105, y, { align:'center' });
+        y += 5;
+      }
+      if (localData?.telefono) {
+        doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...negro);
+        doc.text(localData.telefono, 105, y, { align:'center' });
+        y += 4;
+      }
+      if (localData?.horario) {
+        doc.setFontSize(8).setTextColor(...gris);
+        doc.text(localData.horario, 105, y, { align:'center' });
+        y += 4;
       }
 
-      // QR
+      y += 3;
+      doc.setDrawColor(...azul).setLineWidth(0.5);
+      doc.line(mL, y, mR, y);
+      y += 6;
+
+      // ── PROVEEDOR ────────────────────────────────────────────────
+      doc.setFont('helvetica','bold').setFontSize(9).setTextColor(...azul);
+      doc.text('2. Señores:', mL, y);
+      doc.setTextColor(0, 100, 0);
+      doc.text(d.proveedor, mL + 25, y);
+      if (prov?.documento) {
+        doc.setTextColor(...azul);
+        doc.text('RUC:', mR - 40, y);
+        doc.setTextColor(0, 100, 0);
+        doc.text(prov.documento, mR - 32, y);
+      }
+      y += 8;
+
+      // ── TABLA ────────────────────────────────────────────────────
+      const colW = [8, 12, 10, 62, 32, 20, 18, 18];
+      const colX = [mL];
+      colW.forEach((w,i) => { if(i>0) colX.push(colX[i-1]+colW[i-1]); });
+      const headers = ['N°','Cant.','Und','Descripción / Artículo','Detalle','P. Unit.
+Bruto','IGV','Total'];
+
+      // Header
+      doc.setFillColor(...azul);
+      doc.rect(mL, y, ancho, 8, 'F');
+      doc.setFont('helvetica','bold').setFontSize(7).setTextColor(255,255,255);
+      headers.forEach((h, i) => {
+        const isRight = i >= 5;
+        const xPos = isRight ? colX[i]+colW[i]-1 : (i===0 ? colX[i]+colW[i]/2 : colX[i]+1);
+        const lines = h.split('
+');
+        if (lines.length > 1) {
+          doc.text(lines[0], xPos, y+3.5, { align: isRight?'right':'left' });
+          doc.text(lines[1], xPos, y+6.5, { align: isRight?'right':'left' });
+        } else {
+          doc.text(h, xPos, y+5, { align: isRight?'right':(i===0?'center':'left') });
+        }
+      });
+      y += 8;
+
+      // Filas
+      doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...negro);
+      d.items.forEach((item, idx) => {
+        const descLines = doc.splitTextToSize(item.desc, colW[3]-2);
+        const detLines  = item.det ? doc.splitTextToSize(item.det, colW[4]-2) : [];
+        const maxLines  = Math.max(descLines.length, detLines.length, 1);
+        const rowH      = Math.max(maxLines * 4.5 + 2, 7);
+
+        if (y + rowH > 265) { doc.addPage(); y = 15; }
+
+        // Fondo alterno
+        if (idx % 2 === 1) {
+          doc.setFillColor(246,248,252);
+          doc.rect(mL, y, ancho, rowH, 'F');
+        }
+        // Borde
+        doc.setDrawColor(...grisCla).setLineWidth(0.1);
+        doc.rect(mL, y, ancho, rowH, 'S');
+
+        const cy = y + rowH/2 + 1;
+        doc.setTextColor(...negro);
+        doc.text((idx+1).toString(),              colX[0]+colW[0]/2, cy, { align:'center' });
+        doc.text(item.cant.toString(),             colX[1]+1, cy);
+        doc.text(item.und,                         colX[2]+1, cy);
+        doc.text(descLines,                        colX[3]+1, y+4);
+        if (detLines.length) doc.text(detLines,    colX[4]+1, y+4);
+        doc.text('S/ '+fmt2(item.precioBruto),     colX[5]+colW[5]-1, cy, { align:'right' });
+        doc.text('S/ '+fmt2(item.igvLinea),        colX[6]+colW[6]-1, cy, { align:'right' });
+        doc.text('S/ '+fmt2(item.subtotalBruto),   colX[7]+colW[7]-1, cy, { align:'right' });
+        y += rowH;
+      });
+
+      y += 5;
+
+      // ── TOTALES (derecha) ────────────────────────────────────────
+      const xTL = mR - 70, xTV = mR;
+      doc.setFont('helvetica','normal').setFontSize(8.5).setTextColor(...gris);
+      doc.text('Subtotal (Base Imponible):', xTL, y); doc.text(`S/ ${fmt2(d.subtotal)}`, xTV, y, {align:'right'}); y+=5;
+      doc.text(`IGV:`, xTL, y); doc.text(`S/ ${fmt2(d.igv)}`, xTV, y, {align:'right'}); y+=2;
+      doc.setDrawColor(...azul).line(xTL, y, xTV, y); y+=4;
+      doc.setFont('helvetica','bold').setFontSize(10).setTextColor(...azul);
+      doc.text('TOTAL A PAGAR:', xTL, y); doc.text(`S/ ${fmt2(d.total)}`, xTV, y, {align:'right'}); y+=8;
+
+      // ── OBSERVACIONES ────────────────────────────────────────────
+      if (d.obs) {
+        if (y > 240) { doc.addPage(); y = 15; }
+        doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...negro);
+        const obsLines = doc.splitTextToSize(d.obs, ancho);
+        doc.text(obsLines, mL, y); y += obsLines.length*4 + 4;
+      }
+
+      // ── CONDICIONES ──────────────────────────────────────────────
+      if (y > 240) { doc.addPage(); y = 15; }
+      y += 3;
+      doc.setFont('helvetica','bold').setFontSize(8).setTextColor(...azul);
+      doc.text('CONDICIONES:', mL, y); y += 5;
+      doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...negro);
+      const conds = [
+        `Emitir la factura electrónica a nombre de ${d.empresa}.`,
+        'Los bienes/servicios deben ser entregados en el lugar indicado.',
+        'Cualquier variación en precio o cantidad debe ser informada previamente.',
+      ];
+      conds.forEach(c => {
+        doc.text('●  ' + c, mL + 3, y); y += 4.5;
+      });
+
+      // ── QR (pie derecho) ─────────────────────────────────────────
       try {
         const qrCanvas = document.createElement('canvas');
         qrCanvas.width = 80; qrCanvas.height = 80;
-        new QRCode(qrCanvas, { text: numero, width: 80, height: 80 });
+        new QRCode(qrCanvas, { text: numero, width:80, height:80 });
         const qrData = qrCanvas.toDataURL('image/png');
-        doc.addImage(qrData, 'PNG', margenR - 20, 50, 18, 18);
+        doc.addImage(qrData, 'PNG', mR-20, 272, 18, 18);
       } catch(e) {}
 
-      y += 18;
-      doc.setDrawColor(...grisCla).setLineWidth(0.3);
-      doc.line(margenL, y, margenR, y);
-
-      // ── TABLA DETALLE ──────────────────────────────────────────
-      y += 5;
-      const colW = [8, 12, 12, 68, 34, 18, 14, 18];
-      const colX = [margenL];
-      colW.forEach((w, i) => { if (i > 0) colX.push(colX[i-1] + colW[i-1]); });
-      const headers = ['N°','Cant.','Und','Descripción / Artículo','Detalle','P.Unit.Bruto','IGV','Total'];
-
-      // Header tabla
-      doc.setFillColor(...azul);
-      doc.rect(margenL, y, ancho, 7, 'F');
-      doc.setFont('helvetica','bold').setFontSize(7).setTextColor(255,255,255);
-      headers.forEach((h, i) => {
-        const align = i >= 5 ? 'right' : i === 0 ? 'center' : 'left';
-        const xPos  = i >= 5 ? colX[i] + colW[i] - 1 : i === 0 ? colX[i] + colW[i]/2 : colX[i] + 1;
-        doc.text(h, xPos, y + 4.5, { align });
-      });
-      y += 7;
-
-      // Filas
-      doc.setFont('helvetica','normal').setFontSize(7).setTextColor(...negro);
-      d.items.forEach((item, idx) => {
-        const h = item.desc.length > 55 ? 8 : 6;
-        if (y + h > 260) {
-          doc.addPage();
-          y = 20;
-        }
-        const bg = idx % 2 === 0 ? [255,255,255] : [248,249,252];
-        doc.setFillColor(...bg);
-        doc.rect(margenL, y, ancho, h, 'F');
-
-        doc.setTextColor(...negro);
-        doc.text((idx+1).toString(),     colX[0] + colW[0]/2, y + h/2 + 1, { align:'center' });
-        doc.text(item.cant.toString(),   colX[1] + 1,          y + h/2 + 1);
-        doc.text(item.und,               colX[2] + 1,          y + h/2 + 1);
-        const descLines = doc.splitTextToSize(item.desc, colW[3] - 2);
-        doc.text(descLines,              colX[3] + 1,          y + 4);
-        if (item.det) {
-          const detLines = doc.splitTextToSize(item.det, colW[4] - 2);
-          doc.text(detLines,             colX[4] + 1,          y + 4);
-        }
-        doc.text('S/ ' + fmt2(item.precioBruto),   colX[5] + colW[5] - 1, y + h/2 + 1, { align:'right' });
-        doc.text('S/ ' + fmt2(item.igvLinea),       colX[6] + colW[6] - 1, y + h/2 + 1, { align:'right' });
-        doc.text('S/ ' + fmt2(item.subtotalBruto),  colX[7] + colW[7] - 1, y + h/2 + 1, { align:'right' });
-
-        doc.setDrawColor(...grisCla).setLineWidth(0.1);
-        doc.line(margenL, y + h, margenR, y + h);
-        y += h;
-      });
-
-      // ── TOTALES ────────────────────────────────────────────────
-      y += 4;
-      const xTot = margenR - 55;
-      doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...gris);
-      doc.text('SUBTOTAL (sin IGV):', xTot, y, { align: 'left' });
-      doc.text(`S/ ${fmt2(d.subtotal)}`, margenR, y, { align: 'right' });
-      y += 5;
-      doc.text(`IGV (${document.getElementById('pct-igv').value}%):`, xTot, y, { align: 'left' });
-      doc.text(`S/ ${fmt2(d.igv)}`, margenR, y, { align: 'right' });
-      y += 1;
-      doc.setDrawColor(...azul).line(xTot, y + 1, margenR, y + 1);
-      y += 4;
-      doc.setFont('helvetica','bold').setFontSize(10).setTextColor(...azul);
-      doc.text('TOTAL GENERAL:', xTot, y, { align: 'left' });
-      doc.text(`S/ ${fmt2(d.total)}`, margenR, y, { align: 'right' });
-
-      // Observaciones
-      if (d.obs) {
-        y += 8;
-        doc.setFont('helvetica','bold').setFontSize(8).setTextColor(...azul);
-        doc.text('OBSERVACIONES:', margenL, y);
-        doc.setFont('helvetica','normal').setTextColor(...negro);
-        const obsLines = doc.splitTextToSize(d.obs, ancho);
-        doc.text(obsLines, margenL, y + 5);
-      }
-
-      // ── PIE ────────────────────────────────────────────────────
-      const yPie = 282;
-      doc.setDrawColor(...grisCla).line(margenL, yPie - 4, margenR, yPie - 4);
+      // ── PIE ──────────────────────────────────────────────────────
+      doc.setDrawColor(...grisCla).line(mL, 287, mR-22, 287);
       doc.setFont('helvetica','normal').setFontSize(7).setTextColor(...gris);
-      doc.text(`Generado por MPCS · ${fecha}`, margenL, yPie);
-      doc.text(numero, margenR, yPie, { align: 'right' });
+      doc.text(`Generado por MPCS · ${fecha}`, mL, 291);
 
       return doc.output('datauristring').split(',')[1];
     }
 
-    // Cargar imagen como base64 para jsPDF
+        // Cargar imagen como base64 para jsPDF
     function cargarImagenBase64(url) {
       return new Promise((resolve, reject) => {
         const img = new Image();
