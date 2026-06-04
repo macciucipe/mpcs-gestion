@@ -8,54 +8,59 @@
   <style>
     .cal-toolbar { display:flex; align-items:center; gap:12px; margin-bottom:1.25rem; flex-wrap:wrap; }
     .cal-nav { display:flex; align-items:center; gap:8px; }
-    .cal-nav button { background:var(--white); border:1px solid var(--border-md); border-radius:var(--radius-md); padding:6px 12px; cursor:pointer; font-size:13px; transition:background 0.15s; }
+    .cal-nav button { background:var(--white); border:1px solid var(--border-md); border-radius:var(--radius-md); padding:6px 14px; cursor:pointer; font-size:14px; font-weight:600; transition:background 0.15s; }
     .cal-nav button:hover { background:var(--bg); }
-    .cal-mes { font-size:17px; font-weight:700; min-width:160px; text-align:center; }
+    .cal-mes { font-size:16px; font-weight:700; min-width:260px; text-align:center; }
+    .cal-sub { font-size:11px; color:var(--text-muted); font-weight:400; display:block; }
 
     .cal-wrap { overflow-x:auto; }
     .cal-table { border-collapse:collapse; font-size:12px; min-width:100%; }
-    .cal-table th { 
-      padding:8px 6px; text-align:center; font-size:11px; font-weight:600;
-      text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted);
-      border-bottom:2px solid var(--border); white-space:nowrap; position:sticky; top:0; background:var(--white); z-index:2;
+    .cal-table th {
+      padding:6px 4px; text-align:center; font-size:10px; font-weight:600;
+      text-transform:uppercase; letter-spacing:0.03em; color:var(--text-muted);
+      border-bottom:2px solid var(--border); white-space:nowrap;
+      position:sticky; top:0; background:var(--white); z-index:2;
     }
-    .cal-table th.col-emp { text-align:left; min-width:180px; position:sticky; left:0; background:var(--white); z-index:3; }
-    .cal-table th.dia-feriado { color:var(--error); }
-    .cal-table th.dia-domingo { color:var(--text-light); }
+    .cal-table th.col-emp { text-align:left; min-width:190px; position:sticky; left:0; background:var(--white); z-index:3; padding-left:12px; }
+    .cal-table th.mes-ant { color:var(--text-light); background:#fafafa; }
 
     .cal-table td { padding:3px 2px; text-align:center; border-bottom:1px solid var(--border); vertical-align:middle; }
-    .cal-table td.col-emp { 
-      text-align:left; padding:6px 10px; font-weight:500; font-size:12px;
-      position:sticky; left:0; background:var(--white); z-index:1; border-right:2px solid var(--border);
-      white-space:nowrap;
+    .cal-table td.col-emp {
+      text-align:left; padding:6px 12px; font-weight:500; font-size:12px;
+      position:sticky; left:0; background:var(--white); z-index:1;
+      border-right:2px solid var(--border); white-space:nowrap;
     }
-    .cal-table tr:hover td { background:rgba(238,242,251,0.5); }
+    .cal-table tr:hover td { background:rgba(238,242,251,0.4); }
     .cal-table tr:hover td.col-emp { background:var(--white); }
+    .cal-table td.mes-ant { background:#fafafa; }
 
     .cel {
-      width:28px; height:28px; border-radius:var(--radius-sm);
+      width:30px; height:30px; border-radius:var(--radius-sm);
       display:flex; align-items:center; justify-content:center;
-      cursor:pointer; margin:0 auto; transition:all 0.1s; font-size:14px;
+      cursor:pointer; margin:0 auto; transition:all 0.12s; font-size:15px;
       border:2px solid transparent;
     }
-    .cel:hover { transform:scale(1.15); box-shadow:var(--shadow-md); }
-    .cel.normal           { background:#D1FAE5; border-color:#059669; }
-    .cel.tardanza         { background:#FEF3C7; border-color:#D97706; }
-    .cel.falta            { background:#FEE2E2; border-color:#DC2626; }
-    .cel.feriado_trabajado{ background:#DBEAFE; border-color:#2563EB; }
-    .cel.descanso         { background:#F3F4F6; border-color:#9CA3AF; }
-    .cel.vacaciones       { background:#EDE9FE; border-color:#7C3AED; }
-    .cel.descanso_medico  { background:#CFFAFE; border-color:#0891B2; }
-    .cel.feriado          { background:#FEE2E2; border-color:#F87171; }
-    .cel.vacio            { background:var(--bg); border-color:var(--border); color:var(--text-muted); font-size:11px; }
-    .cel.futuro           { background:var(--bg); border-color:transparent; cursor:default; opacity:0.3; }
-    .cel.domingo          { background:#F9FAFB; border-color:#E5E7EB; cursor:default; }
+    .cel:hover { transform:scale(1.18); box-shadow:var(--shadow-md); }
+    .cel.normal            { background:#D1FAE5; border-color:#059669; }
+    .cel.tardanza          { background:#FEF3C7; border-color:#D97706; }
+    .cel.falta             { background:#FEE2E2; border-color:#DC2626; }
+    .cel.feriado_trabajado { background:#DBEAFE; border-color:#2563EB; }
+    .cel.descanso          { background:#F3F4F6; border-color:#9CA3AF; }
+    .cel.vacaciones        { background:#EDE9FE; border-color:#7C3AED; }
+    .cel.descanso_medico   { background:#CFFAFE; border-color:#0891B2; }
+    .cel.feriado           { background:#FEE2E2; border-color:#F87171; }
+    .cel.vacio             { background:var(--bg); border-color:var(--border-md); color:var(--text-muted); font-size:14px; }
+    .cel.futuro            { background:var(--bg); border-color:transparent; cursor:default; opacity:0.25; font-size:12px; color:var(--text-muted); }
 
-    .leyenda { display:flex; gap:12px; flex-wrap:wrap; padding:12px 0; font-size:12px; }
-    .leyenda-item { display:flex; align-items:center; gap:6px; }
-    .leyenda-dot { width:14px; height:14px; border-radius:3px; flex-shrink:0; }
+    .leyenda { display:flex; gap:14px; flex-wrap:wrap; padding:10px 0; font-size:12px; }
+    .leyenda-item { display:flex; align-items:center; gap:5px; }
+    .leyenda-dot { width:13px; height:13px; border-radius:3px; flex-shrink:0; border:1px solid rgba(0,0,0,0.1); }
 
-    /* Modal novedad */
+    .resumen-bar { display:flex; gap:16px; padding:10px 16px; background:var(--white); border:1px solid var(--border); border-radius:var(--radius-lg); margin-bottom:1.25rem; font-size:12px; flex-wrap:wrap; align-items:center; }
+    .resumen-bar strong { font-size:13px; }
+    .resumen-bar-item { display:flex; align-items:center; gap:5px; }
+    .resumen-bar-dot { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+
     .nov-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:1rem; }
     .nov-btn {
       padding:10px 8px; border-radius:var(--radius-md); border:2px solid transparent;
@@ -63,19 +68,15 @@
       transition:all 0.15s; display:flex; flex-direction:column; align-items:center; gap:4px;
     }
     .nov-btn:hover { transform:scale(1.03); }
-    .nov-btn.selected { border-color:var(--navy); box-shadow:0 0 0 3px rgba(46,77,176,0.2); }
-    .nov-btn.normal           { background:#D1FAE5; color:#065F46; }
-    .nov-btn.tardanza         { background:#FEF3C7; color:#92400E; }
-    .nov-btn.falta            { background:#FEE2E2; color:#991B1B; }
-    .nov-btn.feriado_trabajado{ background:#DBEAFE; color:#1E40AF; }
-    .nov-btn.descanso         { background:#F3F4F6; color:#374151; }
-    .nov-btn.vacaciones       { background:#EDE9FE; color:#5B21B6; }
-    .nov-btn.descanso_medico  { background:#CFFAFE; color:#155E75; }
-    .nov-btn.feriado          { background:#FEE2E2; color:#991B1B; }
-
-    .resumen-bar { display:flex; gap:16px; padding:12px 16px; background:var(--white); border:1px solid var(--border); border-radius:var(--radius-lg); margin-bottom:1.25rem; font-size:13px; flex-wrap:wrap; }
-    .resumen-bar-item { display:flex; align-items:center; gap:6px; }
-    .resumen-bar-dot { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+    .nov-btn.selected { border-color:var(--navy) !important; box-shadow:0 0 0 3px rgba(46,77,176,0.2); }
+    .nov-btn.normal            { background:#D1FAE5; color:#065F46; }
+    .nov-btn.tardanza          { background:#FEF3C7; color:#92400E; }
+    .nov-btn.falta             { background:#FEE2E2; color:#991B1B; }
+    .nov-btn.feriado_trabajado { background:#DBEAFE; color:#1E40AF; }
+    .nov-btn.descanso          { background:#F3F4F6; color:#374151; }
+    .nov-btn.vacaciones        { background:#EDE9FE; color:#5B21B6; }
+    .nov-btn.descanso_medico   { background:#CFFAFE; color:#155E75; }
+    .nov-btn.feriado           { background:#FEE2E2; color:#991B1B; border-style:dashed; }
   </style>
 </head>
 <body class="portal-layout">
@@ -83,10 +84,10 @@
     <div class="page-header">
       <div class="page-header-left">
         <h1>Asistencia y novedades</h1>
-        <p>Registro diario de asistencia del personal</p>
+        <p>Registro diario · Período del 26 al 25 de cada mes</p>
       </div>
       <div class="page-header-right">
-        <button class="btn btn-primary" onclick="exportarPlanilla()" id="btn-exportar">
+        <button class="btn btn-primary" onclick="exportarPlanilla()">
           📋 Pre-cargar planilla
         </button>
       </div>
@@ -97,10 +98,13 @@
       <div class="cal-toolbar">
         <div class="cal-nav">
           <button onclick="cambiarMes(-1)">◀</button>
-          <div class="cal-mes" id="lbl-mes">—</div>
+          <div class="cal-mes">
+            <span id="lbl-mes">—</span>
+            <span class="cal-sub" id="lbl-periodo">—</span>
+          </div>
           <button onclick="cambiarMes(1)">▶</button>
         </div>
-        <select id="filtro-empresa-as" class="btn" onchange="loadAsistencia()" style="padding:7px 12px">
+        <select id="filtro-empresa-as" class="btn" onchange="onEmpresaChange()" style="padding:7px 12px">
           <option value="">Todas las empresas</option>
         </select>
         <select id="filtro-local-as" class="btn" onchange="loadAsistencia()" style="padding:7px 12px">
@@ -112,36 +116,37 @@
         </div>
       </div>
 
-      <!-- Resumen del mes -->
+      <!-- Resumen -->
       <div class="resumen-bar" id="resumen-bar" style="display:none">
-        <strong>Resumen del mes:</strong>
-        <div class="resumen-bar-item"><div class="resumen-bar-dot" style="background:#D1FAE5"></div><span id="rs-normal">0 días normales</span></div>
-        <div class="resumen-bar-item"><div class="resumen-bar-dot" style="background:#FEF3C7"></div><span id="rs-tardanza">0 tardanzas</span></div>
-        <div class="resumen-bar-item"><div class="resumen-bar-dot" style="background:#FEE2E2"></div><span id="rs-falta">0 faltas</span></div>
-        <div class="resumen-bar-item"><div class="resumen-bar-dot" style="background:#DBEAFE"></div><span id="rs-feriado">0 feriados trabajados</span></div>
-        <div class="resumen-bar-item"><div class="resumen-bar-dot" style="background:#EDE9FE"></div><span id="rs-vacaciones">0 días vacaciones</span></div>
-        <div class="resumen-bar-item"><div class="resumen-bar-dot" style="background:#CFFAFE"></div><span id="rs-medico">0 descansos médicos</span></div>
+        <strong>Resumen del período:</strong>
+        <div class="resumen-bar-item"><div class="resumen-bar-dot" style="background:#D1FAE5"></div><span id="rs-normal">—</span></div>
+        <div class="resumen-bar-item"><div class="resumen-bar-dot" style="background:#FEF3C7"></div><span id="rs-tardanza">—</span></div>
+        <div class="resumen-bar-item"><div class="resumen-bar-dot" style="background:#FEE2E2"></div><span id="rs-falta">—</span></div>
+        <div class="resumen-bar-item"><div class="resumen-bar-dot" style="background:#DBEAFE"></div><span id="rs-feriado">—</span></div>
+        <div class="resumen-bar-item"><div class="resumen-bar-dot" style="background:#EDE9FE"></div><span id="rs-vacaciones">—</span></div>
+        <div class="resumen-bar-item"><div class="resumen-bar-dot" style="background:#CFFAFE"></div><span id="rs-medico">—</span></div>
       </div>
 
-      <!-- Calendario -->
+      <!-- Tabla -->
       <div class="card">
         <div class="cal-wrap">
           <table class="cal-table" id="cal-table">
             <thead id="cal-thead"></thead>
-            <tbody id="cal-tbody"><tr><td colspan="33"><div class="loading">Cargando...</div></td></tr></tbody>
+            <tbody id="cal-tbody">
+              <tr><td colspan="32"><div class="loading">Cargando...</div></td></tr>
+            </tbody>
           </table>
         </div>
-        <!-- Leyenda -->
         <div style="padding:10px 16px;border-top:1px solid var(--border)">
           <div class="leyenda">
-            <div class="leyenda-item"><div class="leyenda-dot" style="background:#D1FAE5;border:1px solid #059669"></div>Normal</div>
-            <div class="leyenda-item"><div class="leyenda-dot" style="background:#FEF3C7;border:1px solid #D97706"></div>Tardanza</div>
-            <div class="leyenda-item"><div class="leyenda-dot" style="background:#FEE2E2;border:1px solid #DC2626"></div>Falta</div>
-            <div class="leyenda-item"><div class="leyenda-dot" style="background:#DBEAFE;border:1px solid #2563EB"></div>Feriado trabajado</div>
-            <div class="leyenda-item"><div class="leyenda-dot" style="background:#F3F4F6;border:1px solid #9CA3AF"></div>Descanso</div>
-            <div class="leyenda-item"><div class="leyenda-dot" style="background:#EDE9FE;border:1px solid #7C3AED"></div>Vacaciones</div>
-            <div class="leyenda-item"><div class="leyenda-dot" style="background:#CFFAFE;border:1px solid #0891B2"></div>Desc. médico</div>
-            <div class="leyenda-item"><div class="leyenda-dot" style="background:#FEE2E2;border:1px solid #F87171"></div>Feriado</div>
+            <div class="leyenda-item"><div class="leyenda-dot" style="background:#D1FAE5"></div>Normal</div>
+            <div class="leyenda-item"><div class="leyenda-dot" style="background:#FEF3C7"></div>Tardanza</div>
+            <div class="leyenda-item"><div class="leyenda-dot" style="background:#FEE2E2"></div>Falta</div>
+            <div class="leyenda-item"><div class="leyenda-dot" style="background:#DBEAFE"></div>Feriado trabajado</div>
+            <div class="leyenda-item"><div class="leyenda-dot" style="background:#F3F4F6"></div>Descanso</div>
+            <div class="leyenda-item"><div class="leyenda-dot" style="background:#EDE9FE"></div>Vacaciones</div>
+            <div class="leyenda-item"><div class="leyenda-dot" style="background:#CFFAFE"></div>Desc. médico</div>
+            <div class="leyenda-item"><div class="leyenda-dot" style="background:#FEE2E2;border-style:dashed"></div>Feriado no trabajado</div>
           </div>
         </div>
       </div>
@@ -157,28 +162,28 @@
       </div>
       <div class="modal-body">
         <div class="nov-grid">
-          <button class="nov-btn normal"            onclick="selectEstado('normal')"           id="nb-normal">✅<span>Trabajó normal</span></button>
-          <button class="nov-btn tardanza"          onclick="selectEstado('tardanza')"         id="nb-tardanza">⏰<span>Tardanza</span></button>
-          <button class="nov-btn falta"             onclick="selectEstado('falta')"            id="nb-falta">❌<span>Falta injustificada</span></button>
-          <button class="nov-btn feriado_trabajado" onclick="selectEstado('feriado_trabajado')"id="nb-feriado_trabajado">🔵<span>Feriado trabajado</span></button>
-          <button class="nov-btn descanso"          onclick="selectEstado('descanso')"         id="nb-descanso">😴<span>Día de descanso</span></button>
-          <button class="nov-btn vacaciones"        onclick="selectEstado('vacaciones')"       id="nb-vacaciones">🏖️<span>Vacaciones</span></button>
-          <button class="nov-btn descanso_medico"   onclick="selectEstado('descanso_medico')"  id="nb-descanso_medico">🏥<span>Descanso médico</span></button>
-          <button class="nov-btn feriado"           onclick="selectEstado('feriado')"          id="nb-feriado">📅<span>Feriado no trabajado</span></button>
+          <button class="nov-btn normal"            onclick="selectEstado('normal')"            id="nb-normal">✅<span>Trabajó normal</span></button>
+          <button class="nov-btn tardanza"          onclick="selectEstado('tardanza')"          id="nb-tardanza">⏰<span>Tardanza</span></button>
+          <button class="nov-btn falta"             onclick="selectEstado('falta')"             id="nb-falta">❌<span>Falta injustificada</span></button>
+          <button class="nov-btn feriado_trabajado" onclick="selectEstado('feriado_trabajado')" id="nb-feriado_trabajado">🔵<span>Feriado trabajado</span></button>
+          <button class="nov-btn descanso"          onclick="selectEstado('descanso')"          id="nb-descanso">😴<span>Día de descanso</span></button>
+          <button class="nov-btn vacaciones"        onclick="selectEstado('vacaciones')"        id="nb-vacaciones">🏖️<span>Vacaciones</span></button>
+          <button class="nov-btn descanso_medico"   onclick="selectEstado('descanso_medico')"   id="nb-descanso_medico">🏥<span>Descanso médico</span></button>
+          <button class="nov-btn feriado"           onclick="selectEstado('feriado')"           id="nb-feriado">📅<span>Feriado no trabajado</span></button>
         </div>
-        <div id="extra-tardanza" style="display:none">
-          <div class="field" style="margin-bottom:0.75rem">
+        <div id="extra-tardanza" style="display:none;margin-bottom:1rem">
+          <div class="field" style="margin-bottom:0">
             <label>Minutos de tardanza</label>
             <input type="number" id="f-minutos" value="0" min="0" max="480" placeholder="Ej: 15" />
           </div>
         </div>
-        <div id="extra-he" style="display:none">
+        <div id="extra-he" style="display:none;margin-bottom:1rem">
           <div class="form-grid">
-            <div class="field">
+            <div class="field" style="margin-bottom:0">
               <label>Horas extras 25%</label>
               <input type="number" id="f-he25" value="0" min="0" max="12" step="0.5" />
             </div>
-            <div class="field">
+            <div class="field" style="margin-bottom:0">
               <label>Horas extras 35%</label>
               <input type="number" id="f-he35" value="0" min="0" max="12" step="0.5" />
             </div>
@@ -190,7 +195,7 @@
         </div>
       </div>
       <div class="modal-footer" style="justify-content:space-between">
-        <button class="btn btn-ghost" onclick="borrarNovedad()" style="color:var(--error)">🗑 Borrar registro</button>
+        <button class="btn btn-ghost" onclick="borrarNovedad()" style="color:var(--error)">🗑 Borrar</button>
         <div style="display:flex;gap:8px">
           <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
           <button class="btn btn-primary" onclick="guardarNovedad()">Guardar</button>
@@ -207,14 +212,43 @@
       normal:'✅', tardanza:'⏰', falta:'❌', feriado_trabajado:'🔵',
       descanso:'😴', vacaciones:'🏖️', descanso_medico:'🏥', feriado:'📅'
     };
-    const DIAS_SEMANA = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const DIAS_SEMANA  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const MESES_CORTO  = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const MESES        = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-    let perfil = null, empleados = [], asistencia = {}, locales = [];
-    let mesActual = new Date().getMonth() + 1;
-    let anioActual = new Date().getFullYear();
+    let perfil = null;
+    let empleados = [], asistencia = {};
     let empleadosFiltrados = [];
+    let mesActual  = new Date().getMonth() + 1;
+    let anioActual = new Date().getFullYear();
     let modalEmpId = null, modalFecha = null, estadoSeleccionado = null;
 
+    // ── Período: del 26 del mes anterior al 25 del mes actual ──
+    function getPeriodo(mes, anio) {
+      // Mes anterior
+      let mesAnt  = mes - 1, anioAnt = anio;
+      if (mesAnt < 1) { mesAnt = 12; anioAnt--; }
+      const desde = new Date(anioAnt, mesAnt - 1, 26);
+      const hasta  = new Date(anio,   mes - 1,    25);
+      return { desde, hasta };
+    }
+
+    function fechaStr(d) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function getFechasPeriodo(mes, anio) {
+      const { desde, hasta } = getPeriodo(mes, anio);
+      const fechas = [];
+      let cur = new Date(desde);
+      while (cur <= hasta) {
+        fechas.push(new Date(cur));
+        cur.setDate(cur.getDate() + 1);
+      }
+      return fechas;
+    }
+
+    // ── Init ──────────────────────────────────────────────
     async function init() {
       perfil = await requireAuth(['admin','rrhh','gerencia','supervisor']);
       if (!perfil) return;
@@ -224,47 +258,63 @@
     }
 
     async function loadEmpresas() {
-      const { data: emps } = await sbClient.from('empresas').select('ruc, razon_social, abreviatura').eq('estado','activa').order('razon_social');
+      const { data } = await sbClient.from('empresas').select('ruc, razon_social, abreviatura').eq('estado','activa').order('razon_social');
       const sel = document.getElementById('filtro-empresa-as');
-      (emps||[]).forEach(e => { const o=document.createElement('option'); o.value=e.ruc; o.textContent=`${e.abreviatura} — ${e.razon_social}`; sel.appendChild(o); });
-      if (perfil.ruc_empresa) { sel.value=perfil.ruc_empresa; sel.disabled=perfil.rol!=='admin'; }
+      (data||[]).forEach(e => {
+        const o = document.createElement('option');
+        o.value = e.ruc; o.textContent = `${e.abreviatura} — ${e.razon_social}`;
+        sel.appendChild(o);
+      });
+      if (perfil.ruc_empresa) {
+        sel.value = perfil.ruc_empresa;
+        if (perfil.rol !== 'admin') sel.disabled = true;
+      }
     }
 
-    async function loadLocalesFiltro(ruc) {
+    async function onEmpresaChange() {
+      const ruc = document.getElementById('filtro-empresa-as').value;
       const sel = document.getElementById('filtro-local-as');
       sel.innerHTML = '<option value="">Todos los locales</option>';
-      if (!ruc) return;
-      const { data } = await sbClient.from('locales').select('id_local, nombre').eq('ruc_empresa', ruc).eq('estado','activo').order('nombre');
-      locales = data||[];
-      locales.forEach(l => { const o=document.createElement('option'); o.value=l.id_local; o.textContent=l.nombre; sel.appendChild(o); });
+      if (ruc) {
+        const { data } = await sbClient.from('locales').select('id_local, nombre').eq('ruc_empresa', ruc).eq('estado','activo').order('nombre');
+        (data||[]).forEach(l => { const o=document.createElement('option'); o.value=l.id_local; o.textContent=l.nombre; sel.appendChild(o); });
+      }
+      await loadAsistencia();
     }
 
-    document.getElementById('filtro-empresa-as').addEventListener('change', async function() {
-      await loadLocalesFiltro(this.value);
-      await loadAsistencia();
-    });
+    function cambiarMes(delta) {
+      mesActual += delta;
+      if (mesActual > 12) { mesActual = 1;  anioActual++; }
+      if (mesActual < 1)  { mesActual = 12; anioActual--; }
+      loadAsistencia();
+    }
 
+    // ── Carga de datos ────────────────────────────────────
     async function loadAsistencia() {
       const empresa = document.getElementById('filtro-empresa-as').value || perfil.ruc_empresa;
       const local   = document.getElementById('filtro-local-as').value;
 
-      // Cargar empleados
-      let qEmp = sbClient.from('empleados').select('id_empleado, nombres, apellidos, cargo, id_local, ruc_empresa, locales(nombre)').eq('estado','activo').order('apellidos');
+      // Empleados
+      let qEmp = sbClient.from('empleados')
+        .select('id_empleado, nombres, apellidos, cargo, id_local, ruc_empresa, locales(nombre)')
+        .eq('estado','activo').order('apellidos');
       if (empresa) qEmp = qEmp.eq('ruc_empresa', empresa);
       if (local)   qEmp = qEmp.eq('id_local', local);
       const { data: emps } = await qEmp;
       empleados = emps || [];
       empleadosFiltrados = [...empleados];
 
-      // Cargar asistencia del mes
-      const primerDia = `${anioActual}-${String(mesActual).padStart(2,'0')}-01`;
-      const diasMes   = new Date(anioActual, mesActual, 0).getDate();
-      const ultimoDia = `${anioActual}-${String(mesActual).padStart(2,'0')}-${diasMes}`;
-      const ids = empleados.map(e=>e.id_empleado);
+      // Asistencia del período
+      const fechas    = getFechasPeriodo(mesActual, anioActual);
+      const primerDia = fechaStr(fechas[0]);
+      const ultimoDia = fechaStr(fechas[fechas.length - 1]);
+      const ids = empleados.map(e => e.id_empleado);
 
       asistencia = {};
       if (ids.length > 0) {
-        const { data: asis } = await sbClient.from('asistencia_diaria').select('*').in('id_empleado', ids).gte('fecha', primerDia).lte('fecha', ultimoDia);
+        const { data: asis } = await sbClient.from('asistencia_diaria')
+          .select('*').in('id_empleado', ids)
+          .gte('fecha', primerDia).lte('fecha', ultimoDia);
         (asis||[]).forEach(a => {
           if (!asistencia[a.id_empleado]) asistencia[a.id_empleado] = {};
           asistencia[a.id_empleado][a.fecha] = a;
@@ -275,111 +325,109 @@
       actualizarResumen();
     }
 
-    function cambiarMes(delta) {
-      mesActual += delta;
-      if (mesActual > 12) { mesActual=1; anioActual++; }
-      if (mesActual < 1)  { mesActual=12; anioActual--; }
-      loadAsistencia();
-    }
-
-    const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-
+    // ── Renderizar calendario ─────────────────────────────
     function renderCalendario() {
+      const { desde, hasta } = getPeriodo(mesActual, anioActual);
+      const fechas = getFechasPeriodo(mesActual, anioActual);
+      const hoy    = new Date(); hoy.setHours(0,0,0,0);
+
+      // Labels
       document.getElementById('lbl-mes').textContent = `${MESES[mesActual]} ${anioActual}`;
-      const diasMes = new Date(anioActual, mesActual, 0).getDate();
-      const hoy     = new Date();
-      const hoyStr  = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-${String(hoy.getDate()).padStart(2,'0')}`;
+      document.getElementById('lbl-periodo').textContent =
+        `Novedades: ${desde.getDate()} ${MESES_CORTO[desde.getMonth()+1]} → ${hasta.getDate()} ${MESES_CORTO[hasta.getMonth()+1]}`;
 
       // Header
       let thead = '<tr><th class="col-emp">Empleado</th>';
-      for (let d=1; d<=diasMes; d++) {
-        const fecha = new Date(anioActual, mesActual-1, d);
-        const diaSem = fecha.getDay();
-        const esDom  = diaSem === 0;
-        const esSab  = diaSem === 6;
-        const cls    = esDom ? 'dia-domingo' : (esSab ? 'dia-sabado' : '');
-        thead += `<th class="${cls}" style="min-width:34px">${d}<br><span style="font-size:9px">${DIAS_SEMANA[diaSem]}</span></th>`;
-      }
+      fechas.forEach(f => {
+        const esMesAnt = (f.getMonth() + 1) !== mesActual;
+        const cls = esMesAnt ? 'mes-ant' : '';
+        thead += `<th class="${cls}" style="min-width:34px">
+          ${f.getDate()}<br>
+          <span style="font-size:9px">${DIAS_SEMANA[f.getDay()]}</span>
+          ${esMesAnt ? `<br><span style="font-size:9px">${MESES_CORTO[f.getMonth()+1]}</span>` : ''}
+        </th>`;
+      });
       thead += '</tr>';
       document.getElementById('cal-thead').innerHTML = thead;
 
       // Body
       let tbody = '';
       empleadosFiltrados.forEach(e => {
-        const local = e.locales?.nombre ? `<span style="font-size:10px;color:var(--text-muted)"> · ${e.locales.nombre}</span>` : '';
-        tbody += `<tr><td class="col-emp">${e.nombres} ${e.apellidos}${local}</td>`;
-        for (let d=1; d<=diasMes; d++) {
-          const fecha   = `${anioActual}-${String(mesActual).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-          const fechaObj= new Date(anioActual, mesActual-1, d);
-          const diaSem  = fechaObj.getDay();
-          const esDom   = diaSem === 0;
-          const esFuturo= fecha > hoyStr;
-          const reg     = asistencia[e.id_empleado]?.[fecha];
+        const localTxt = e.locales?.nombre ? `<span style="font-size:10px;color:var(--text-muted)"> · ${e.locales.nombre}</span>` : '';
+        tbody += `<tr><td class="col-emp">${e.nombres} ${e.apellidos}${localTxt}</td>`;
+        fechas.forEach(f => {
+          const fecha    = fechaStr(f);
+          const esFuturo = f > hoy;
+          const esMesAnt = (f.getMonth() + 1) !== mesActual;
+          const reg      = asistencia[e.id_empleado]?.[fecha];
+          const tdCls    = esMesAnt ? 'mes-ant' : '';
 
-          if (esDom) {
-            tbody += `<td><div class="cel domingo" title="Domingo">—</div></td>`;
-          } else if (esFuturo) {
-            tbody += `<td><div class="cel futuro">·</div></td>`;
+          if (esFuturo) {
+            tbody += `<td class="${tdCls}"><div class="cel futuro">·</div></td>`;
           } else if (reg) {
-            tbody += `<td><div class="cel ${reg.estado}" onclick="openModal('${e.id_empleado}','${fecha}')" title="${reg.estado}${reg.minutos_tardanza>0?' ('+reg.minutos_tardanza+' min)':''}${reg.observacion?' - '+reg.observacion:''}">${ESTADOS_EMOJI[reg.estado]||'?'}</div></td>`;
+            const tooltip = `${reg.estado}${reg.minutos_tardanza>0?' ('+reg.minutos_tardanza+' min)':''}${reg.observacion?' — '+reg.observacion:''}`;
+            tbody += `<td class="${tdCls}"><div class="cel ${reg.estado}" onclick="openModal('${e.id_empleado}','${fecha}')" title="${tooltip}">${ESTADOS_EMOJI[reg.estado]||'?'}</div></td>`;
           } else {
-            tbody += `<td><div class="cel vacio" onclick="openModal('${e.id_empleado}','${fecha}')" title="Sin registro — clic para agregar">+</div></td>`;
+            tbody += `<td class="${tdCls}"><div class="cel vacio" onclick="openModal('${e.id_empleado}','${fecha}')" title="Sin registro — clic para agregar">+</div></td>`;
           }
-        }
+        });
         tbody += '</tr>';
       });
 
       if (!empleadosFiltrados.length) {
-        tbody = `<tr><td colspan="${new Date(anioActual,mesActual,0).getDate()+1}"><div class="empty-state"><p>No hay empleados para mostrar</p></div></td></tr>`;
+        tbody = `<tr><td colspan="${fechas.length+1}"><div class="empty-state"><p>No hay empleados para mostrar</p></div></td></tr>`;
       }
       document.getElementById('cal-tbody').innerHTML = tbody;
     }
 
     function filterEmpleados() {
       const q = document.getElementById('buscar-emp').value.toLowerCase();
-      empleadosFiltrados = q ? empleados.filter(e=>`${e.nombres} ${e.apellidos}`.toLowerCase().includes(q)) : [...empleados];
+      empleadosFiltrados = q
+        ? empleados.filter(e => `${e.nombres} ${e.apellidos}`.toLowerCase().includes(q))
+        : [...empleados];
       renderCalendario();
     }
 
     function actualizarResumen() {
       let normal=0, tardanza=0, falta=0, feriado=0, vacaciones=0, medico=0;
-      Object.values(asistencia).forEach(empDias => {
-        Object.values(empDias).forEach(a => {
-          if (a.estado==='normal') normal++;
-          if (a.estado==='tardanza') tardanza++;
-          if (a.estado==='falta') falta++;
+      Object.values(asistencia).forEach(dias => {
+        Object.values(dias).forEach(a => {
+          if (a.estado==='normal')            normal++;
+          if (a.estado==='tardanza')          tardanza++;
+          if (a.estado==='falta')             falta++;
           if (a.estado==='feriado_trabajado') feriado++;
-          if (a.estado==='vacaciones') vacaciones++;
-          if (a.estado==='descanso_medico') medico++;
+          if (a.estado==='vacaciones')        vacaciones++;
+          if (a.estado==='descanso_medico')   medico++;
         });
       });
-      document.getElementById('rs-normal').textContent    = `${normal} días normales`;
+      document.getElementById('rs-normal').textContent    = `${normal} normales`;
       document.getElementById('rs-tardanza').textContent  = `${tardanza} tardanzas`;
       document.getElementById('rs-falta').textContent     = `${falta} faltas`;
       document.getElementById('rs-feriado').textContent   = `${feriado} feriados trabajados`;
-      document.getElementById('rs-vacaciones').textContent= `${vacaciones} días vacaciones`;
-      document.getElementById('rs-medico').textContent    = `${medico} descansos médicos`;
-      document.getElementById('resumen-bar').style.display= empleados.length>0?'flex':'none';
+      document.getElementById('rs-vacaciones').textContent= `${vacaciones} vacaciones`;
+      document.getElementById('rs-medico').textContent    = `${medico} desc. médicos`;
+      document.getElementById('resumen-bar').style.display = empleados.length > 0 ? 'flex' : 'none';
     }
 
     // ── Modal ─────────────────────────────────────────────
     function openModal(empId, fecha) {
       modalEmpId = empId;
       modalFecha = fecha;
-      const emp = empleados.find(e=>e.id_empleado===empId);
+      const emp = empleados.find(e => e.id_empleado === empId);
       const reg = asistencia[empId]?.[fecha];
       const [y,m,d] = fecha.split('-');
-      document.getElementById('modal-nov-titulo').textContent = `${emp.nombres} ${emp.apellidos} · ${d}/${m}/${y}`;
-      estadoSeleccionado = reg?.estado || null;
+      const diaSem  = new Date(fecha).getDay();
+      document.getElementById('modal-nov-titulo').textContent =
+        `${emp.nombres} ${emp.apellidos} · ${d}/${m}/${y} (${DIAS_SEMANA[diaSem]})`;
 
-      // Limpiar selección
-      document.querySelectorAll('.nov-btn').forEach(b=>b.classList.remove('selected'));
+      estadoSeleccionado = reg?.estado || null;
+      document.querySelectorAll('.nov-btn').forEach(b => b.classList.remove('selected'));
       if (estadoSeleccionado) document.getElementById(`nb-${estadoSeleccionado}`)?.classList.add('selected');
 
       document.getElementById('f-minutos').value = reg?.minutos_tardanza || 0;
-      document.getElementById('f-he25').value    = reg?.horas_extras_25 || 0;
-      document.getElementById('f-he35').value    = reg?.horas_extras_35 || 0;
-      document.getElementById('f-obs').value     = reg?.observacion || '';
+      document.getElementById('f-he25').value    = reg?.horas_extras_25  || 0;
+      document.getElementById('f-he35').value    = reg?.horas_extras_35  || 0;
+      document.getElementById('f-obs').value     = reg?.observacion      || '';
 
       toggleExtras(estadoSeleccionado);
       document.getElementById('modal-nov').classList.remove('hidden');
@@ -387,35 +435,42 @@
 
     function selectEstado(estado) {
       estadoSeleccionado = estado;
-      document.querySelectorAll('.nov-btn').forEach(b=>b.classList.remove('selected'));
+      document.querySelectorAll('.nov-btn').forEach(b => b.classList.remove('selected'));
       document.getElementById(`nb-${estado}`)?.classList.add('selected');
       toggleExtras(estado);
     }
 
     function toggleExtras(estado) {
-      document.getElementById('extra-tardanza').style.display = estado==='tardanza'?'block':'none';
-      document.getElementById('extra-he').style.display = ['normal','feriado_trabajado'].includes(estado)?'block':'none';
+      document.getElementById('extra-tardanza').style.display =
+        estado === 'tardanza' ? 'block' : 'none';
+      document.getElementById('extra-he').style.display =
+        ['normal','feriado_trabajado'].includes(estado) ? 'block' : 'none';
     }
 
-    function closeModal() { document.getElementById('modal-nov').classList.add('hidden'); }
+    function closeModal() {
+      document.getElementById('modal-nov').classList.add('hidden');
+      estadoSeleccionado = null;
+    }
 
     async function guardarNovedad() {
-      if (!estadoSeleccionado) { alert('Seleccioná un estado.'); return; }
-      const emp = empleados.find(e=>e.id_empleado===modalEmpId);
+      if (!estadoSeleccionado) { alert('Seleccioná un estado primero.'); return; }
+      const emp     = empleados.find(e => e.id_empleado === modalEmpId);
       const session = await checkSession();
       const payload = {
         id_empleado:      modalEmpId,
         ruc_empresa:      emp.ruc_empresa,
         fecha:            modalFecha,
         estado:           estadoSeleccionado,
-        minutos_tardanza: estadoSeleccionado==='tardanza' ? parseInt(document.getElementById('f-minutos').value)||0 : 0,
-        horas_extras_25:  parseFloat(document.getElementById('f-he25').value)||0,
-        horas_extras_35:  parseFloat(document.getElementById('f-he35').value)||0,
-        observacion:      document.getElementById('f-obs').value.trim()||null,
+        minutos_tardanza: estadoSeleccionado === 'tardanza'
+          ? parseInt(document.getElementById('f-minutos').value) || 0 : 0,
+        horas_extras_25:  parseFloat(document.getElementById('f-he25').value) || 0,
+        horas_extras_35:  parseFloat(document.getElementById('f-he35').value) || 0,
+        observacion:      document.getElementById('f-obs').value.trim() || null,
         registrado_por:   session.user.id,
       };
-      const { error } = await sbClient.from('asistencia_diaria').upsert([payload], {onConflict:'id_empleado,fecha'});
-      if (error) { alert('Error: '+error.message); return; }
+      const { error } = await sbClient.from('asistencia_diaria')
+        .upsert([payload], { onConflict: 'id_empleado,fecha' });
+      if (error) { alert('Error: ' + error.message); return; }
       if (!asistencia[modalEmpId]) asistencia[modalEmpId] = {};
       asistencia[modalEmpId][modalFecha] = payload;
       closeModal();
@@ -425,29 +480,30 @@
 
     async function borrarNovedad() {
       if (!confirm('¿Borrar este registro?')) return;
-      await sbClient.from('asistencia_diaria').delete().eq('id_empleado',modalEmpId).eq('fecha',modalFecha);
+      await sbClient.from('asistencia_diaria')
+        .delete().eq('id_empleado', modalEmpId).eq('fecha', modalFecha);
       if (asistencia[modalEmpId]) delete asistencia[modalEmpId][modalFecha];
       closeModal();
       renderCalendario();
       actualizarResumen();
     }
 
-    // ── Exportar a planilla ───────────────────────────────
+    // ── Pre-cargar planilla ───────────────────────────────
     async function exportarPlanilla() {
       const empresa = document.getElementById('filtro-empresa-as').value || perfil.ruc_empresa;
       if (!empresa) { alert('Seleccioná una empresa primero.'); return; }
-
-      // Verificar si existe período para este mes
-      const { data: periodo } = await sbClient.from('planilla_periodos').select('id,estado').eq('ruc_empresa',empresa).eq('mes',mesActual).eq('anio',anioActual).maybeSingle();
-
+      const { data: periodo } = await sbClient.from('planilla_periodos')
+        .select('id, estado').eq('ruc_empresa', empresa)
+        .eq('mes', mesActual).eq('anio', anioActual).maybeSingle();
       if (!periodo) {
-        if (!confirm(`No existe un período de planilla para ${MESES[mesActual]} ${anioActual}. ¿Crearlo automáticamente?`)) return;
+        if (!confirm(`¿Crear período de planilla para ${MESES[mesActual]} ${anioActual}?`)) return;
         const session = await checkSession();
-        const { data: np } = await sbClient.from('planilla_periodos').insert([{ruc_empresa:empresa, mes:mesActual, anio:anioActual, created_by:session.user.id}]).select().single();
-        if (!np) { alert('Error al crear el período.'); return; }
-        alert(`✅ Período ${MESES[mesActual]} ${anioActual} creado. Andá a Planilla para cargar las novedades calculadas.`);
+        await sbClient.from('planilla_periodos').insert([{
+          ruc_empresa: empresa, mes: mesActual, anio: anioActual, created_by: session.user.id
+        }]);
+        alert(`✅ Período ${MESES[mesActual]} ${anioActual} creado. Andá a Planilla para cargar.`);
       } else {
-        alert(`El período ${MESES[mesActual]} ${anioActual} ya existe con estado "${periodo.estado}". Andá a Planilla → Cargar para ver los datos.`);
+        alert(`El período ${MESES[mesActual]} ${anioActual} ya existe (estado: ${periodo.estado}). Andá a Planilla → Cargar.`);
       }
     }
 
