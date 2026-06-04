@@ -165,8 +165,7 @@
     async function cargarUnidades() {
       const { data } = await sbClient.from('unidades_medida')
         .select('codigo, descripcion')
-        .eq('activa', true)
-        .order('codigo');
+        .eq('activa', true);
       unidades = data || [];
 
       const sel = document.getElementById('unidad-medida');
