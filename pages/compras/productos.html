@@ -375,6 +375,11 @@
           if (error) throw new Error(error.message);
         }
 
+        await auditar(perfil,
+          idEditando ? 'EDITAR' : 'CREAR',
+          'productos',
+          `${idEditando ? 'Editó' : 'Creó'} producto "${nom}" (${um})`
+        );
         cerrarForm();
         await cargar();
       } catch(e) {
@@ -386,7 +391,13 @@
     async function toggleEstado(id, estadoActual) {
       const nuevoEstado = estadoActual === 'activo' ? 'inactivo' : 'activo';
       const { error } = await sbClient.from('productos').update({ estado: nuevoEstado }).eq('id_producto', id);
-      if (!error) await cargar();
+      if (!error) {
+        const p = productos.find(x => x.id_producto === id);
+        await auditar(perfil, 'EDITAR', 'productos',
+          `${nuevoEstado === 'activo' ? 'Activó' : 'Desactivó'} producto "${p?.nombre || id}"`
+        );
+        await cargar();
+      }
     }
 
     function limpiarForm() {
