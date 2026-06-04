@@ -68,7 +68,7 @@
 </div>
 
 <!-- MODAL NUEVO/EDITAR -->
-<div class="modal-overlay" id="modalProv">
+<div class="modal-overlay hidden" id="modalProv">
   <div class="modal modal-lg">
     <div class="modal-header">
       <div class="modal-title" id="modalTitulo">Nuevo proveedor</div>
@@ -222,7 +222,7 @@
 </div>
 
 <!-- MODAL DETALLE -->
-<div class="modal-overlay" id="modalDet">
+<div class="modal-overlay hidden" id="modalDet">
   <div class="modal modal-md">
     <div class="modal-header">
       <div class="modal-title" id="detTitulo">Detalle</div>
@@ -624,8 +624,8 @@ function limpiarForm() {
 }
 
 function mostrarMsg(el, tipo, txt) { el.className = `alert alert-${tipo} mt-4`; el.textContent = txt; el.style.display = 'block'; }
-function abrir(id) { document.getElementById(id).classList.add('open'); }
-function cerrar(id){ document.getElementById(id).classList.remove('open'); }
+function abrir(id) { document.getElementById(id).classList.remove("hidden"); }
+function cerrar(id){ document.getElementById(id).classList.add('hidden'); }
 
 ['modalProv','modalDet'].forEach(id => {
   document.getElementById(id)?.addEventListener('click', function(e) { if (e.target === this) cerrar(id); });
