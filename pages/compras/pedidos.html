@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pedidos Internos · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Pedidos internos (OP)</h1>
+        <p>Requerimientos de locales al área de compras</p>
+      </div>
+      <div class="page-header-right">
+        <select id="filtro-empresa" class="btn" onchange="cargar()" style="padding:7px 12px">
+          <option value="">Todas las empresas</option>
+        </select>
+        <button class="btn btn-primary" id="btn-nuevo" onclick="abrirNuevo()" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nuevo pedido
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- Stats -->
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1.5rem">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-label">Total pedidos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-pendientes" style="color:var(--warning)">—</div>
+          <div class="stat-label">Pendientes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-atendidos" style="color:var(--success)">—</div>
+          <div class="stat-label">Atendidos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-anulados" style="color:var(--text-muted)">—</div>
+          <div class="stat-label">Anulados</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 id="count-label">Pedidos</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="search-bar" style="min-width:200px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="search" placeholder="Buscar por número o local..." oninput="filtrar()" />
+            </div>
+            <select id="filtro-estado" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
+              <option value="">Todos los estados</option>
+              <option value="pendiente">Pendientes</option>
+              <option value="atendida">Atendidos</option>
+              <option value="anulada">Anulados</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Número</th>
+                <th>Fecha</th>
+                <th>Local / Sede</th>
+                <th>Solicitante</th>
+                <th>Items</th>
+                <th>Estado</th>
+                <th>OC Vinculada</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL VER DETALLE -->
+  <div class="modal-overlay hidden" id="modal-detalle">
+    <div class="modal" style="max-width:720px">
+      <div class="modal-header">
+        <h3 id="det-titulo">Detalle del pedido</h3>
+        <button class="modal-close" onclick="cerrar('modal-detalle')">×</button>
+      </div>
+      <div class="modal-body" id="det-body"></div>
+      <div class="modal-footer" id="det-footer">
+        <button class="btn btn-ghost" onclick="cerrar('modal-detalle')">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL NUEVO PEDIDO -->
+  <div class="modal-overlay hidden" id="modal-nuevo">
+    <div class="modal" style="max-width:800px">
+      <div class="modal-header">
+        <h3>Nuevo pedido interno</h3>
+        <button class="modal-close" onclick="cerrar('modal-nuevo')">×</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Paso 1: Datos del pedido -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+          <div class="field">
+            <label>Empresa *</label>
+            <select id="nuevo-empresa" onchange="cargarLocalesNuevo()">
+              <option value="">-- Seleccionar --</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Local / Sede *</label>
+            <select id="nuevo-local" onchange="cargarCatalogoNuevo()">
+              <option value="">-- Seleccionar local --</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Solicitante *</label>
+            <input type="text" id="nuevo-solicitante" placeholder="Nombre del solicitante" />
+          </div>
+        </div>
+
+        <!-- Paso 2: Agregar items -->
+        <div style="background:var(--bg);border-radius:var(--radius-md);padding:14px;margin-bottom:16px">
+          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:10px">
+            Agregar items al pedido
+          </div>
+          <div style="display:grid;grid-template-columns:80px 1fr auto;gap:8px;align-items:end">
+            <div class="field" style="margin:0">
+              <label>Cantidad</label>
+              <input type="number" id="nuevo-cantidad" min="0.01" step="0.01" placeholder="0" />
+            </div>
+            <div class="field" style="margin:0">
+              <label>Producto del catálogo</label>
+              <select id="nuevo-producto">
+                <option value="">-- Seleccioná primero un local --</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="agregarItem()" style="margin-bottom:0">
+              + Agregar
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabla de items -->
+        <div class="table-wrap" style="margin-bottom:16px">
+          <table id="tabla-items">
+            <thead>
+              <tr>
+                <th>Cant.</th>
+                <th>Unidad</th>
+                <th>Descripción</th>
+                <th>Categoría</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tbody-items">
+              <tr id="fila-vacia"><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;font-style:italic">El carrito está vacío</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="field">
+          <label>Observaciones</label>
+          <textarea id="nuevo-obs" rows="2" placeholder="Ej: Urgente para el evento del sábado..."></textarea>
+        </div>
+
+        <div id="msg-nuevo" class="alert" style="display:none"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="cerrar('modal-nuevo')">Cancelar</button>
+        <button class="btn btn-primary" id="btn-enviar" onclick="enviarPedido()">
+          Enviar pedido a Compras
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let perfil   = null;
+    let pedidos  = [];
+    let empresas = [];
+    let localesGlobal = [];
+    let carritoItems = [];
+    let catalogoActual = [];
+
+    async function init() {
+      perfil = await requireAuth();
+      if (!perfil) return;
+      renderSidebar(perfil, 'pedidos');
+
+      // Mostrar botón nuevo solo si tiene permiso
+      const isCompras = ['admin','compras','gerencia'].includes(perfil.rol) || perfil.perm_op;
+      const isLocal   = perfil.rol === 'local';
+      if (isCompras || isLocal) {
+        document.getElementById('btn-nuevo').style.display = '';
+      }
+
+      await cargarEmpresas();
+      await cargar();
+    }
+
+    async function cargarEmpresas() {
+      const { data } = await sbClient.from('empresas')
+        .select('ruc, razon_social, abreviatura')
+        .eq('estado','activa').order('razon_social');
+      empresas = data || [];
+
+      const sel = document.getElementById('filtro-empresa');
+      const selNuevo = document.getElementById('nuevo-empresa');
+      empresas.forEach(e => {
+        [sel, selNuevo].forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = e.ruc;
+          opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
+          s.appendChild(opt);
+        });
+      });
+
+      // Si no es admin, fijar empresa
+      if (!['admin','gerencia'].includes(perfil.rol) && perfil.ruc_empresa) {
+        sel.value = perfil.ruc_empresa;
+        sel.disabled = true;
+        selNuevo.value = perfil.ruc_empresa;
+        selNuevo.disabled = true;
+        await cargarLocalesNuevo();
+      }
+    }
+
+    async function cargar() {
+      document.getElementById('tbody').innerHTML =
+        '<tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>';
+
+      const ruc = document.getElementById('filtro-empresa').value;
+      let query = sbClient.from('pedidos')
+        .select('*, locales(nombre, id_concepto)')
+        .order('created_at', { ascending: false });
+
+      if (ruc) query = query.eq('ruc_empresa', ruc);
+      if (perfil.rol === 'local' && perfil.id_local) {
+        query = query.eq('id_local', perfil.id_local);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        document.getElementById('tbody').innerHTML =
+          `<tr><td colspan="8"><div class="empty-state"><p>Error: ${error.message}</p></div></td></tr>`;
+        return;
+      }
+
+      pedidos = data || [];
+      document.getElementById('stat-total').textContent     = pedidos.length;
+      document.getElementById('stat-pendientes').textContent= pedidos.filter(p => p.estado === 'pendiente').length;
+      document.getElementById('stat-atendidos').textContent = pedidos.filter(p => p.estado === 'atendida').length;
+      document.getElementById('stat-anulados').textContent  = pedidos.filter(p => p.estado === 'anulada').length;
+      filtrar();
+    }
+
+    function filtrar() {
+      const q   = document.getElementById('search').value.toLowerCase();
+      const est = document.getElementById('filtro-estado').value;
+
+      const lista = pedidos.filter(p =>
+        (!q   || (p.numero||'').toLowerCase().includes(q) ||
+                  (p.locales?.nombre||'').toLowerCase().includes(q) ||
+                  (p.solicitante||'').toLowerCase().includes(q)) &&
+        (!est || p.estado === est)
+      );
+
+      document.getElementById('count-label').textContent = `Pedidos (${lista.length})`;
+      renderTabla(lista);
+    }
+
+    function renderTabla(lista) {
+      const tbody = document.getElementById('tbody');
+      if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+          <h3>Sin pedidos</h3><p>No hay pedidos que coincidan con los filtros</p>
+        </div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = lista.map(p => {
+        const fecha = p.created_at ? new Date(p.created_at).toLocaleDateString('es-PE') : '—';
+        return `
+          <tr>
+            <td><strong style="font-family:monospace;font-size:12px">${p.numero || p.id_pedido}</strong></td>
+            <td style="font-size:12px;color:var(--text-muted)">${fecha}</td>
+            <td><strong>${p.locales?.nombre || p.id_local || '—'}</strong></td>
+            <td style="font-size:12px;color:var(--text-muted)">${p.solicitante || '—'}</td>
+            <td style="font-size:12px;text-align:center">—</td>
+            <td>${getEstadoBadge(p.estado || 'pendiente')}</td>
+            <td style="font-size:12px;color:var(--text-muted);font-family:monospace">${p.oc_vinculada || '—'}</td>
+            <td>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-sm btn-ghost" onclick="verDetalle('${p.id_pedido}')">
+                  ${icons.eye} Ver
+                </button>
+                ${p.estado === 'pendiente' && ['admin','compras','gerencia'].includes(perfil.rol) ? `
+                <button class="btn btn-sm btn-ghost" onclick="anularPedido('${p.id_pedido}')">
+                  Anular
+                </button>` : ''}
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    // ── NUEVO PEDIDO ────────────────────────────────────────────
+    async function cargarLocalesNuevo() {
+      const ruc = document.getElementById('nuevo-empresa').value;
+      const sel = document.getElementById('nuevo-local');
+      sel.innerHTML = '<option value="">-- Seleccionar local --</option>';
+      document.getElementById('nuevo-producto').innerHTML = '<option value="">-- Seleccioná primero un local --</option>';
+      carritoItems = [];
+      renderCarrito();
+      if (!ruc) return;
+
+      const { data } = await sbClient.from('locales')
+        .select('id_local, nombre, id_concepto')
+        .eq('ruc_empresa', ruc)
+        .eq('estado','activo');
+      localesGlobal = data || [];
+      localesGlobal.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.id_local;
+        opt.textContent = l.nombre;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function cargarCatalogoNuevo() {
+      const idLocal = document.getElementById('nuevo-local').value;
+      const sel = document.getElementById('nuevo-producto');
+      sel.innerHTML = '<option value="">-- Seleccionar producto --</option>';
+      if (!idLocal) return;
+
+      const local = localesGlobal.find(l => l.id_local === idLocal);
+      if (!local?.id_concepto) {
+        sel.innerHTML = '<option value="">Sin catálogo asignado</option>';
+        return;
+      }
+
+      const { data } = await sbClient.from('catalogo_local')
+        .select('id_producto_local, nombre, unidad_medida, categoria')
+        .eq('id_concepto', local.id_concepto)
+        .eq('activo', true)
+        .order('categoria').order('nombre');
+
+      catalogoActual = data || [];
+
+      // Agrupar por categoría en el select
+      const porCat = {};
+      catalogoActual.forEach(i => {
+        const cat = i.categoria || 'Sin categoría';
+        if (!porCat[cat]) porCat[cat] = [];
+        porCat[cat].push(i);
+      });
+
+      Object.keys(porCat).sort().forEach(cat => {
+        const og = document.createElement('optgroup');
+        og.label = cat;
+        porCat[cat].forEach(i => {
+          const opt = document.createElement('option');
+          opt.value = i.id_producto_local;
+          opt.textContent = `${i.nombre} (${i.unidad_medida})`;
+          opt.dataset.nombre  = i.nombre;
+          opt.dataset.unidad  = i.unidad_medida;
+          opt.dataset.cat     = i.categoria || '';
+          og.appendChild(opt);
+        });
+        sel.appendChild(og);
+      });
+    }
+
+    function agregarItem() {
+      const cant    = parseFloat(document.getElementById('nuevo-cantidad').value);
+      const sel     = document.getElementById('nuevo-producto');
+      const opt     = sel.options[sel.selectedIndex];
+
+      if (!cant || cant <= 0) { alert('Ingresá una cantidad válida.'); return; }
+      if (!sel.value)         { alert('Seleccioná un producto.'); return; }
+
+      // Verificar duplicado
+      if (carritoItems.find(i => i.id_producto_local === sel.value)) {
+        alert('Este producto ya está en el pedido. Modificá la cantidad existente.'); return;
+      }
+
+      carritoItems.push({
+        id_producto_local: sel.value,
+        nombre:    opt.dataset.nombre,
+        unidad:    opt.dataset.unidad,
+        categoria: opt.dataset.cat,
+        cantidad:  cant,
+      });
+
+      document.getElementById('nuevo-cantidad').value = '';
+      document.getElementById('nuevo-producto').value = '';
+      renderCarrito();
+    }
+
+    function renderCarrito() {
+      const tbody = document.getElementById('tbody-items');
+      if (!carritoItems.length) {
+        tbody.innerHTML = '<tr id="fila-vacia"><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;font-style:italic">El carrito está vacío</td></tr>';
+        return;
+      }
+      tbody.innerHTML = carritoItems.map((item, i) => `
+        <tr>
+          <td style="width:80px">
+            <input type="number" value="${item.cantidad}" min="0.01" step="0.01"
+              style="width:70px;padding:4px 6px;border:1px solid var(--border-md);border-radius:4px;font-size:13px"
+              onchange="actualizarCantidad(${i}, this.value)" />
+          </td>
+          <td><span class="badge badge-gray">${item.unidad}</span></td>
+          <td><strong>${item.nombre}</strong></td>
+          <td style="font-size:12px;color:var(--text-muted)">${item.categoria}</td>
+          <td>
+            <button class="btn btn-sm btn-ghost" onclick="quitarItem(${i})" style="color:var(--error)">
+              ${icons.trash}
+            </button>
+          </td>
+        </tr>`).join('');
+    }
+
+    function actualizarCantidad(index, val) {
+      carritoItems[index].cantidad = parseFloat(val) || 0;
+    }
+
+    function quitarItem(index) {
+      carritoItems.splice(index, 1);
+      renderCarrito();
+    }
+
+    async function enviarPedido() {
+      const msg  = document.getElementById('msg-nuevo');
+      const btn  = document.getElementById('btn-enviar');
+      const ruc  = document.getElementById('nuevo-empresa').value;
+      const local= document.getElementById('nuevo-local').value;
+      const soli = document.getElementById('nuevo-solicitante').value.trim();
+
+      if (!ruc)   { showMsg(msg,'alert-error','Seleccioná una empresa.'); return; }
+      if (!local) { showMsg(msg,'alert-error','Seleccioná un local.'); return; }
+      if (!soli)  { showMsg(msg,'alert-error','Ingresá el nombre del solicitante.'); return; }
+      if (!carritoItems.length) { showMsg(msg,'alert-error','Agregá al menos un producto al pedido.'); return; }
+
+      btn.disabled = true; btn.textContent = 'Enviando...'; msg.style.display = 'none';
+
+      try {
+        // Generar número correlativo
+        const localData = localesGlobal.find(l => l.id_local === local);
+        const empresa   = empresas.find(e => e.ruc === ruc);
+        const { data: localFull } = await sbClient.from('locales')
+          .select('correlativo_op, codigo_corto').eq('id_local', local).single();
+
+        const año      = new Date().getFullYear().toString().slice(-2);
+        const corr     = localFull?.correlativo_op || 1;
+        const codLocal = localFull?.codigo_corto || local.slice(-3);
+        const codEmp   = empresa?.abreviatura || ruc.slice(-3);
+        const numero   = `OP-${codEmp}-${codLocal}-${año}-${corr.toString().padStart(5,'0')}`;
+
+        // Insertar cabecera
+        const { data: opData, error: e1 } = await sbClient.from('pedidos').insert({
+          id_pedido:    numero,
+          numero:       numero,
+          ruc_empresa:  ruc,
+          id_local:     local,
+          solicitante:  soli,
+          estado:       'pendiente',
+          notas:        document.getElementById('nuevo-obs').value.trim() || null,
+        }).select().single();
+        if (e1) throw new Error(e1.message);
+
+        // Insertar items
+        const itemsRows = carritoItems.map((item, i) => ({
+          id_item:           `${numero}-${(i+1).toString().padStart(3,'0')}`,
+          id_pedido:         numero,
+          id_producto:       item.id_producto_local,
+          cantidad:          item.cantidad,
+          unidad_medida:     item.unidad,
+          detalle:           item.nombre,
+        }));
+        const { error: e2 } = await sbClient.from('pedidos_items').insert(itemsRows);
+        if (e2) throw new Error(e2.message);
+
+        // Incrementar correlativo
+        await sbClient.from('locales').update({ correlativo_op: corr + 1 }).eq('id_local', local);
+
+        await auditar(perfil, 'CREAR', 'pedidos', `Creó pedido ${numero} — ${local} — ${carritoItems.length} items`);
+
+        cerrar('modal-nuevo');
+        carritoItems = [];
+        await cargar();
+
+      } catch(e) {
+        showMsg(msg,'alert-error','Error: ' + e.message);
+      }
+      btn.disabled = false; btn.textContent = 'Enviar pedido a Compras';
+    }
+
+    // ── VER DETALLE ─────────────────────────────────────────────
+    async function verDetalle(id) {
+      const p = pedidos.find(x => x.id_pedido === id);
+      if (!p) return;
+
+      const { data: items } = await sbClient.from('pedidos_items')
+        .select('*').eq('id_pedido', id);
+
+      const fecha   = p.created_at ? new Date(p.created_at).toLocaleDateString('es-PE') : '—';
+      const isCompras = ['admin','compras','gerencia'].includes(perfil.rol);
+
+      document.getElementById('det-titulo').textContent = p.numero || p.id_pedido;
+      document.getElementById('det-body').innerHTML = `
+        <div class="form-grid" style="margin-bottom:16px">
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Número</div>
+            <div style="font-size:13px;font-weight:600;font-family:monospace">${p.numero || p.id_pedido}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Fecha</div>
+            <div style="font-size:13px">${fecha}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Local</div>
+            <div style="font-size:13px;font-weight:500">${p.locales?.nombre || p.id_local}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Solicitante</div>
+            <div style="font-size:13px">${p.solicitante || '—'}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Estado</div>
+            <div style="font-size:13px">${getEstadoBadge(p.estado)}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">OC Vinculada</div>
+            <div style="font-size:13px;font-family:monospace">${p.oc_vinculada || '—'}</div></div>
+        </div>
+        ${p.notas ? `<div style="background:var(--bg);padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:16px;color:var(--text-muted)">
+          <strong>Observaciones:</strong> ${p.notas}</div>` : ''}
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px">Items solicitados</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Cant.</th><th>Unidad</th><th>Descripción</th></tr></thead>
+            <tbody>
+              ${(items||[]).map(i => `
+                <tr>
+                  <td style="font-weight:600">${i.cantidad}</td>
+                  <td><span class="badge badge-gray">${i.unidad_medida||'—'}</span></td>
+                  <td>${i.detalle || i.id_producto}</td>
+                </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Sin items</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      // Footer con acciones según rol y estado
+      const footer = document.getElementById('det-footer');
+      footer.innerHTML = `<button class="btn btn-ghost" onclick="cerrar('modal-detalle')">Cerrar</button>`;
+      if (isCompras && p.estado === 'pendiente') {
+        footer.innerHTML += `
+          <button class="btn btn-danger" onclick="anularPedido('${id}')">Anular</button>
+          <button class="btn btn-primary" onclick="transformarEnOC('${id}')">
+            ${icons.cart} Transformar en OC
+          </button>`;
+      }
+
+      abrir('modal-detalle');
+    }
+
+    async function anularPedido(id) {
+      if (!confirm('¿Confirmás la anulación de este pedido?')) return;
+      const { error } = await sbClient.from('pedidos').update({ estado: 'anulada' }).eq('id_pedido', id);
+      if (!error) {
+        await auditar(perfil, 'ANULAR', 'pedidos', `Anuló pedido ${id}`);
+        cerrar('modal-detalle');
+        await cargar();
+      }
+    }
+
+    function transformarEnOC(id) {
+      // Por ahora navega a OC con el pedido como origen
+      // Se implementará en el módulo de OC
+      alert('Función disponible en el módulo de Órdenes de Compra (próximamente).');
+    }
+
+    function abrirNuevo() {
+      carritoItems = [];
+      renderCarrito();
+      document.getElementById('nuevo-solicitante').value = perfil.nombre || '';
+      document.getElementById('nuevo-obs').value = '';
+      document.getElementById('msg-nuevo').style.display = 'none';
+      abrir('modal-nuevo');
+    }
+
+    function showMsg(el, cls, txt) { el.className = `alert ${cls}`; el.textContent = txt; el.style.display = 'block'; }
+    function abrir(id) { document.getElementById(id).classList.remove('hidden'); }
+    function cerrar(id){ document.getElementById(id).classList.add('hidden'); }
+
+    ['modal-detalle','modal-nuevo'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', function(e) { if (e.target === this) cerrar(id); });
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { cerrar('modal-detalle'); cerrar('modal-nuevo'); } });
+
+    init();
+  </script>
+</body>
+</html>
