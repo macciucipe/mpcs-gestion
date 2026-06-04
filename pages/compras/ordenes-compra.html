@@ -440,7 +440,7 @@
           <td>${tipoBadge}</td>
           <td style="font-size:12px;color:var(--text-muted)">${fecha}</td>
           <td style="font-size:12px">${o.id_local || '—'}</td>
-          <td style="font-size:13px"><strong>${o.proveedor || '—'}</strong></td>
+          <td style="font-size:13px"><strong>${o.nombre_proveedor || o.proveedor || '—'}</strong></td>
           <td style="font-size:13px;font-weight:600">S/ ${parseFloat(o.total||0).toLocaleString('es-PE',{minimumFractionDigits:2})}</td>
           <td>${getEstadoBadge(o.estado || 'pendiente')}</td>
           <td>${o.pdf_url ? `<a href="${o.pdf_url}" target="_blank" class="btn btn-sm btn-ghost">
@@ -830,20 +830,23 @@
         const pdfBase64 = await generarPDF(d, numero, localData, emp);
 
         // Guardar en Supabase
+        // Usar documento del proveedor como FK
+        const docProv = d.docProveedor || d.proveedor;
         const { error: e1 } = await sbClient.from('ordenes_compra').insert({
           id_oc:       numero,
           numero:      numero,
           tipo:        d.tipo,
           ruc_empresa: d.rucEmpresa,
           id_local:    d.idLocal,
-          proveedor:   d.proveedor,
+          proveedor:   docProv,
           subtotal:    parseFloat(d.subtotal),
           igv:         parseFloat(d.igv),
           total:       parseFloat(d.total),
           estado:      'pendiente',
           op_origen:   d.opOrigen || null,
           notas:       d.obs || null,
-          created_by:  perfil.nombre,
+          created_by:       perfil.nombre,
+          nombre_proveedor: d.proveedor,
         });
         if (e1) throw new Error(e1.message);
 
