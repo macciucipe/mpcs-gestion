@@ -39,13 +39,34 @@ async function requireAuth(allowedRoles = null) {
   return perfil;
 }
 
+// ── AUDITORÍA ─────────────────────────────────────────────────────────────────
+// Uso: await auditar(perfil, 'CREAR', 'compras_proveedores', 'Creó proveedor RUC 20611965274')
+// Uso: await auditar(perfil, 'EDITAR', 'empleados', `Modificó sueldo de EMP-001`)
+// Uso: await auditar(perfil, 'ELIMINAR', 'pedidos', `Anuló OP-CYC-01-26-00001`)
+async function auditar(perfil, accion, modulo, detalle) {
+  try {
+    await sbClient.from('auditoria').insert({
+      user_id:       perfil?.user_id || null,
+      usuario_email: perfil?.email   || null,
+      accion:        accion,   // 'CREAR' | 'EDITAR' | 'ELIMINAR' | 'APROBAR' | 'ANULAR' | 'LOGIN' | 'LOGOUT'
+      modulo:        modulo,   // nombre de la tabla o módulo afectado
+      detalle:       detalle,  // texto descriptivo de la acción
+    });
+  } catch(e) {
+    // Auditoría nunca debe romper el flujo principal
+    console.warn('Auditoría fallida:', e.message);
+  }
+}
+
+// ── ROLES Y BADGES ────────────────────────────────────────────────────────────
 function getRolBadge(rol) {
   const map = {
     admin:      '<span class="badge badge-purple">Admin</span>',
     rrhh:       '<span class="badge badge-blue">RRHH</span>',
     gerencia:   '<span class="badge badge-green">Gerencia</span>',
     compras:    '<span class="badge badge-yellow">Compras</span>',
-    supervisor: '<span class="badge badge-gray">Supervisor</span>'
+    supervisor: '<span class="badge badge-gray">Supervisor</span>',
+    local:      '<span class="badge badge-gray">Local</span>',
   };
   return map[rol] || `<span class="badge badge-gray">${rol}</span>`;
 }
@@ -69,6 +90,7 @@ function getEstadoBadge(estado) {
   return map[estado] || `<span class="badge badge-gray">${estado}</span>`;
 }
 
+// ── SIDEBAR ───────────────────────────────────────────────────────────────────
 function renderSidebar(perfil, activePage) {
   const isAdmin   = perfil.rol === 'admin';
   const isRrhh    = ['admin','rrhh','gerencia'].includes(perfil.rol);
@@ -77,7 +99,6 @@ function renderSidebar(perfil, activePage) {
                     perfil.perm_or || perfil.perm_cs || perfil.perm_prov;
   const initials  = perfil.nombre.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
 
-  // Para admin y gerencia todos los permisos de compras están habilitados
   const perm = {
     op:   isAdmin || perfil.rol === 'gerencia' || perfil.perm_op,
     oc:   isAdmin || perfil.rol === 'gerencia' || perfil.perm_oc,
@@ -158,8 +179,11 @@ function renderSidebar(perfil, activePage) {
             ${icons.users} Proveedores
           </a>` : ''}
           <a href="/pages/compras/productos.html" class="nav-item ${activePage==='productos'?'active':''}">
-            ${icons.box} Catálogo de productos
+            ${icons.box} Catálogo de compra
           </a>
+          ${isAdmin ? `<a href="/pages/compras/catalogo-local.html" class="nav-item ${activePage==='catalogo-local'?'active':''}">
+            ${icons.clipboard} Catálogo de solicitud
+          </a>` : ''}
           ${perm.guias ? `<a href="/pages/compras/guias.html" class="nav-item ${activePage==='guias'?'active':''}">
             ${icons.truck} Guías de remisión
           </a>` : ''}
@@ -176,6 +200,9 @@ function renderSidebar(perfil, activePage) {
           </a>
           <a href="/pages/admin/usuarios.html" class="nav-item ${activePage==='usuarios'?'active':''}">
             ${icons.shield} Usuarios
+          </a>
+          <a href="/pages/admin/auditoria.html" class="nav-item ${activePage==='auditoria'?'active':''}">
+            ${icons.eye} Auditoría
           </a>
         </div>` : ''}
       </nav>
@@ -219,6 +246,11 @@ const icons = {
 };
 
 async function handleLogout() {
+  const session = await checkSession();
+  if (session) {
+    const perfil = await getPerfil();
+    if (perfil) await auditar(perfil, 'LOGOUT', 'sistema', 'Cerró sesión');
+  }
   await signOut();
   window.location.href = '/index.html';
 }
