@@ -166,7 +166,6 @@
       const { data } = await sbClient.from('unidades_medida')
         .select('codigo, descripcion')
         .eq('activa', true)
-        .order('es_comun', { ascending: false })
         .order('codigo');
       unidades = data || [];
 
