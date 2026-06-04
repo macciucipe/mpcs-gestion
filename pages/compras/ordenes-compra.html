@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Órdenes de Compra · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .tipo-btn { border-radius: 20px; font-weight: 700; padding: 8px 24px; cursor: pointer; border: 2px solid; transition: all .2s; }
+    .tipo-btn.oc { border-color: var(--navy); color: var(--navy); background: transparent; }
+    .tipo-btn.oc.active { background: var(--navy); color: #fff; }
+    .tipo-btn.os { border-color: var(--success); color: var(--success); background: transparent; }
+    .tipo-btn.os.active { background: var(--success); color: #fff; }
+    .btn-empresa { border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border-md); background: var(--white); transition: all .15s; }
+    .btn-empresa.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+    .btn-local { border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border-md); background: var(--white); transition: all .15s; }
+    .btn-local.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .import-box { background: #fffbeb; border-left: 4px solid var(--warning); border-radius: var(--radius-md); padding: 14px; margin-bottom: 20px; }
+    .tabla-oc th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); background: var(--bg); padding: 8px 10px; }
+    .tabla-oc td { padding: 6px 8px; vertical-align: middle; border-bottom: 1px solid var(--border); }
+    .tabla-oc input, .tabla-oc select { padding: 5px 8px; border: 1px solid var(--border-md); border-radius: 5px; font-size: 13px; font-family: var(--font); width: 100%; }
+    .tabla-oc input:focus, .tabla-oc select:focus { outline: none; border-color: var(--accent); }
+    .totales-box { background: var(--bg); border-radius: var(--radius-md); padding: 14px 16px; margin-top: 12px; }
+    .totales-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px; }
+    .totales-row.total { font-size: 16px; font-weight: 700; color: var(--navy); border-top: 1px solid var(--border-md); margin-top: 6px; padding-top: 10px; }
+    .autocomplete-list { position: absolute; left: 0; right: 0; top: 100%; background: var(--white); border: 1px solid var(--border-md); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: 500; max-height: 220px; overflow-y: auto; }
+    .autocomplete-item { padding: 8px 12px; cursor: pointer; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+    .autocomplete-item:hover { background: var(--bg); }
+    .sec-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-bottom: 10px; }
+  </style>
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 id="titulo-principal">Órdenes de compra</h1>
+        <p id="subtitulo-principal">Emisión de OC/OS y gestión de órdenes</p>
+      </div>
+      <div class="page-header-right">
+        <button class="btn btn-primary" onclick="abrirGenerador(null)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nueva OC / OS
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- Stats -->
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1.5rem">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-label">Total órdenes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-pendientes" style="color:var(--warning)">—</div>
+          <div class="stat-label">Pendientes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-recepcionadas" style="color:var(--success)">—</div>
+          <div class="stat-label">Recepcionadas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-monto" style="color:var(--navy)">—</div>
+          <div class="stat-label">Total pendiente (S/)</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 id="count-label">Órdenes</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="filtro-empresa" class="btn btn-sm" onchange="cargar()" style="padding:5px 10px">
+              <option value="">Todas las empresas</option>
+            </select>
+            <select id="filtro-tipo" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
+              <option value="">OC y OS</option>
+              <option value="OC">Solo OC</option>
+              <option value="OS">Solo OS</option>
+            </select>
+            <select id="filtro-estado" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
+              <option value="">Todos los estados</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="recepcionada">Recepcionada</option>
+              <option value="conforme">Conforme</option>
+              <option value="anulada">Anulada</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Número</th>
+                <th>Tipo</th>
+                <th>Fecha</th>
+                <th>Local</th>
+                <th>Proveedor</th>
+                <th>Total</th>
+                <th>Estado</th>
+                <th>PDF</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="9"><div class="loading">Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL GENERADOR OC ═══ -->
+  <div class="modal-overlay hidden" id="modal-generador" style="align-items:flex-start;padding:20px;overflow-y:auto">
+    <div class="modal" style="max-width:1000px;margin:auto">
+      <div class="modal-header">
+        <h3 id="gen-titulo">Nueva Orden de Compra / Servicio</h3>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-sm btn-outline" onclick="guardarBorrador()" id="btn-borrador">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Guardar borrador
+          </button>
+          <button class="modal-close" onclick="cerrarGenerador()">×</button>
+        </div>
+      </div>
+      <div class="modal-body">
+
+        <!-- Toggle OC/OS -->
+        <div style="display:flex;justify-content:center;gap:12px;margin-bottom:20px">
+          <button type="button" class="tipo-btn oc active" id="btn-tipo-oc" onclick="setTipo('OC')">📦 Bienes (OC)</button>
+          <button type="button" class="tipo-btn os" id="btn-tipo-os" onclick="setTipo('OS')">🛠️ Servicios (OS)</button>
+        </div>
+        <input type="hidden" id="gen-tipo" value="OC" />
+        <input type="hidden" id="gen-id-borrador" value="" />
+        <input type="hidden" id="gen-op-origen" value="" />
+
+        <!-- Importar OP -->
+        <div class="import-box">
+          <div class="sec-label">¿Atender un pedido interno (OP)?</div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="input-buscar-op" placeholder="Ej: OP-CYC-LP-26-00001"
+                   style="flex:1;padding:8px 12px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px"
+                   onkeydown="if(event.key==='Enter') importarOP()" />
+            <button class="btn" style="background:var(--warning);color:#000;font-weight:600" onclick="importarOP()">
+              Importar datos
+            </button>
+            <button class="btn btn-outline" onclick="abrirBorradores()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Borradores
+            </button>
+          </div>
+        </div>
+
+        <!-- 1. Empresa -->
+        <div style="margin-bottom:16px">
+          <div class="sec-label">1. Empresa</div>
+          <div id="btns-empresa" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+          <input type="hidden" id="gen-empresa" />
+          <input type="hidden" id="gen-ruc-empresa" />
+        </div>
+
+        <!-- 2. Local -->
+        <div style="margin-bottom:16px" id="sec-locales" style="display:none">
+          <div class="sec-label">2. Local / Centro de costo</div>
+          <div id="btns-local" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+          <input type="hidden" id="gen-local" />
+          <input type="hidden" id="gen-id-local" />
+        </div>
+
+        <!-- 3. Proveedor -->
+        <div style="margin-bottom:16px">
+          <div class="sec-label">3. Proveedor</div>
+          <div style="position:relative">
+            <input type="text" id="gen-proveedor" placeholder="Buscar proveedor..."
+                   autocomplete="off" oninput="filtrarProveedores(this.value)"
+                   style="width:100%;padding:9px 12px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px" />
+            <div id="lista-proveedores" class="autocomplete-list" style="display:none"></div>
+          </div>
+          <input type="hidden" id="gen-doc-proveedor" />
+        </div>
+
+        <!-- 4. Detalle -->
+        <div style="margin-bottom:16px">
+          <div class="sec-label" id="label-detalle">4. Detalle de la compra</div>
+          <div style="background:var(--info-bg);border-radius:var(--radius-md);padding:8px 12px;font-size:12px;margin-bottom:10px;color:var(--info)">
+            Los precios ingresados son <strong>con IGV incluido (precio bruto)</strong>. El IGV se desglosa automáticamente.
+          </div>
+
+          <!-- Input rápido -->
+          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:12px;position:relative">
+            <div style="position:relative">
+              <input type="text" id="input-articulo" placeholder="Artículo (escribe para buscar)"
+                     autocomplete="off" oninput="filtrarArticulos(this.value)"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();agregarItemRapido()}"
+                     style="width:100%;padding:9px 12px;border:2px solid var(--navy);border-radius:var(--radius-md);font-size:13px" />
+              <div id="lista-articulos" class="autocomplete-list" style="display:none"></div>
+            </div>
+            <input type="text" id="input-detalle-rapido" placeholder="Especificación (opcional)"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();agregarItemRapido()}"
+                   style="padding:9px 12px;border:2px solid var(--navy);border-radius:var(--radius-md);font-size:13px" />
+            <button class="btn btn-primary" onclick="agregarItemRapido()">+ Agregar</button>
+          </div>
+
+          <!-- Tabla de items -->
+          <div class="table-wrap">
+            <table class="tabla-oc" style="width:100%">
+              <thead>
+                <tr>
+                  <th width="3%">N°</th>
+                  <th width="6%">Cant.</th>
+                  <th width="6%">Und</th>
+                  <th width="28%">Artículo / Servicio</th>
+                  <th width="18%">Detalle / Especificación</th>
+                  <th width="12%">P. Unit. Bruto</th>
+                  <th width="9%">IGV línea</th>
+                  <th width="10%">Subtotal</th>
+                  <th width="4%"></th>
+                </tr>
+              </thead>
+              <tbody id="tbody-oc"></tbody>
+            </table>
+          </div>
+          <button class="btn btn-sm btn-outline" style="margin-top:8px" onclick="agregarFilaManual()">+ Fila manual</button>
+
+          <!-- Totales -->
+          <div class="totales-box">
+            <div class="totales-row">
+              <span>Subtotal (sin IGV)</span>
+              <span id="tot-subtotal">S/ 0.00</span>
+            </div>
+            <div class="totales-row">
+              <span style="display:flex;align-items:center;gap:8px">
+                IGV
+                <select id="pct-igv" onchange="calcularTotales()"
+                  style="padding:3px 8px;border:1px solid var(--border-md);border-radius:4px;font-size:13px">
+                  <option value="18">18%</option>
+                  <option value="0">0%</option>
+                </select>
+              </span>
+              <span id="tot-igv">S/ 0.00</span>
+            </div>
+            <div class="totales-row total">
+              <span>TOTAL GENERAL</span>
+              <span id="tot-total">S/ 0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Observaciones -->
+        <div class="field">
+          <label>Observaciones <span style="font-weight:400;color:var(--text-light)">(opcional)</span></label>
+          <textarea id="gen-obs" rows="2" placeholder="Condiciones de pago, instrucciones de entrega..."></textarea>
+        </div>
+
+        <div id="msg-gen" class="alert" style="display:none;margin-top:8px"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="cerrarGenerador()">Cancelar</button>
+        <button class="btn btn-primary" id="btn-generar" onclick="generarOC()">
+          Generar OC oficial (PDF)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL BORRADORES -->
+  <div class="modal-overlay hidden" id="modal-borradores">
+    <div class="modal modal-md">
+      <div class="modal-header">
+        <h3>Borradores recientes</h3>
+        <button class="modal-close" onclick="cerrar('modal-borradores')">×</button>
+      </div>
+      <div class="modal-body" id="lista-borradores-ui">
+        <div class="loading">Cargando...</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let perfil = null;
+    let ordenes = [];
+    let empresas = [];
+    let localesGlobal = [];
+    let proveedoresGlobal = [];
+    let itemsGlobal = [];
+
+    const LOGOS = {
+      '20605195408': 'https://raw.githubusercontent.com/macciucipe/mpcs-gestion/main/assets/logos/logo-parri.png',
+      '20602716385': 'https://raw.githubusercontent.com/macciucipe/mpcs-gestion/main/assets/logos/logo-tito.png',
+      '20613752979': 'https://raw.githubusercontent.com/macciucipe/mpcs-gestion/main/assets/logos/logo-heroes.png',
+      '20611965274': 'https://raw.githubusercontent.com/macciucipe/mpcs-gestion/main/assets/logos/logo-mpc.png',
+    };
+
+    // ── INIT ────────────────────────────────────────────────────
+    async function init() {
+      perfil = await requireAuth();
+      if (!perfil) return;
+      renderSidebar(perfil, 'oc');
+      await Promise.all([cargarEmpresas(), cargarProveedores(), cargarItems()]);
+      await cargar();
+    }
+
+    async function cargarEmpresas() {
+      const { data } = await sbClient.from('empresas')
+        .select('ruc, razon_social, abreviatura')
+        .eq('estado','activa').order('razon_social');
+      empresas = data || [];
+      const sel = document.getElementById('filtro-empresa');
+      empresas.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.ruc;
+        opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
+        sel.appendChild(opt);
+      });
+      if (!['admin','gerencia'].includes(perfil.rol) && perfil.ruc_empresa) {
+        sel.value = perfil.ruc_empresa;
+        sel.disabled = true;
+      }
+      renderBotonesEmpresa();
+    }
+
+    function renderBotonesEmpresa() {
+      const div = document.getElementById('btns-empresa');
+      div.innerHTML = '';
+      empresas.forEach(e => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-empresa';
+        btn.textContent = e.razon_social;
+        btn.onclick = () => seleccionarEmpresa(e, btn);
+        div.appendChild(btn);
+      });
+    }
+
+    async function cargarProveedores() {
+      const { data } = await sbClient.from('proveedores')
+        .select('documento, razon_social, nombre_comercial')
+        .eq('estado','activo').order('razon_social');
+      proveedoresGlobal = data || [];
+    }
+
+    async function cargarItems() {
+      const { data } = await sbClient.from('productos')
+        .select('id_producto, nombre, unidad_medida, precio_ref, ruc_empresa')
+        .eq('estado','activo').order('nombre');
+      itemsGlobal = data || [];
+    }
+
+    // ── CARGAR TABLA ────────────────────────────────────────────
+    async function cargar() {
+      document.getElementById('tbody').innerHTML =
+        '<tr><td colspan="9"><div class="loading">Cargando...</div></td></tr>';
+      const ruc = document.getElementById('filtro-empresa').value;
+      let q = sbClient.from('ordenes_compra')
+        .select('*').order('created_at', { ascending: false });
+      if (ruc) q = q.eq('ruc_empresa', ruc);
+      const { data, error } = await q;
+      if (error) { console.error(error); return; }
+      ordenes = data || [];
+
+      const pend = ordenes.filter(o => o.estado === 'pendiente');
+      document.getElementById('stat-total').textContent        = ordenes.length;
+      document.getElementById('stat-pendientes').textContent   = pend.length;
+      document.getElementById('stat-recepcionadas').textContent= ordenes.filter(o => o.estado === 'recepcionada' || o.estado === 'conforme').length;
+      document.getElementById('stat-monto').textContent        = 'S/ ' + pend.reduce((s,o) => s + parseFloat(o.total||0), 0).toLocaleString('es-PE', {minimumFractionDigits:2});
+      filtrar();
+    }
+
+    function filtrar() {
+      const tipo  = document.getElementById('filtro-tipo').value;
+      const estado= document.getElementById('filtro-estado').value;
+      const lista = ordenes.filter(o =>
+        (!tipo   || o.tipo === tipo) &&
+        (!estado || o.estado === estado)
+      );
+      document.getElementById('count-label').textContent = `Órdenes (${lista.length})`;
+      renderTabla(lista);
+    }
+
+    function renderTabla(lista) {
+      const tbody = document.getElementById('tbody');
+      if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          <h3>Sin órdenes</h3><p>Generá la primera con "Nueva OC / OS"</p>
+        </div></td></tr>`;
+        return;
+      }
+      tbody.innerHTML = lista.map(o => {
+        const fecha = o.created_at ? new Date(o.created_at).toLocaleDateString('es-PE') : '—';
+        const tipoBadge = o.tipo === 'OS'
+          ? '<span class="badge badge-green">OS</span>'
+          : '<span class="badge badge-blue">OC</span>';
+        return `<tr>
+          <td><strong style="font-family:monospace;font-size:12px">${o.numero || o.id_oc}</strong>
+            ${o.op_origen ? `<div style="font-size:10px;color:var(--text-muted)">← ${o.op_origen}</div>` : ''}
+          </td>
+          <td>${tipoBadge}</td>
+          <td style="font-size:12px;color:var(--text-muted)">${fecha}</td>
+          <td style="font-size:12px">${o.id_local || '—'}</td>
+          <td style="font-size:13px"><strong>${o.proveedor || '—'}</strong></td>
+          <td style="font-size:13px;font-weight:600">S/ ${parseFloat(o.total||0).toLocaleString('es-PE',{minimumFractionDigits:2})}</td>
+          <td>${getEstadoBadge(o.estado || 'pendiente')}</td>
+          <td>${o.pdf_url ? `<a href="${o.pdf_url}" target="_blank" class="btn btn-sm btn-ghost">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            PDF</a>` : '—'}</td>
+          <td>
+            <button class="btn btn-sm btn-ghost" onclick="verDetalleOC('${o.id_oc}')">
+              ${icons.eye} Ver
+            </button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    // ── GENERADOR ────────────────────────────────────────────────
+    function abrirGenerador(opOrigen = null) {
+      limpiarGenerador();
+      if (opOrigen) {
+        document.getElementById('input-buscar-op').value = opOrigen.numero;
+        precargarDesdeOP(opOrigen);
+      }
+      document.getElementById('modal-generador').classList.remove('hidden');
+    }
+
+    function cerrarGenerador() {
+      document.getElementById('modal-generador').classList.add('hidden');
+    }
+
+    function limpiarGenerador() {
+      document.getElementById('gen-tipo').value = 'OC';
+      document.getElementById('gen-id-borrador').value = '';
+      document.getElementById('gen-op-origen').value = '';
+      document.getElementById('gen-empresa').value = '';
+      document.getElementById('gen-ruc-empresa').value = '';
+      document.getElementById('gen-local').value = '';
+      document.getElementById('gen-id-local').value = '';
+      document.getElementById('gen-proveedor').value = '';
+      document.getElementById('gen-doc-proveedor').value = '';
+      document.getElementById('gen-obs').value = '';
+      document.getElementById('tbody-oc').innerHTML = '';
+      document.getElementById('input-articulo').value = '';
+      document.getElementById('input-detalle-rapido').value = '';
+      document.getElementById('input-buscar-op').value = '';
+      document.getElementById('msg-gen').style.display = 'none';
+      document.getElementById('btns-empresa').querySelectorAll('.btn-empresa').forEach(b => b.classList.remove('active'));
+      document.getElementById('btns-local').innerHTML = '';
+      setTipo('OC');
+      calcularTotales();
+    }
+
+    function setTipo(tipo) {
+      document.getElementById('gen-tipo').value = tipo;
+      document.getElementById('btn-tipo-oc').classList.toggle('active', tipo === 'OC');
+      document.getElementById('btn-tipo-os').classList.toggle('active', tipo === 'OS');
+      document.getElementById('label-detalle').textContent = tipo === 'OS' ? '4. Detalle del servicio' : '4. Detalle de la compra';
+      document.getElementById('btn-generar').textContent = tipo === 'OS' ? 'Generar OS oficial (PDF)' : 'Generar OC oficial (PDF)';
+    }
+
+    // ── EMPRESA / LOCAL ──────────────────────────────────────────
+    async function seleccionarEmpresa(empresa, btn) {
+      document.querySelectorAll('.btn-empresa').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('gen-empresa').value     = empresa.razon_social;
+      document.getElementById('gen-ruc-empresa').value = empresa.ruc;
+      document.getElementById('gen-local').value = '';
+      document.getElementById('gen-id-local').value = '';
+
+      const { data } = await sbClient.from('locales')
+        .select('id_local, nombre, codigo_corto, direccion, telefono, horario')
+        .eq('ruc_empresa', empresa.ruc).eq('estado','activo');
+      localesGlobal = data || [];
+
+      const div = document.getElementById('btns-local');
+      div.innerHTML = '';
+      localesGlobal.forEach(l => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn-local';
+        b.textContent = l.nombre;
+        b.onclick = () => seleccionarLocal(l, b);
+        div.appendChild(b);
+      });
+    }
+
+    function seleccionarLocal(local, btn) {
+      document.querySelectorAll('.btn-local').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('gen-local').value    = local.nombre;
+      document.getElementById('gen-id-local').value = local.id_local;
+    }
+
+    // ── PROVEEDORES AUTOCOMPLETE ─────────────────────────────────
+    function filtrarProveedores(q) {
+      const lista = document.getElementById('lista-proveedores');
+      if (!q || q.length < 2) { lista.style.display = 'none'; return; }
+      const matches = proveedoresGlobal
+        .filter(p => (p.razon_social||'').toLowerCase().includes(q.toLowerCase()) ||
+                     (p.nombre_comercial||'').toLowerCase().includes(q.toLowerCase()))
+        .slice(0, 8);
+      if (!matches.length) { lista.style.display = 'none'; return; }
+      lista.innerHTML = matches.map(p => `
+        <div class="autocomplete-item" onclick="seleccionarProveedor('${p.documento}', '${(p.razon_social||'').replace(/'/g,"\\'")}')">
+          <span>${p.razon_social}</span>
+          <span style="font-size:11px;color:var(--text-muted)">${p.documento}</span>
+        </div>`).join('');
+      lista.style.display = 'block';
+    }
+
+    function seleccionarProveedor(doc, nombre) {
+      document.getElementById('gen-proveedor').value    = nombre;
+      document.getElementById('gen-doc-proveedor').value= doc;
+      document.getElementById('lista-proveedores').style.display = 'none';
+    }
+
+    // ── ITEMS AUTOCOMPLETE ────────────────────────────────────────
+    function filtrarArticulos(q) {
+      const lista = document.getElementById('lista-articulos');
+      if (!q || q.length < 2) { lista.style.display = 'none'; return; }
+      const ruc = document.getElementById('gen-ruc-empresa').value;
+      const matches = itemsGlobal
+        .filter(i => (i.nombre||'').toLowerCase().includes(q.toLowerCase()) &&
+                     (!ruc || i.ruc_empresa === ruc || i.es_global))
+        .slice(0, 8);
+      if (!matches.length) { lista.style.display = 'none'; return; }
+      lista.innerHTML = matches.map(i => `
+        <div class="autocomplete-item" onclick="seleccionarArticulo('${i.nombre.replace(/'/g,"\\'")}', '${i.unidad_medida}', ${i.precio_ref||0})">
+          <span>${i.nombre}</span>
+          <span style="font-size:11px;color:var(--text-muted)">${i.unidad_medida} — S/ ${parseFloat(i.precio_ref||0).toFixed(2)}</span>
+        </div>`).join('');
+      lista.style.display = 'block';
+    }
+
+    function seleccionarArticulo(nombre, unidad, precio) {
+      document.getElementById('input-articulo').value = nombre;
+      document.getElementById('lista-articulos').style.display = 'none';
+      document.getElementById('input-detalle-rapido').focus();
+      // Guardar para cuando agregue
+      document.getElementById('input-articulo').dataset.unidad  = unidad;
+      document.getElementById('input-articulo').dataset.precio  = precio;
+    }
+
+    function agregarItemRapido() {
+      const inp    = document.getElementById('input-articulo');
+      const desc   = inp.value.trim();
+      const detalle= document.getElementById('input-detalle-rapido').value.trim();
+      if (!desc) { inp.focus(); return; }
+      const unidad = inp.dataset.unidad || 'NIU';
+      const precio = inp.dataset.precio || '';
+      agregarFila(desc, 1, unidad, detalle, precio);
+      inp.value = ''; inp.dataset.unidad = ''; inp.dataset.precio = '';
+      document.getElementById('input-detalle-rapido').value = '';
+      document.getElementById('lista-articulos').style.display = 'none';
+      inp.focus();
+    }
+
+    function agregarFilaManual() {
+      agregarFila('', 1, 'NIU', '', '');
+    }
+
+    function agregarFila(desc = '', cant = 1, und = 'NIU', det = '', precio = '') {
+      const tbody = document.getElementById('tbody-oc');
+      const tr    = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="text-align:center;width:30px;color:var(--text-muted);font-size:12px" class="num-fila"></td>
+        <td style="width:60px"><input type="number" step="0.01" min="0.01" value="${cant}" class="cant" onchange="calcularTotales()"></td>
+        <td style="width:55px"><input type="text" value="${und}" class="und" style="text-align:center"></td>
+        <td><input type="text" value="${desc}" class="desc"></td>
+        <td><input type="text" value="${det}" class="det"></td>
+        <td style="width:100px"><input type="number" step="0.01" min="0" value="${precio}" class="precio" placeholder="Precio bruto" onchange="calcularTotales()"></td>
+        <td style="width:80px;text-align:right;font-size:12px;color:var(--text-muted)" class="igv-linea">S/ 0.00</td>
+        <td style="width:90px;text-align:right;font-size:13px;font-weight:600" class="subtotal-linea">S/ 0.00</td>
+        <td style="width:30px;text-align:center">
+          <button type="button" onclick="this.closest('tr').remove();calcularTotales()"
+            style="background:var(--error-bg);color:var(--error);border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:14px">×</button>
+        </td>`;
+      tbody.appendChild(tr);
+      calcularTotales();
+    }
+
+    function calcularTotales() {
+      const filas  = document.getElementById('tbody-oc').querySelectorAll('tr');
+      const pct    = parseFloat(document.getElementById('pct-igv').value) / 100;
+      let totalNeto = 0, totalIGV = 0, totalBruto = 0;
+
+      filas.forEach((tr, i) => {
+        tr.querySelector('.num-fila').textContent = i + 1;
+        const c      = parseFloat(tr.querySelector('.cant').value)   || 0;
+        const pBruto = parseFloat(tr.querySelector('.precio').value) || 0;
+        const sBruto = c * pBruto;
+        const sNeto  = pct > 0 ? sBruto / (1 + pct) : sBruto;
+        const igvL   = sBruto - sNeto;
+        tr.querySelector('.igv-linea').textContent     = 'S/ ' + igvL.toFixed(2);
+        tr.querySelector('.subtotal-linea').textContent= 'S/ ' + sBruto.toFixed(2);
+        totalNeto  += sNeto;
+        totalIGV   += igvL;
+        totalBruto += sBruto;
+      });
+
+      document.getElementById('tot-subtotal').textContent = 'S/ ' + totalNeto.toFixed(2);
+      document.getElementById('tot-igv').textContent      = 'S/ ' + totalIGV.toFixed(2);
+      document.getElementById('tot-total').textContent    = 'S/ ' + totalBruto.toFixed(2);
+    }
+
+    // ── IMPORTAR OP ──────────────────────────────────────────────
+    async function importarOP() {
+      const numero = document.getElementById('input-buscar-op').value.trim();
+      if (!numero) return;
+      const { data, error } = await sbClient.from('pedidos')
+        .select('*, pedidos_items(*), locales(nombre, ruc_empresa)')
+        .eq('numero', numero).maybeSingle();
+      if (error || !data) { alert('OP no encontrada: ' + numero); return; }
+      if (data.estado !== 'pendiente') { alert(`Esta OP ya fue ${data.estado}.`); return; }
+      precargarDesdeOP(data);
+    }
+
+    async function precargarDesdeOP(op) {
+      document.getElementById('gen-op-origen').value = op.numero || op.id_pedido;
+      // Seleccionar empresa
+      const ruc = op.locales?.ruc_empresa || op.ruc_empresa;
+      const emp = empresas.find(e => e.ruc === ruc);
+      if (emp) {
+        const btn = [...document.querySelectorAll('.btn-empresa')].find(b => b.textContent === emp.razon_social);
+        if (btn) await seleccionarEmpresa(emp, btn);
+        setTimeout(() => {
+          const btnL = [...document.querySelectorAll('.btn-local')].find(b => b.textContent === op.locales?.nombre);
+          if (btnL) {
+            const local = localesGlobal.find(l => l.nombre === op.locales?.nombre);
+            if (local) seleccionarLocal(local, btnL);
+          }
+        }, 400);
+      }
+      // Precargar items
+      document.getElementById('tbody-oc').innerHTML = '';
+      (op.pedidos_items || []).forEach(item => {
+        agregarFila(item.nombre_producto || item.detalle, item.cantidad, item.unidad_medida, '', '');
+      });
+      alert(`OP ${op.numero || op.id_pedido} importada con ${(op.pedidos_items||[]).length} item(s). Completá proveedor y precios.`);
+    }
+
+    // ── BORRADORES ────────────────────────────────────────────────
+    async function guardarBorrador() {
+      const datos = recolectarDatos();
+      const id    = document.getElementById('gen-id-borrador').value || ('B-' + Date.now());
+      const { error } = await sbClient.from('oc_borradores').upsert({
+        id:         id,
+        perfil_id:  perfil.id,
+        datos_json: datos,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+      if (!error) {
+        document.getElementById('gen-id-borrador').value = id;
+        alert('Borrador guardado (válido por 48 horas).');
+        await auditar(perfil, 'CREAR', 'oc_borradores', `Guardó borrador de OC — ${datos.empresa || ''}`);
+      }
+    }
+
+    async function abrirBorradores() {
+      const ui = document.getElementById('lista-borradores-ui');
+      ui.innerHTML = '<div class="loading">Cargando...</div>';
+      document.getElementById('modal-borradores').classList.remove('hidden');
+      const hace48h = new Date(Date.now() - 48 * 3600000).toISOString();
+      const { data } = await sbClient.from('oc_borradores')
+        .select('*').eq('perfil_id', perfil.id)
+        .gte('updated_at', hace48h)
+        .order('updated_at', { ascending: false });
+      const lista = data || [];
+      if (!lista.length) { ui.innerHTML = '<p style="padding:20px;color:var(--text-muted);text-align:center">No hay borradores recientes.</p>'; return; }
+      ui.innerHTML = lista.map(b => `
+        <div style="padding:14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s"
+             onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''"
+             onclick="cargarBorrador('${b.id}')">
+          <div style="font-weight:600;font-size:13px">${b.datos_json?.empresa || 'Sin empresa'} — ${b.datos_json?.tipo || 'OC'}</div>
+          <div style="font-size:12px;color:var(--text-muted)">${b.datos_json?.proveedor || 'Sin proveedor'} · ${b.datos_json?.items?.length || 0} item(s)</div>
+          <div style="font-size:11px;color:var(--text-light)">${new Date(b.updated_at).toLocaleString('es-PE')}</div>
+        </div>`).join('');
+    }
+
+    async function cargarBorrador(id) {
+      const { data } = await sbClient.from('oc_borradores').select('*').eq('id', id).single();
+      if (!data) return;
+      cerrar('modal-borradores');
+      limpiarGenerador();
+      const d = data.datos_json;
+      document.getElementById('gen-id-borrador').value = id;
+      setTipo(d.tipo || 'OC');
+      document.getElementById('gen-obs').value = d.obs || '';
+      if (d.pctIGV) document.getElementById('pct-igv').value = d.pctIGV;
+      if (d.proveedor) document.getElementById('gen-proveedor').value = d.proveedor;
+      if (d.docProveedor) document.getElementById('gen-doc-proveedor').value = d.docProveedor;
+      if (d.empresa) {
+        const emp = empresas.find(e => e.razon_social === d.empresa);
+        if (emp) {
+          const btn = [...document.querySelectorAll('.btn-empresa')].find(b => b.textContent === d.empresa);
+          if (btn) await seleccionarEmpresa(emp, btn);
+          setTimeout(() => {
+            if (d.local) {
+              const btnL = [...document.querySelectorAll('.btn-local')].find(b => b.textContent === d.local);
+              if (btnL) {
+                const local = localesGlobal.find(l => l.nombre === d.local);
+                if (local) seleccionarLocal(local, btnL);
+              }
+            }
+          }, 400);
+        }
+      }
+      document.getElementById('tbody-oc').innerHTML = '';
+      (d.items || []).forEach(i => agregarFila(i.desc, i.cant, i.und, i.det, i.precio));
+    }
+
+    function recolectarDatos() {
+      const filas = document.getElementById('tbody-oc').querySelectorAll('tr');
+      const pct   = parseFloat(document.getElementById('pct-igv').value) / 100;
+      let items = [], totalNeto = 0, totalIGV = 0, totalBruto = 0;
+      filas.forEach(tr => {
+        const c      = parseFloat(tr.querySelector('.cant').value)   || 0;
+        const pBruto = parseFloat(tr.querySelector('.precio').value) || 0;
+        const sBruto = c * pBruto;
+        const sNeto  = pct > 0 ? sBruto / (1 + pct) : sBruto;
+        const igvL   = sBruto - sNeto;
+        totalNeto += sNeto; totalIGV += igvL; totalBruto += sBruto;
+        items.push({
+          cant:  c,
+          und:   tr.querySelector('.und').value,
+          desc:  tr.querySelector('.desc').value,
+          det:   tr.querySelector('.det').value,
+          precio: pBruto.toFixed(2),
+          precioBruto:   pBruto.toFixed(2),
+          precioNeto:    (pct > 0 ? pBruto / (1 + pct) : pBruto).toFixed(2),
+          igvLinea:      igvL.toFixed(2),
+          subtotalBruto: sBruto.toFixed(2),
+          subtotalNeto:  sNeto.toFixed(2),
+        });
+      });
+      return {
+        tipo:        document.getElementById('gen-tipo').value,
+        empresa:     document.getElementById('gen-empresa').value,
+        rucEmpresa:  document.getElementById('gen-ruc-empresa').value,
+        local:       document.getElementById('gen-local').value,
+        idLocal:     document.getElementById('gen-id-local').value,
+        proveedor:   document.getElementById('gen-proveedor').value,
+        docProveedor:document.getElementById('gen-doc-proveedor').value,
+        obs:         document.getElementById('gen-obs').value,
+        pctIGV:      document.getElementById('pct-igv').value,
+        opOrigen:    document.getElementById('gen-op-origen').value,
+        items,
+        subtotal: totalNeto.toFixed(2),
+        igv:      totalIGV.toFixed(2),
+        total:    totalBruto.toFixed(2),
+      };
+    }
+
+    // ── GENERAR OC ────────────────────────────────────────────────
+    async function generarOC() {
+      const msg = document.getElementById('msg-gen');
+      const btn = document.getElementById('btn-generar');
+      const d   = recolectarDatos();
+
+      if (!d.empresa)   { showMsg(msg,'alert-error','Seleccioná una empresa.'); return; }
+      if (!d.local)     { showMsg(msg,'alert-error','Seleccioná un local.'); return; }
+      if (!d.proveedor) { showMsg(msg,'alert-error','Seleccioná un proveedor.'); return; }
+      if (!d.items.length) { showMsg(msg,'alert-error','Agregá al menos un item.'); return; }
+      if (d.items.some(i => !i.desc)) { showMsg(msg,'alert-error','Todos los items deben tener descripción.'); return; }
+
+      btn.disabled = true; btn.textContent = 'Generando...'; msg.style.display = 'none';
+
+      try {
+        // Obtener correlativo
+        const { data: localData } = await sbClient.from('locales')
+          .select('correlativo_oc, correlativo_os, codigo_corto, direccion, telefono, horario')
+          .eq('id_local', d.idLocal).single();
+
+        const año    = new Date().getFullYear().toString().slice(-2);
+        const emp    = empresas.find(e => e.ruc === d.rucEmpresa);
+        const codEmp = emp?.abreviatura || d.rucEmpresa.slice(-3);
+        const codLoc = localData?.codigo_corto || d.idLocal.slice(-3);
+
+        let corr, numero;
+        if (d.tipo === 'OS') {
+          corr   = localData?.correlativo_os || 1;
+          numero = `OS-${codEmp}-${codLoc}-${año}-${corr.toString().padStart(5,'0')}`;
+        } else {
+          corr   = localData?.correlativo_oc || 1;
+          numero = `OC-${codEmp}-${codLoc}-${año}-${corr.toString().padStart(5,'0')}`;
+        }
+
+        // Generar PDF
+        const pdfBase64 = await generarPDF(d, numero, localData, emp);
+
+        // Guardar en Supabase
+        const { error: e1 } = await sbClient.from('ordenes_compra').insert({
+          id_oc:       numero,
+          numero:      numero,
+          tipo:        d.tipo,
+          ruc_empresa: d.rucEmpresa,
+          id_local:    d.idLocal,
+          proveedor:   d.proveedor,
+          subtotal:    parseFloat(d.subtotal),
+          igv:         parseFloat(d.igv),
+          total:       parseFloat(d.total),
+          estado:      'pendiente',
+          op_origen:   d.opOrigen || null,
+          notas:       d.obs || null,
+          created_by:  perfil.nombre,
+        });
+        if (e1) throw new Error(e1.message);
+
+        // Insertar items
+        const itemsRows = d.items.map((item, i) => ({
+          id_item:        `${numero}-${(i+1).toString().padStart(3,'0')}`,
+          id_oc:          numero,
+          cantidad:       item.cant,
+          descripcion:    item.desc,
+          detalle_adic:   item.det || null,
+          unidad_medida:  item.und,
+          precio_unitario:parseFloat(item.precioBruto),
+          subtotal_bruto: parseFloat(item.subtotalBruto),
+          igv_linea:      parseFloat(item.igvLinea),
+          precio_neto:    parseFloat(item.precioNeto),
+        }));
+        await sbClient.from('oc_items').insert(itemsRows);
+
+        // Incrementar correlativo
+        const campo = d.tipo === 'OS' ? { correlativo_os: corr + 1 } : { correlativo_oc: corr + 1 };
+        await sbClient.from('locales').update(campo).eq('id_local', d.idLocal);
+
+        // Marcar OP como atendida
+        if (d.opOrigen) {
+          await sbClient.from('pedidos').update({ estado: 'atendida', oc_vinculada: numero }).eq('numero', d.opOrigen);
+        }
+
+        // Eliminar borrador si existe
+        const idBorrador = document.getElementById('gen-id-borrador').value;
+        if (idBorrador) await sbClient.from('oc_borradores').delete().eq('id', idBorrador);
+
+        await auditar(perfil, 'CREAR', 'ordenes_compra', `Generó ${numero} — ${d.proveedor} — S/ ${d.total}`);
+
+        // Descargar PDF
+        const link = document.createElement('a');
+        link.href     = `data:application/pdf;base64,${pdfBase64}`;
+        link.download = `${numero}_${d.proveedor}.pdf`;
+        link.click();
+
+        showMsg(msg, 'alert-success', `✓ ${numero} generada correctamente. El PDF se descargó.`);
+        cerrarGenerador();
+        await cargar();
+
+      } catch(e) {
+        showMsg(msg, 'alert-error', 'Error: ' + e.message);
+      }
+      btn.disabled = false;
+      btn.textContent = d.tipo === 'OS' ? 'Generar OS oficial (PDF)' : 'Generar OC oficial (PDF)';
+    }
+
+    // ── GENERAR PDF con jsPDF ─────────────────────────────────────
+    async function generarPDF(d, numero, localData, emp) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      const margenL  = 15;
+      const margenR  = 195;
+      const ancho    = 180;
+      const azul     = [27, 43, 94];
+      const gris     = [100, 100, 100];
+      const grisCla  = [240, 240, 240];
+      const negro    = [30, 30, 30];
+      const fmt2 = n => parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2 });
+
+      const fecha = new Date().toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'numeric' });
+
+      // ── ENCABEZADO ─────────────────────────────────────────────
+      // Logo
+      const logoUrl = LOGOS[d.rucEmpresa];
+      if (logoUrl) {
+        try {
+          const imgData = await cargarImagenBase64(logoUrl);
+          doc.addImage(imgData, 'PNG', margenL, 10, 50, 20);
+        } catch(e) { console.warn('Logo no cargado:', e); }
+      }
+
+      // Datos empresa (derecha)
+      doc.setFontSize(9).setFont('helvetica','bold').setTextColor(...azul);
+      doc.text(d.empresa, margenR, 14, { align: 'right' });
+      doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...gris);
+      doc.text(`RUC: ${d.rucEmpresa}`, margenR, 19, { align: 'right' });
+      if (localData?.direccion) doc.text(localData.direccion, margenR, 23, { align: 'right' });
+
+      // Caja número OC
+      doc.setFillColor(...azul);
+      doc.roundedRect(margenR - 55, 28, 56, 16, 2, 2, 'F');
+      doc.setFont('helvetica','bold').setFontSize(8).setTextColor(255,255,255);
+      doc.text(d.tipo === 'OS' ? 'ORDEN DE SERVICIO' : 'ORDEN DE COMPRA', margenR - 27, 34, { align: 'center' });
+      doc.setFontSize(11);
+      doc.text(numero, margenR - 27, 40, { align: 'center' });
+
+      // Línea separadora
+      doc.setDrawColor(...azul).setLineWidth(0.5);
+      doc.line(margenL, 48, margenR, 48);
+
+      // ── DATOS PROVEEDOR / ENTREGA ──────────────────────────────
+      let y = 53;
+      doc.setFontSize(8).setFont('helvetica','bold').setTextColor(...azul);
+      doc.text('PROVEEDOR:', margenL, y);
+      doc.setFont('helvetica','normal').setTextColor(...negro);
+      doc.text(d.proveedor, margenL + 22, y);
+
+      // Buscar RUC del proveedor
+      const prov = proveedoresGlobal.find(p => p.razon_social === d.proveedor);
+      if (prov) {
+        doc.setFont('helvetica','bold').setTextColor(...azul);
+        doc.text('RUC/DNI:', margenL, y + 5);
+        doc.setFont('helvetica','normal').setTextColor(...negro);
+        doc.text(prov.documento, margenL + 22, y + 5);
+      }
+
+      doc.setFont('helvetica','bold').setTextColor(...azul);
+      doc.text('FECHA:', margenR - 60, y);
+      doc.setFont('helvetica','normal').setTextColor(...negro);
+      doc.text(fecha, margenR - 42, y);
+
+      doc.setFont('helvetica','bold').setTextColor(...azul);
+      doc.text('LOCAL:', margenR - 60, y + 5);
+      doc.setFont('helvetica','normal').setTextColor(...negro);
+      doc.text(d.local, margenR - 42, y + 5);
+
+      if (localData?.direccion) {
+        doc.setFont('helvetica','bold').setTextColor(...azul);
+        doc.text('DIRECCIÓN:', margenL, y + 10);
+        doc.setFont('helvetica','normal').setTextColor(...negro);
+        doc.text(localData.direccion, margenL + 22, y + 10);
+      }
+
+      // QR
+      try {
+        const qrCanvas = document.createElement('canvas');
+        qrCanvas.width = 80; qrCanvas.height = 80;
+        new QRCode(qrCanvas, { text: numero, width: 80, height: 80 });
+        const qrData = qrCanvas.toDataURL('image/png');
+        doc.addImage(qrData, 'PNG', margenR - 20, 50, 18, 18);
+      } catch(e) {}
+
+      y += 18;
+      doc.setDrawColor(...grisCla).setLineWidth(0.3);
+      doc.line(margenL, y, margenR, y);
+
+      // ── TABLA DETALLE ──────────────────────────────────────────
+      y += 5;
+      const colW = [8, 12, 12, 68, 34, 18, 14, 18];
+      const colX = [margenL];
+      colW.forEach((w, i) => { if (i > 0) colX.push(colX[i-1] + colW[i-1]); });
+      const headers = ['N°','Cant.','Und','Descripción / Artículo','Detalle','P.Unit.Bruto','IGV','Total'];
+
+      // Header tabla
+      doc.setFillColor(...azul);
+      doc.rect(margenL, y, ancho, 7, 'F');
+      doc.setFont('helvetica','bold').setFontSize(7).setTextColor(255,255,255);
+      headers.forEach((h, i) => {
+        const align = i >= 5 ? 'right' : i === 0 ? 'center' : 'left';
+        const xPos  = i >= 5 ? colX[i] + colW[i] - 1 : i === 0 ? colX[i] + colW[i]/2 : colX[i] + 1;
+        doc.text(h, xPos, y + 4.5, { align });
+      });
+      y += 7;
+
+      // Filas
+      doc.setFont('helvetica','normal').setFontSize(7).setTextColor(...negro);
+      d.items.forEach((item, idx) => {
+        const h = item.desc.length > 55 ? 8 : 6;
+        if (y + h > 260) {
+          doc.addPage();
+          y = 20;
+        }
+        const bg = idx % 2 === 0 ? [255,255,255] : [248,249,252];
+        doc.setFillColor(...bg);
+        doc.rect(margenL, y, ancho, h, 'F');
+
+        doc.setTextColor(...negro);
+        doc.text((idx+1).toString(),     colX[0] + colW[0]/2, y + h/2 + 1, { align:'center' });
+        doc.text(item.cant.toString(),   colX[1] + 1,          y + h/2 + 1);
+        doc.text(item.und,               colX[2] + 1,          y + h/2 + 1);
+        const descLines = doc.splitTextToSize(item.desc, colW[3] - 2);
+        doc.text(descLines,              colX[3] + 1,          y + 4);
+        if (item.det) {
+          const detLines = doc.splitTextToSize(item.det, colW[4] - 2);
+          doc.text(detLines,             colX[4] + 1,          y + 4);
+        }
+        doc.text('S/ ' + fmt2(item.precioBruto),   colX[5] + colW[5] - 1, y + h/2 + 1, { align:'right' });
+        doc.text('S/ ' + fmt2(item.igvLinea),       colX[6] + colW[6] - 1, y + h/2 + 1, { align:'right' });
+        doc.text('S/ ' + fmt2(item.subtotalBruto),  colX[7] + colW[7] - 1, y + h/2 + 1, { align:'right' });
+
+        doc.setDrawColor(...grisCla).setLineWidth(0.1);
+        doc.line(margenL, y + h, margenR, y + h);
+        y += h;
+      });
+
+      // ── TOTALES ────────────────────────────────────────────────
+      y += 4;
+      const xTot = margenR - 55;
+      doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...gris);
+      doc.text('SUBTOTAL (sin IGV):', xTot, y, { align: 'left' });
+      doc.text(`S/ ${fmt2(d.subtotal)}`, margenR, y, { align: 'right' });
+      y += 5;
+      doc.text(`IGV (${document.getElementById('pct-igv').value}%):`, xTot, y, { align: 'left' });
+      doc.text(`S/ ${fmt2(d.igv)}`, margenR, y, { align: 'right' });
+      y += 1;
+      doc.setDrawColor(...azul).line(xTot, y + 1, margenR, y + 1);
+      y += 4;
+      doc.setFont('helvetica','bold').setFontSize(10).setTextColor(...azul);
+      doc.text('TOTAL GENERAL:', xTot, y, { align: 'left' });
+      doc.text(`S/ ${fmt2(d.total)}`, margenR, y, { align: 'right' });
+
+      // Observaciones
+      if (d.obs) {
+        y += 8;
+        doc.setFont('helvetica','bold').setFontSize(8).setTextColor(...azul);
+        doc.text('OBSERVACIONES:', margenL, y);
+        doc.setFont('helvetica','normal').setTextColor(...negro);
+        const obsLines = doc.splitTextToSize(d.obs, ancho);
+        doc.text(obsLines, margenL, y + 5);
+      }
+
+      // ── PIE ────────────────────────────────────────────────────
+      const yPie = 282;
+      doc.setDrawColor(...grisCla).line(margenL, yPie - 4, margenR, yPie - 4);
+      doc.setFont('helvetica','normal').setFontSize(7).setTextColor(...gris);
+      doc.text(`Generado por MPCS · ${fecha}`, margenL, yPie);
+      doc.text(numero, margenR, yPie, { align: 'right' });
+
+      return doc.output('datauristring').split(',')[1];
+    }
+
+    // Cargar imagen como base64 para jsPDF
+    function cargarImagenBase64(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width; canvas.height = img.height;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+    }
+
+    // ── VER DETALLE OC ────────────────────────────────────────────
+    async function verDetalleOC(id) {
+      const { data: oc }    = await sbClient.from('ordenes_compra').select('*').eq('id_oc', id).single();
+      const { data: items } = await sbClient.from('oc_items').select('*').eq('id_oc', id);
+      if (!oc) return;
+      const fecha = oc.created_at ? new Date(oc.created_at).toLocaleDateString('es-PE') : '—';
+      alert(`${oc.numero}\n${oc.proveedor}\n${fecha}\nTotal: S/ ${parseFloat(oc.total).toFixed(2)}\nEstado: ${oc.estado}\n\nItems: ${(items||[]).length}`);
+    }
+
+    // ── UTILS ─────────────────────────────────────────────────────
+    function showMsg(el, cls, txt) { el.className = `alert ${cls}`; el.textContent = txt; el.style.display = 'block'; }
+    function cerrar(id) { document.getElementById(id).classList.add('hidden'); }
+
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('#gen-proveedor') && !e.target.closest('#lista-proveedores'))
+        document.getElementById('lista-proveedores').style.display = 'none';
+      if (!e.target.closest('#input-articulo') && !e.target.closest('#lista-articulos'))
+        document.getElementById('lista-articulos').style.display = 'none';
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { cerrarGenerador(); cerrar('modal-borradores'); }
+    });
+
+    init();
+  </script>
+</body>
+</html>
