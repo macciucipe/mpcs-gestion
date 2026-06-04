@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Costo Laboral · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:1.5rem; }
+    .kpi-card { background:var(--white); border-radius:var(--radius-lg); padding:1.25rem; border:1px solid var(--border); box-shadow:var(--shadow-sm); }
+    .kpi-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); margin-bottom:6px; }
+    .kpi-value { font-size:26px; font-weight:700; line-height:1; }
+    .kpi-sub   { font-size:12px; color:var(--text-muted); margin-top:4px; }
+    .kpi-ratio { font-size:13px; font-weight:600; margin-top:6px; padding:3px 8px; border-radius:20px; display:inline-block; }
+    .kpi-ratio.good { background:var(--success-bg); color:var(--success); }
+    .kpi-ratio.warn { background:var(--warning-bg); color:var(--warning); }
+
+    .emp-costo-card { background:var(--white); border:1px solid var(--border); border-radius:var(--radius-lg); margin-bottom:1rem; overflow:hidden; box-shadow:var(--shadow-sm); }
+    .emp-costo-header { padding:1rem 1.25rem; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:space-between; }
+    .emp-costo-header h3 { font-size:15px; font-weight:600; color:#fff; }
+    .emp-costo-header p  { font-size:12px; color:rgba(255,255,255,0.6); margin-top:2px; }
+    .emp-costo-body { padding:1.25rem; }
+
+    .concepto-tabla { width:100%; border-collapse:collapse; font-size:13px; }
+    .concepto-tabla th { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); padding:6px 8px; border-bottom:1px solid var(--border); text-align:right; }
+    .concepto-tabla th:first-child { text-align:left; }
+    .concepto-tabla td { padding:7px 8px; border-bottom:1px solid var(--border); vertical-align:middle; text-align:right; }
+    .concepto-tabla td:first-child { text-align:left; font-size:13px; }
+    .concepto-tabla tr:last-child td { border-bottom:none; }
+    .concepto-tabla tr.subtotal td { font-weight:600; background:var(--bg); }
+    .concepto-tabla tr.total td { font-weight:700; font-size:14px; background:var(--navy-light); color:var(--navy); }
+    .concepto-tabla tr.proyeccion td { font-weight:700; font-size:14px; background:var(--warning-bg); color:var(--warning); }
+
+    .val-ingreso    { color:var(--success); font-weight:500; }
+    .val-descuento  { color:var(--error);   font-weight:500; }
+    .val-provision  { color:var(--warning); font-weight:500; }
+    .val-empleador  { color:var(--info);    font-weight:500; }
+
+    .ratio-bar { height:8px; border-radius:4px; background:var(--border-md); margin-top:6px; overflow:hidden; }
+    .ratio-fill { height:100%; border-radius:4px; background:var(--success); transition:width 0.5s; }
+
+    .seccion-titulo { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); padding:6px 8px; background:var(--navy-light); border-radius:var(--radius-sm); margin-bottom:2px; }
+
+    .historico-tabla { width:100%; border-collapse:collapse; font-size:12px; }
+    .historico-tabla th { font-size:10px; font-weight:600; text-transform:uppercase; color:var(--text-muted); padding:6px 8px; border-bottom:2px solid var(--border); text-align:right; }
+    .historico-tabla th:first-child { text-align:left; }
+    .historico-tabla td { padding:6px 8px; border-bottom:1px solid var(--border); text-align:right; }
+    .historico-tabla td:first-child { text-align:left; font-weight:500; }
+    .historico-tabla tr.total-row td { font-weight:700; background:var(--navy-light); color:var(--navy); }
+  </style>
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Costo laboral</h1>
+        <p>Análisis de costo real vs. proyección máxima</p>
+      </div>
+      <div class="page-header-right">
+        <select id="sel-empresa" class="btn" onchange="onEmpresaChange()" style="padding:7px 12px">
+          <option value="">Seleccionar empresa...</option>
+        </select>
+        <select id="sel-periodo" class="btn" onchange="loadDetalle()" style="padding:7px 12px">
+          <option value="">Seleccionar período...</option>
+        </select>
+        <button class="btn btn-primary" onclick="calcularYGuardar()" id="btn-calcular">
+          🔄 Calcular y guardar
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body" id="page-body" style="display:none">
+
+      <!-- KPIs -->
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Neto pagado</div>
+          <div class="kpi-value" id="kpi-neto" style="color:var(--navy)">—</div>
+          <div class="kpi-sub">Total empleados</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Costo laboral real</div>
+          <div class="kpi-value" id="kpi-real" style="color:var(--success)">—</div>
+          <div class="kpi-sub">Incluye EsSalud y provisiones</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Costo máximo proyectado</div>
+          <div class="kpi-value" id="kpi-max" style="color:var(--warning)">—</div>
+          <div class="kpi-sub">Escenario con todos los beneficios</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Ratio real / máximo</div>
+          <div class="kpi-value" id="kpi-ratio" style="color:var(--accent)">—</div>
+          <div class="ratio-bar"><div class="ratio-fill" id="ratio-fill" style="width:0%"></div></div>
+          <div class="kpi-sub">Eficiencia del período</div>
+        </div>
+      </div>
+
+      <!-- Detalle por empleado -->
+      <div id="detalle-empleados"></div>
+
+      <!-- Histórico -->
+      <div class="card" style="margin-top:1.5rem">
+        <div class="card-header"><h2>Histórico de costo laboral</h2></div>
+        <div class="table-wrap">
+          <table class="historico-tabla">
+            <thead>
+              <tr>
+                <th>Período</th>
+                <th>Empleados</th>
+                <th>Neto pagado</th>
+                <th>EsSalud</th>
+                <th>Prov. CTS</th>
+                <th>Prov. Grat.</th>
+                <th>Costo real</th>
+                <th>Máx. proy.</th>
+                <th>Ratio</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-historico">
+              <tr><td colspan="9"><div class="loading">Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <div id="page-empty" style="padding:3rem;text-align:center;color:var(--text-muted)">
+      <p style="font-size:15px">Seleccioná una empresa y un período para ver el análisis de costo laboral.</p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+    // Feriados nacionales Perú 2026 (trabajan = cobran doble, salvo 1/1 y 25/12)
+    const FERIADOS_2026 = [
+      '2026-02-24','2026-02-25', // Carnaval
+      '2026-04-02','2026-04-03', // Semana Santa
+      '2026-05-01',              // Día del trabajo
+      '2026-06-07',              // Batalla de Arica
+      '2026-06-29',              // San Pedro y San Pablo
+      '2026-07-28','2026-07-29', // Fiestas Patrias
+      '2026-08-06',              // Batalla de Junín
+      '2026-08-30',              // Santa Rosa
+      '2026-10-08',              // Combate de Angamos
+      '2026-11-01',              // Todos los Santos
+      '2026-12-08',              // Inmaculada Concepción
+    ]; // 1/1 y 25/12 cierran → no se cobran
+
+    const AFP_RATES = {
+      PROFUTURO:{ oblig:0.10, comision:0.0169, seguro:0.0137 },
+      PRIMA:    { oblig:0.10, comision:0.0000, seguro:0.0137 },
+      HABITAT:  { oblig:0.10, comision:0.0000, seguro:0.0137 },
+      INTEGRA:  { oblig:0.10, comision:0.0155, seguro:0.0137 },
+    };
+
+    let perfil = null, periodos = [], empleadosData = [], provisionesData = [];
+    let empresaActual = null;
+
+    async function init() {
+      perfil = await requireAuth(['admin','rrhh','gerencia']);
+      if (!perfil) return;
+      renderSidebar(perfil, 'costo-laboral');
+      await loadEmpresas();
+    }
+
+    async function loadEmpresas() {
+      const { data } = await sbClient.from('empresas').select('ruc, razon_social, abreviatura').eq('estado','activa').order('razon_social');
+      const sel = document.getElementById('sel-empresa');
+      (data||[]).forEach(e => {
+        const o = document.createElement('option');
+        o.value = e.ruc; o.textContent = `${e.abreviatura} — ${e.razon_social}`;
+        sel.appendChild(o);
+      });
+      if (perfil.ruc_empresa) { sel.value = perfil.ruc_empresa; await onEmpresaChange(); }
+    }
+
+    async function onEmpresaChange() {
+      empresaActual = document.getElementById('sel-empresa').value;
+      if (!empresaActual) return;
+      const { data } = await sbClient.from('planilla_periodos')
+        .select('id, mes, anio, estado')
+        .eq('ruc_empresa', empresaActual)
+        .in('estado', ['aprobado','emitido'])
+        .order('anio',{ascending:false}).order('mes',{ascending:false});
+      periodos = data || [];
+      const sel = document.getElementById('sel-periodo');
+      sel.innerHTML = '<option value="">Seleccionar período...</option>';
+      periodos.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.id; o.textContent = `${MESES[p.mes]} ${p.anio} — ${p.estado}`;
+        sel.appendChild(o);
+      });
+      if (periodos.length > 0) { sel.value = periodos[0].id; await loadDetalle(); }
+      await loadHistorico();
+    }
+
+    async function loadDetalle() {
+      const periodoId = document.getElementById('sel-periodo').value;
+      if (!periodoId) return;
+
+      // Cargar provisiones guardadas
+      const { data: provs } = await sbClient.from('planilla_provisiones')
+        .select('*').eq('periodo_id', periodoId);
+      provisionesData = provs || [];
+
+      // Cargar detalle planilla
+      const { data: dets } = await sbClient.from('planilla_detalle')
+        .select('*').eq('periodo_id', periodoId);
+
+      // Cargar empleados
+      const { data: emps } = await sbClient.from('empleados')
+        .select('*, empresas(razon_social), locales(nombre)')
+        .eq('ruc_empresa', empresaActual).eq('estado','activo');
+      empleadosData = emps || [];
+
+      if (provisionesData.length > 0) {
+        renderDetalle(provisionesData, dets||[], empleadosData);
+      } else if (dets && dets.length > 0) {
+        // Calcular en memoria sin guardar
+        const calc = calcularProvisiones(dets, empleadosData, periodoId);
+        renderDetalle(calc, dets, empleadosData);
+      } else {
+        document.getElementById('page-body').style.display = 'none';
+        document.getElementById('page-empty').style.display = 'block';
+        document.getElementById('page-empty').innerHTML = '<p style="font-size:15px;color:var(--text-muted)">No hay datos de planilla para este período. Cargá y guardá la planilla primero.</p>';
+        return;
+      }
+
+      document.getElementById('page-empty').style.display = 'none';
+      document.getElementById('page-body').style.display  = 'block';
+    }
+
+    // ── Cálculo de provisiones ────────────────────────────
+    function calcularProvisiones(dets, emps, periodoId) {
+      const periodo = periodos.find(p => p.id == periodoId);
+      const mes  = periodo?.mes  || new Date().getMonth()+1;
+      const anio = periodo?.anio || new Date().getFullYear();
+
+      return dets.map(det => {
+        const emp = emps.find(e => e.id_empleado === det.id_empleado);
+        if (!emp) return null;
+
+        const esGeneral = emp.regimen === 'general';
+        const esMype    = emp.regimen === 'mype';
+
+        const sueldo  = emp.sueldo_basico || 0;
+        const asigFam = emp.asignacion_familiar || 0;
+
+        // Bonos regulares (puntualidad + asistencia + desempeño)
+        const bonosReg = (det.bono_puntualidad||0) + (det.bono_asistencia||0) + (det.bono_desempeno||0);
+        const movilidad= det.movilidad||0;
+        const bonosVar = (det.bono_excepcional||0) + (det.otros_ingresos||0);
+        const he       = (det.horas_extras_25||0) + (det.horas_extras_35||0);
+        const feriados = det.bono_dia_trabajador||0;
+
+        // Remuneración computable para CTS y Gratificación
+        // Incluye básico + asig. familiar + bonos regulares (si son constantes)
+        const remunComputable = sueldo + asigFam + bonosReg + movilidad;
+
+        // EsSalud (9% sobre sueldo + asig. familiar, no sobre bonos en MYPE)
+        const baseEssalud = sueldo + asigFam;
+        const essalud = baseEssalud * 0.09;
+
+        // Provisión CTS mensual
+        // General: 1 sueldo por año = remunComputable / 12
+        // MYPE:    15 días por año  = remunComputable / 24
+        const provCts = esGeneral ? remunComputable / 12
+                      : esMype    ? remunComputable / 24
+                      : remunComputable / 12;
+
+        // Provisión Gratificación mensual
+        // General: 2 sueldos/año = remunComputable / 6
+        // MYPE:    1 sueldo/año  = remunComputable / 12
+        const provGrat = esGeneral ? remunComputable / 6
+                       : esMype    ? remunComputable / 12
+                       : remunComputable / 6;
+
+        // Grat. EsSalud (9% sobre la gratificación mensual)
+        const provGratEssalud = provGrat * 0.09;
+
+        // Provisión vacaciones (15 días/año = 1/24 de la remuneración)
+        const provVac = remunComputable / 24;
+
+        // Neto pagado
+        const neto = det.neto_pagar || 0;
+
+        // Costo laboral real del mes
+        const costoReal = neto + essalud + provCts + provGrat + provGratEssalud + provVac;
+
+        // ── Proyección máxima ────────────────────────────
+        // Feriados del mes que trabajan
+        const feriadosMes = FERIADOS_2026.filter(f => {
+          const [y,m] = f.split('-');
+          return parseInt(m) === mes && parseInt(y) === anio;
+        });
+        const montFeriadosMax = (sueldo / 30) * feriadosMes.length;
+
+        // Bonos al 100% (puntualidad + asistencia + desempeño = 30% del básico en ETW)
+        const bonosMax = sueldo * 0.30;
+        const movilMax = movilidad; // fijo si aplica
+
+        const remunMax = sueldo + asigFam + bonosMax + movilMax;
+        const essaludMax = baseEssalud * 0.09;
+        const provCtsMax  = esGeneral ? remunMax / 12 : esMype ? remunMax / 24 : remunMax / 12;
+        const provGratMax = esGeneral ? remunMax / 6  : esMype ? remunMax / 12 : remunMax / 6;
+        const provGratEssMax = provGratMax * 0.09;
+        const provVacMax  = remunMax / 24;
+        const netoMax = sueldo + asigFam + bonosMax + movilMax + montFeriadosMax;
+        const costoMax = netoMax + essaludMax + provCtsMax + provGratMax + provGratEssMax + provVacMax;
+
+        return {
+          periodo_id:           parseInt(periodoId),
+          id_empleado:          det.id_empleado,
+          ruc_empresa:          emp.ruc_empresa,
+          sueldo_bruto:         sueldo,
+          asig_familiar:        asigFam,
+          bonos_regulares:      bonosReg + movilidad,
+          bonos_variables:      bonosVar,
+          horas_extras:         he,
+          feriados:             feriados,
+          neto_pagado:          neto,
+          essalud,
+          prov_cts:             provCts,
+          prov_grat:            provGrat,
+          prov_grat_essalud:    provGratEssalud,
+          prov_vacaciones:      provVac,
+          costo_laboral:        costoReal,
+          costo_max_proyectado: costoMax,
+          // Para render
+          _emp: emp, _det: det,
+          _remunComp: remunComputable, _remunMax: remunMax,
+          _bonosMax: bonosMax, _feriadosMax: montFeriadosMax,
+        };
+      }).filter(Boolean);
+    }
+
+    async function calcularYGuardar() {
+      const periodoId = document.getElementById('sel-periodo').value;
+      if (!periodoId) { alert('Seleccioná un período.'); return; }
+      const { data: dets } = await sbClient.from('planilla_detalle').select('*').eq('periodo_id', periodoId);
+      if (!dets || !dets.length) { alert('No hay datos de planilla en este período.'); return; }
+
+      const calc = calcularProvisiones(dets, empleadosData, periodoId);
+      const payload = calc.map(c => ({
+        periodo_id: c.periodo_id, id_empleado: c.id_empleado, ruc_empresa: c.ruc_empresa,
+        sueldo_bruto: c.sueldo_bruto, asig_familiar: c.asig_familiar,
+        bonos_regulares: c.bonos_regulares, bonos_variables: c.bonos_variables,
+        horas_extras: c.horas_extras, feriados: c.feriados,
+        neto_pagado: c.neto_pagado, essalud: c.essalud,
+        prov_cts: c.prov_cts, prov_grat: c.prov_grat,
+        prov_grat_essalud: c.prov_grat_essalud, prov_vacaciones: c.prov_vacaciones,
+        costo_laboral: c.costo_laboral, costo_max_proyectado: c.costo_max_proyectado,
+      }));
+
+      const { error } = await sbClient.from('planilla_provisiones')
+        .upsert(payload, { onConflict: 'periodo_id,id_empleado' });
+      if (error) { alert('Error: ' + error.message); return; }
+      provisionesData = payload;
+      renderDetalle(calc, dets, empleadosData);
+      await loadHistorico();
+      alert('✅ Provisiones calculadas y guardadas');
+    }
+
+    // ── Render ────────────────────────────────────────────
+    function fmt(n) { return `S/ ${Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2})}`; }
+
+    function renderDetalle(provs, dets, emps) {
+      // KPIs totales
+      const totalNeto  = provs.reduce((s,p)=>s+(p.neto_pagado||0),0);
+      const totalReal  = provs.reduce((s,p)=>s+(p.costo_laboral||0),0);
+      const totalMax   = provs.reduce((s,p)=>s+(p.costo_max_proyectado||0),0);
+      const ratio      = totalMax > 0 ? (totalReal/totalMax*100).toFixed(1) : 0;
+
+      document.getElementById('kpi-neto').textContent  = fmt(totalNeto);
+      document.getElementById('kpi-real').textContent  = fmt(totalReal);
+      document.getElementById('kpi-max').textContent   = fmt(totalMax);
+      document.getElementById('kpi-ratio').textContent = `${ratio}%`;
+      document.getElementById('ratio-fill').style.width= `${Math.min(ratio,100)}%`;
+      document.getElementById('ratio-fill').style.background = ratio > 90 ? 'var(--error)' : ratio > 75 ? 'var(--warning)' : 'var(--success)';
+
+      // Detalle por empleado
+      const container = document.getElementById('detalle-empleados');
+      container.innerHTML = provs.map(p => {
+        const emp = p._emp || emps.find(e=>e.id_empleado===p.id_empleado);
+        if (!emp) return '';
+        const ratioEmp = p.costo_max_proyectado > 0 ? (p.costo_laboral/p.costo_max_proyectado*100).toFixed(1) : 0;
+
+        return `
+        <div class="emp-costo-card">
+          <div class="emp-costo-header">
+            <div>
+              <h3>${emp.nombres} ${emp.apellidos}</h3>
+              <p>${emp.cargo||'—'} · ${emp.regimen?.toUpperCase()||'—'} · ${emp.sistema_pensionario||''} ${emp.afp||''}</p>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:2px">Costo real del mes</div>
+              <div style="font-size:22px;font-weight:700">${fmt(p.costo_laboral)}</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">${ratioEmp}% del máximo proyectado</div>
+            </div>
+          </div>
+          <div class="emp-costo-body">
+            <table class="concepto-tabla">
+              <thead>
+                <tr>
+                  <th>Concepto</th>
+                  <th>Real del mes</th>
+                  <th>Máx. proyectado</th>
+                  <th>Diferencia</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="4"><div class="seccion-titulo">INGRESOS DEL TRABAJADOR</div></td></tr>
+                <tr>
+                  <td>Haber básico</td>
+                  <td class="val-ingreso">${fmt(p.sueldo_bruto)}</td>
+                  <td>${fmt(p.sueldo_bruto)}</td>
+                  <td style="color:var(--text-muted)">S/ 0.00</td>
+                </tr>
+                <tr>
+                  <td>Asignación familiar</td>
+                  <td class="val-ingreso">${fmt(p.asig_familiar)}</td>
+                  <td>${fmt(p.asig_familiar)}</td>
+                  <td style="color:var(--text-muted)">S/ 0.00</td>
+                </tr>
+                <tr>
+                  <td>Bonos regulares</td>
+                  <td class="val-ingreso">${fmt(p.bonos_regulares)}</td>
+                  <td class="val-ingreso">${fmt(p._bonosMax||p.sueldo_bruto*0.30+p.bonos_regulares)}</td>
+                  <td style="color:var(--text-muted)">${fmt((p._bonosMax||p.sueldo_bruto*0.30)-(p.bonos_regulares||0))}</td>
+                </tr>
+                <tr>
+                  <td>Feriados trabajados</td>
+                  <td class="val-ingreso">${fmt(p.feriados)}</td>
+                  <td class="val-ingreso">${fmt(p._feriadosMax||0)}</td>
+                  <td style="color:var(--text-muted)">${fmt((p._feriadosMax||0)-(p.feriados||0))}</td>
+                </tr>
+                <tr>
+                  <td>Horas extras</td>
+                  <td class="val-ingreso">${fmt(p.horas_extras)}</td>
+                  <td>—</td>
+                  <td>—</td>
+                </tr>
+                <tr class="subtotal">
+                  <td>Neto pagado al trabajador</td>
+                  <td>${fmt(p.neto_pagado)}</td>
+                  <td>—</td>
+                  <td>—</td>
+                </tr>
+                <tr><td colspan="4"><div class="seccion-titulo">APORTES DEL EMPLEADOR</div></td></tr>
+                <tr>
+                  <td>EsSalud (9%)</td>
+                  <td class="val-empleador">${fmt(p.essalud)}</td>
+                  <td class="val-empleador">${fmt(p.essalud)}</td>
+                  <td style="color:var(--text-muted)">S/ 0.00</td>
+                </tr>
+                <tr><td colspan="4"><div class="seccion-titulo">PROVISIONES MENSUALES</div></td></tr>
+                <tr>
+                  <td>CTS (${emp.regimen==='mype'?'15 días/año':'1 sueldo/año'})</td>
+                  <td class="val-provision">${fmt(p.prov_cts)}</td>
+                  <td class="val-provision">${fmt((p._remunMax||p._remunComp||0)/(emp.regimen==='mype'?24:12))}</td>
+                  <td style="color:var(--text-muted)">${fmt(((p._remunMax||0)-(p._remunComp||0))/(emp.regimen==='mype'?24:12))}</td>
+                </tr>
+                <tr>
+                  <td>Gratificación (${emp.regimen==='mype'?'1/año':'2/año'})</td>
+                  <td class="val-provision">${fmt(p.prov_grat)}</td>
+                  <td class="val-provision">${fmt((p._remunMax||p._remunComp||0)/(emp.regimen==='mype'?12:6))}</td>
+                  <td style="color:var(--text-muted)">${fmt(((p._remunMax||0)-(p._remunComp||0))/(emp.regimen==='mype'?12:6))}</td>
+                </tr>
+                <tr>
+                  <td>Grat. EsSalud (9%)</td>
+                  <td class="val-provision">${fmt(p.prov_grat_essalud)}</td>
+                  <td class="val-provision">${fmt(p.prov_grat_essalud)}</td>
+                  <td style="color:var(--text-muted)">—</td>
+                </tr>
+                <tr>
+                  <td>Vacaciones (15 días/año)</td>
+                  <td class="val-provision">${fmt(p.prov_vacaciones)}</td>
+                  <td class="val-provision">${fmt((p._remunMax||p._remunComp||0)/24)}</td>
+                  <td style="color:var(--text-muted)">${fmt(((p._remunMax||0)-(p._remunComp||0))/24)}</td>
+                </tr>
+                <tr class="total">
+                  <td>COSTO LABORAL REAL DEL MES</td>
+                  <td>${fmt(p.costo_laboral)}</td>
+                  <td>—</td>
+                  <td>—</td>
+                </tr>
+                <tr class="proyeccion">
+                  <td>COSTO MÁXIMO PROYECTADO</td>
+                  <td>—</td>
+                  <td>${fmt(p.costo_max_proyectado)}</td>
+                  <td style="color:var(--warning)">${fmt(p.costo_max_proyectado-p.costo_laboral)} de reserva</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    async function loadHistorico() {
+      if (!empresaActual) return;
+      const { data: provs } = await sbClient.from('planilla_provisiones')
+        .select('*, planilla_periodos(mes, anio)')
+        .eq('ruc_empresa', empresaActual)
+        .order('created_at', {ascending:false});
+
+      const tbody = document.getElementById('tbody-historico');
+      if (!provs || !provs.length) {
+        tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><p>Sin historial aún</p></div></td></tr>';
+        return;
+      }
+
+      // Agrupar por período
+      const grupos = {};
+      provs.forEach(p => {
+        const key = `${p.planilla_periodos?.anio}-${String(p.planilla_periodos?.mes).padStart(2,'0')}`;
+        if (!grupos[key]) grupos[key] = { mes:p.planilla_periodos?.mes, anio:p.planilla_periodos?.anio, items:[] };
+        grupos[key].items.push(p);
+      });
+
+      tbody.innerHTML = Object.values(grupos).sort((a,b)=>b.anio-a.anio||b.mes-a.mes).map(g => {
+        const items = g.items;
+        const neto   = items.reduce((s,i)=>s+(i.neto_pagado||0),0);
+        const ess    = items.reduce((s,i)=>s+(i.essalud||0),0);
+        const cts    = items.reduce((s,i)=>s+(i.prov_cts||0),0);
+        const grat   = items.reduce((s,i)=>s+(i.prov_grat||0),0);
+        const real   = items.reduce((s,i)=>s+(i.costo_laboral||0),0);
+        const max    = items.reduce((s,i)=>s+(i.costo_max_proyectado||0),0);
+        const ratio  = max > 0 ? (real/max*100).toFixed(1) : '—';
+        return `<tr>
+          <td>${MESES[g.mes]} ${g.anio}</td>
+          <td style="text-align:center">${items.length}</td>
+          <td>${fmt(neto)}</td>
+          <td>${fmt(ess)}</td>
+          <td>${fmt(cts)}</td>
+          <td>${fmt(grat)}</td>
+          <td style="font-weight:600;color:var(--success)">${fmt(real)}</td>
+          <td style="font-weight:600;color:var(--warning)">${fmt(max)}</td>
+          <td><span class="badge ${parseFloat(ratio)>90?'badge-red':parseFloat(ratio)>75?'badge-yellow':'badge-green'}">${ratio}%</span></td>
+        </tr>`;
+      }).join('');
+    }
+
+    init();
+  </script>
+</body>
+</html>
