@@ -484,12 +484,13 @@
 
         // Insertar items
         const itemsRows = carritoItems.map((item, i) => ({
-          id_item:           `${numero}-${(i+1).toString().padStart(3,'0')}`,
-          id_pedido:         numero,
-          id_producto:       item.id_producto_local,
-          cantidad:          item.cantidad,
-          unidad_medida:     item.unidad,
-          detalle:           item.nombre,
+          id_item:            `${numero}-${(i+1).toString().padStart(3,'0')}`,
+          id_pedido:          numero,
+          id_producto_local:  item.id_producto_local,
+          nombre_producto:    item.nombre,
+          cantidad:           item.cantidad,
+          unidad_medida:      item.unidad,
+          detalle:            item.nombre,
         }));
         const { error: e2 } = await sbClient.from('pedidos_items').insert(itemsRows);
         if (e2) throw new Error(e2.message);
