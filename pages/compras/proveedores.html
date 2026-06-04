@@ -538,6 +538,11 @@
           else     await sbClient.from('proveedores_contactos').insert(cd);
         }
 
+        await auditar(perfil,
+          docEditando ? 'EDITAR' : 'CREAR',
+          'proveedores',
+          `${docEditando ? 'Editó' : 'Creó'} proveedor ${razon} (${tipo}: ${numDoc})`
+        );
         cerrarForm();
         await cargar();
       } catch(e) {
