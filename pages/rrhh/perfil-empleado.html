@@ -624,6 +624,7 @@
       <div class="tab-content" id="tab-documentos">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
           <button class="btn btn-sm active" onclick="filterDocs('todos',this)" style="border-radius:20px">Todos</button>
+          <button class="btn btn-sm" onclick="filterDocs('boleta',this)" style="border-radius:20px">Boletas de pago</button>
           <button class="btn btn-sm" onclick="filterDocs('foto',this)" style="border-radius:20px">Foto</button>
           <button class="btn btn-sm" onclick="filterDocs('dni_ce',this)" style="border-radius:20px">DNI / CE</button>
           <button class="btn btn-sm" onclick="filterDocs('contrato',this)" style="border-radius:20px">Contrato</button>
@@ -692,7 +693,7 @@
   <script>
     const RENIEC_TOKEN = 'TDLajRBPVKrg62OjRIJQ7PAXzlCaSnGns5R1I98p4xYZbX0RJRxB16AJBBVq';
     const SUNAT_TOKEN  = 'a26db6d95f35f6c3ffe47be304049b1a024c4103a279ab48ed2161a59dc72fa7';
-    const catLabels    = { foto:'Foto', dni_ce:'DNI/CE', contrato:'Contrato', libreta_sanitaria:'Libreta sanitaria', permiso_residencia:'Permiso residencia', sancion:'Sanción', notificacion:'Notificación', otro:'Otro' };
+    const catLabels    = { foto:'Foto', dni_ce:'DNI/CE', contrato:'Contrato', libreta_sanitaria:'Libreta sanitaria', permiso_residencia:'Permiso residencia', sancion:'Sanción', notificacion:'Notificación', boleta:'Boleta de pago', otro:'Otro' };
 
     let empleadoId = null, empleado = null, documentos = [], isDirty = false, pendingFile = null, perfilUser = null, isNuevo = false;
 

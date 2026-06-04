@@ -319,13 +319,14 @@
                 <div class="resumen-row total"><span>NETO A PAGAR</span><span id="r-neto">S/ 0.00</span></div>
               </div>
 
-              <div class="action-btns">
-                <button class="btn btn-primary" onclick="guardarDetalle()" style="background:var(--success);border-color:var(--success)">
-                  💾 Guardar
+              <div class="action-btns" id="action-btns">
+                <button class="btn btn-primary" id="btn-guardar-det" onclick="guardarDetalle()" style="background:var(--success);border-color:var(--success)">
+                  💾 Guardar novedades
                 </button>
-                <button class="btn btn-primary" onclick="generarBoleta()">
+                <button class="btn btn-primary" id="btn-generar-boleta" onclick="generarBoleta()" disabled style="opacity:0.4;cursor:not-allowed" title="Guardá primero las novedades">
                   📄 Generar boleta PDF
                 </button>
+                <div id="lbl-estado-periodo" style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:4px"></div>
               </div>
             </div>
           </div>
@@ -433,6 +434,32 @@
       renderPeriodos();
     }
 
+    function estadoPeriodoBadge(e) {
+      const map = {
+        borrador:    '<span class="badge badge-yellow">Borrador</span>',
+        en_revision: '<span class="badge badge-blue">En revisión</span>',
+        aprobado:    '<span class="badge badge-purple" style="background:#EDE9FE;color:#6D28D9">Aprobado</span>',
+        emitido:     '<span class="badge badge-green">Emitido</span>',
+      };
+      return map[e] || `<span class="badge badge-gray">${e}</span>`;
+    }
+
+    function botonesAccion(p) {
+      const rol = perfil.rol;
+      let btns = `<button class="btn btn-sm btn-ghost" onclick="abrirPeriodo(${p.id})">✏️ Ver</button>`;
+      if (p.estado === 'borrador' && ['admin','rrhh'].includes(rol)) {
+        btns += `<button class="btn btn-sm btn-ghost" onclick="cambiarEstado(${p.id},'en_revision')" style="color:var(--info)">📤 Enviar a revisión</button>`;
+      }
+      if (p.estado === 'en_revision' && ['admin','gerencia'].includes(rol)) {
+        btns += `<button class="btn btn-sm btn-ghost" onclick="cambiarEstado(${p.id},'aprobado')" style="color:var(--success)">✅ Aprobar</button>`;
+        btns += `<button class="btn btn-sm btn-ghost" onclick="cambiarEstado(${p.id},'borrador')" style="color:var(--warning)">↩ Devolver</button>`;
+      }
+      if (p.estado === 'aprobado' && ['admin'].includes(rol)) {
+        btns += `<button class="btn btn-sm btn-ghost" onclick="emitirPeriodo(${p.id})" style="color:var(--success);font-weight:600">🚀 Emitir boletas</button>`;
+      }
+      return btns;
+    }
+
     function renderPeriodos() {
       const tbody = document.getElementById('tbody-periodos');
       if (!periodos.length) { tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><p>No hay períodos</p></div></td></tr>'; return; }
@@ -442,15 +469,55 @@
           <td><span class="badge badge-blue">${p.empresas?.abreviatura||'—'}</span></td>
           <td id="ec-${p.id}">—</td>
           <td id="nc-${p.id}" style="font-weight:600;color:var(--success)">—</td>
-          <td>${p.estado==='cerrado'?'<span class="badge badge-green">Cerrado</span>':'<span class="badge badge-yellow">Borrador</span>'}</td>
-          <td>
-            <div style="display:flex;gap:6px">
-              <button class="btn btn-sm btn-ghost" onclick="abrirPeriodo(${p.id})">✏️ Cargar</button>
-              ${p.estado==='borrador'?`<button class="btn btn-sm btn-ghost" onclick="cerrarPeriodo(${p.id})">🔒 Cerrar</button>`:''}
-            </div>
-          </td>
+          <td>${estadoPeriodoBadge(p.estado)}</td>
+          <td><div style="display:flex;gap:6px;flex-wrap:wrap">${botonesAccion(p)}</div></td>
         </tr>`).join('');
       periodos.forEach(p => loadStats(p.id));
+    }
+
+    async function cambiarEstado(id, nuevoEstado) {
+      const mensajes = {
+        en_revision: '¿Enviar este período a revisión de gerencia?',
+        aprobado:    '¿Aprobar este período? Quedará listo para emisión.',
+        borrador:    '¿Devolver a RRHH para correcciones?',
+      };
+      if (!confirm(mensajes[nuevoEstado]||'¿Confirmar cambio de estado?')) return;
+      await sbClient.from('planilla_periodos').update({estado: nuevoEstado}).eq('id', id);
+      await loadPeriodos();
+    }
+
+    async function emitirPeriodo(id) {
+      if (!confirm('¿Emitir todas las boletas de este período? Esta acción no se puede deshacer.')) return;
+      currentPeriodo = periodos.find(p=>p.id===id);
+      const { data: dets } = await sbClient.from('planilla_detalle').select('*').eq('periodo_id', id);
+      if (!dets || !dets.length) { alert('No hay datos cargados en este período.'); return; }
+      const { data: emps } = await sbClient.from('empleados').select('*, empresas(razon_social,abreviatura), locales(nombre), datos_extra').eq('ruc_empresa', currentPeriodo.ruc_empresa).eq('estado','activo');
+      empleados = emps || [];
+      detalleMap = {};
+      dets.forEach(d => detalleMap[d.id_empleado] = d);
+      let ok = 0;
+      for (const det of dets) {
+        currentEmpleado = empleados.find(e=>e.id_empleado===det.id_empleado);
+        if (!currentEmpleado) continue;
+        const c = {
+          totalIngresos:det.total_ingresos, totalDescuentos:det.total_descuentos,
+          neto:det.neto_pagar, essalud:det.essalud,
+          afpObl:det.afp_obligatorio, afpCom:det.afp_comision, afpSeg:det.afp_seguro, snp:det.snp,
+          punt:det.bono_puntualidad, asis:det.bono_asistencia, desemp:det.bono_desempeno,
+          movil:det.movilidad, feria:det.bono_dia_trabajador,
+          he25:det.horas_extras_25, he35:det.horas_extras_35,
+          bonoE:det.bono_excepcional, otrosI:det.otros_ingresos,
+          montFaltas:(currentEmpleado.sueldo_basico/30)*(det.faltas||0),
+          remun:(currentEmpleado.sueldo_basico/30)*(det.dias_laborados||30),
+          asigP:currentEmpleado.asignacion_familiar||0,
+          tardanzas: det.tardanzas||0, adelanto: det.adelanto||0, otrosDsc: det.otros_descuentos||0,
+        };
+        await generarBoletaEmp(currentEmpleado, c);
+        ok++;
+      }
+      await sbClient.from('planilla_periodos').update({estado:'emitido'}).eq('id', id);
+      await loadPeriodos();
+      alert(`✅ ${ok} boleta(s) emitidas y publicadas en el portal del empleado`);
     }
 
     async function loadStats(id) {
@@ -512,6 +579,28 @@
       const asig = e.asignacion_familiar || 0;
       const mov  = MOVILIDAD_ETW[id] || 0;
       const det  = detalleMap[id];
+      const esPeriodoEditable = currentPeriodo.estado === 'borrador';
+
+      // Habilitar/deshabilitar según estado del período y si hay detalle guardado
+      const btnGuardar = document.getElementById('btn-guardar-det');
+      const btnBoleta  = document.getElementById('btn-generar-boleta');
+      const lblEstado  = document.getElementById('lbl-estado-periodo');
+
+      if (!esPeriodoEditable) {
+        btnGuardar.disabled = true; btnGuardar.style.opacity = '0.4';
+        lblEstado.textContent = `Período en estado "${currentPeriodo.estado}" — no editable`;
+      } else {
+        btnGuardar.disabled = false; btnGuardar.style.opacity = '1';
+        lblEstado.textContent = '';
+      }
+      // Boleta solo si hay detalle guardado (independiente del estado)
+      if (det) {
+        btnBoleta.disabled = false; btnBoleta.style.opacity = '1'; btnBoleta.style.cursor = 'pointer';
+        btnBoleta.title = 'Descargar boleta PDF';
+      } else {
+        btnBoleta.disabled = true; btnBoleta.style.opacity = '0.4'; btnBoleta.style.cursor = 'not-allowed';
+        btnBoleta.title = 'Guardá primero las novedades';
+      }
 
       // Labels de referencia
       document.getElementById('lbl-basico').textContent      = `S/ ${suel.toFixed(2)} / mes`;
@@ -669,6 +758,10 @@
       if (error) { alert('Error: ' + error.message); return; }
       // Actualizar detalleMap y tabs
       detalleMap[currentEmpleado.id_empleado] = payload;
+      // Habilitar botón boleta
+      const btnBoleta = document.getElementById('btn-generar-boleta');
+      btnBoleta.disabled = false; btnBoleta.style.opacity = '1'; btnBoleta.style.cursor = 'pointer';
+      btnBoleta.title = 'Descargar boleta PDF';
       renderEmpTabs();
       document.getElementById(`etab-${currentEmpleado.id_empleado}`)?.classList.add('active');
       alert('✅ Guardado correctamente');
@@ -835,9 +928,8 @@
     }
 
     async function cerrarPeriodo(id) {
-      if (!confirm('¿Cerrar este período? No podrás modificar los datos.')) return;
-      await sbClient.from('planilla_periodos').update({estado:'cerrado'}).eq('id',id);
-      await loadPeriodos();
+      // Función mantenida por compatibilidad — usar cambiarEstado
+      await cambiarEstado(id, 'en_revision');
     }
 
     function volverLista() {
