@@ -583,9 +583,16 @@
     }
 
     function transformarEnOC(id) {
-      // Por ahora navega a OC con el pedido como origen
-      // Se implementará en el módulo de OC
-      alert('Función disponible en el módulo de Órdenes de Compra (próximamente).');
+      const p = pedidos.find(x => x.id_pedido === id);
+      if (!p) return;
+      sessionStorage.setItem('mpcs_op_para_oc', JSON.stringify({
+        id_pedido:    p.id_pedido,
+        numero:       p.numero || p.id_pedido,
+        ruc_empresa:  p.ruc_empresa,
+        id_local:     p.id_local,
+        local_nombre: p.locales?.nombre || p.id_local,
+      }));
+      window.location.href = '/pages/compras/ordenes-compra.html';
     }
 
     function abrirNuevo() {
