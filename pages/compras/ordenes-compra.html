@@ -138,11 +138,15 @@
         <div class="import-box">
           <div class="sec-label">¿Atender un pedido interno (OP)?</div>
           <div style="display:flex;gap:8px">
-            <input type="text" id="input-buscar-op" placeholder="Ej: OP-CYC-LP-26-00001"
+            <select id="select-op-pendiente" style="flex:1;padding:8px 12px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px"
+                    onchange="if(this.value) importarOPdesdeSelect(this.value)">
+              <option value="">-- Seleccionar pedido pendiente --</option>
+            </select>
+            <input type="text" id="input-buscar-op" placeholder="O escribir número OP..."
                    style="flex:1;padding:8px 12px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px"
                    onkeydown="if(event.key==='Enter') importarOP()" />
             <button class="btn" style="background:var(--warning);color:#000;font-weight:600" onclick="importarOP()">
-              Importar datos
+              Importar
             </button>
             <button class="btn btn-outline" onclick="abrirBorradores()">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -296,13 +300,46 @@
       '20611965274': 'https://raw.githubusercontent.com/macciucipe/mpcs-gestion/main/assets/logos/logo-mpc.png',
     };
 
+    // ── CARGAR OPs PENDIENTES ─────────────────────────────────
+    async function cargarOPsPendientes() {
+      const { data } = await sbClient.from('pedidos')
+        .select('id_pedido, numero, id_local, locales(nombre), solicitante, created_at')
+        .eq('estado','pendiente')
+        .order('created_at', { ascending: false });
+      const sel = document.getElementById('select-op-pendiente');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- Seleccionar pedido pendiente --</option>';
+      (data || []).forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.numero || p.id_pedido;
+        const fecha = new Date(p.created_at).toLocaleDateString('es-PE');
+        opt.textContent = `${p.numero || p.id_pedido} — ${p.locales?.nombre || p.id_local} — ${p.solicitante || ''} (${fecha})`;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function importarOPdesdeSelect(numero) {
+      document.getElementById('input-buscar-op').value = numero;
+      await importarOP();
+    }
+
     // ── INIT ────────────────────────────────────────────────────
     async function init() {
       perfil = await requireAuth();
       if (!perfil) return;
       renderSidebar(perfil, 'oc');
-      await Promise.all([cargarEmpresas(), cargarProveedores(), cargarItems()]);
+      await Promise.all([cargarEmpresas(), cargarProveedores(), cargarItems(), cargarOPsPendientes()]);
       await cargar();
+
+      // Detectar si viene desde pedidos con sessionStorage
+      const opPendiente = sessionStorage.getItem('mpcs_op_para_oc');
+      if (opPendiente) {
+        sessionStorage.removeItem('mpcs_op_para_oc');
+        const opData = JSON.parse(opPendiente);
+        abrirGenerador(null);
+        document.getElementById('input-buscar-op').value = opData.numero;
+        await importarOP();
+      }
     }
 
     async function cargarEmpresas() {
