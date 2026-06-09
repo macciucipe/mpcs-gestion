@@ -124,11 +124,28 @@
     }
 
     async function loadEmpleados() {
-      const empresa = getContexto().ruc;
+      const { ruc, idLocales } = getContexto();
+
+      // Sin empresa seleccionada no cargar nada
+      if (!ruc) {
+        empleados = [];
+        document.getElementById('stat-total').textContent   = '—';
+        document.getElementById('stat-activos').textContent = '—';
+        document.getElementById('stat-cesados').textContent = '—';
+        filterTable();
+        return;
+      }
+
       let query = sbClient.from('empleados')
         .select('*, locales(nombre)')
+        .eq('ruc_empresa', ruc)
         .order('apellidos');
-      if (empresa) query = query.eq('ruc_empresa', empresa);
+
+      // Filtrar por locales seleccionados (si hay alguno específico)
+      if (idLocales && idLocales.length > 0) {
+        const localFilter = idLocales.map(id => `id_local.eq.${id}`).join(',') + ',id_local.is.null';
+        query = query.or(localFilter);
+      }
 
       const { data } = await query;
       empleados = data || [];

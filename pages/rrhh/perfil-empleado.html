@@ -78,6 +78,32 @@
     .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
     .checkbox-group label { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
     .checkbox-group input[type=checkbox] { accent-color: var(--navy); width: 15px; height: 15px; }
+    /* Modo solo lectura */
+    body.modo-solo-lectura input,
+    body.modo-solo-lectura select,
+    body.modo-solo-lectura textarea { 
+      pointer-events: none !important; 
+      background: var(--bg,#f4f6fb) !important;
+      color: var(--text-muted,#6b7280) !important;
+    }
+    body.modo-solo-lectura .save-bar { display: none !important; }
+    body.modo-solo-lectura .btn-primary,
+    body.modo-solo-lectura .btn-danger { display: none !important; }
+    body.modo-solo-lectura::before {
+      content: 'Solo lectura';
+      position: fixed;
+      top: 12px;
+      right: 20px;
+      background: #FEF3C7;
+      color: #92400E;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      z-index: 999;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
     .save-bar { position: fixed; bottom: 0; left: var(--sidebar-w); right: 0; background: var(--white); border-top: 1px solid var(--border); padding: 12px 2rem; display: none; justify-content: space-between; align-items: center; z-index: 50; }
     .save-bar.visible { display: flex; }
     .talla-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
@@ -703,16 +729,12 @@
       renderSidebar(perfilUser, 'empleados');
       aplicarPermisosUI(perfilUser, 'rrhh_empleados');
 
-      // Solo lectura si no puede editar
+      // Solo lectura si no puede editar ni crear
       const soloLectura = !puedeEditar(perfilUser, 'rrhh_empleados') && !puedeCrear(perfilUser, 'rrhh_empleados');
+      window._soloLectura = soloLectura;
       if (soloLectura) {
-        // Deshabilitar todos los inputs y selects del perfil
-        document.addEventListener('DOMContentLoaded', () => {
-          document.querySelectorAll('input, select, textarea').forEach(el => el.disabled = true);
-          document.getElementById('save-bar')?.style.setProperty('display','none','important');
-        });
-        // También interceptar markDirty para que no muestre la barra de guardado
-        window._soloLectura = true;
+        // Agregar clase CSS al body para bloquear edición
+        document.body.classList.add('modo-solo-lectura');
       }
 
       renderFamiliares();
@@ -733,7 +755,7 @@
         await loadEmpleado();
         await loadDocumentos();
         await loadHistorial();
-        if (window._soloLectura) { document.querySelectorAll('input, select, textarea').forEach(el => el.disabled = true); document.getElementById('save-bar')?.style.setProperty('display','none','important'); }
+        if (window._soloLectura) { document.querySelectorAll('input:not([disabled]), select:not([disabled]), textarea:not([disabled])').forEach(el => el.disabled = true); }
       }
     }
 
