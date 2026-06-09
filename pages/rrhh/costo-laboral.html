@@ -167,8 +167,8 @@
       if (!perfil) return;
       renderSidebar(perfil, 'costo-laboral');
       aplicarPermisosUI(perfil, 'rrhh_costo');
-      onContextoChange(async () => { await loadDetalle(); aplicarPermisosUI(perfil, 'rrhh_costo'); });
-      if (getContexto().ruc) { await loadDetalle(); aplicarPermisosUI(perfil, 'rrhh_costo'); }
+      onContextoChange(async () => { await onEmpresaChange(); aplicarPermisosUI(perfil, 'rrhh_costo'); });
+      if (getContexto().ruc) { await onEmpresaChange(); aplicarPermisosUI(perfil, 'rrhh_costo'); }
       // carga manejada por onContextoChange
     }
 
@@ -180,7 +180,7 @@
         o.value = e.ruc; o.textContent = `${e.abreviatura} — ${e.razon_social}`;
         sel.appendChild(o);
       });
-      if (perfil.ruc_empresa) { sel.value = perfil.ruc_empresa; await onEmpresaChange(); }
+
     }
 
     async function onEmpresaChange() {

@@ -197,8 +197,8 @@
       if (!perfil) return;
       renderSidebar(perfil, 'pasivos-laborales');
       aplicarPermisosUI(perfil, 'rrhh_pasivos');
-      onContextoChange(async () => { aplicarPermisosUI(perfil, 'rrhh_pasivos'); });
-      aplicarPermisosUI(perfil, 'rrhh_pasivos');
+      onContextoChange(async () => { await onEmpresaChange(); aplicarPermisosUI(perfil, 'rrhh_pasivos'); });
+      if (getContexto().ruc) { await onEmpresaChange(); aplicarPermisosUI(perfil, 'rrhh_pasivos'); }
     }
 
     async function loadEmpresas() {
@@ -209,7 +209,7 @@
         o.value = e.ruc; o.textContent = `${e.abreviatura} — ${e.razon_social}`;
         sel.appendChild(o);
       });
-      if (perfil.ruc_empresa) { sel.value = perfil.ruc_empresa; await onEmpresaChange(); }
+
     }
 
     async function onEmpresaChange() {
