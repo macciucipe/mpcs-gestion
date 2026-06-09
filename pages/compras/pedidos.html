@@ -198,8 +198,9 @@
       perfil = await requireAuth(['admin','compras','gerencia'], 'compras_pedidos');
       if (!perfil) return;
       renderSidebar(perfil, 'pedidos');
-      onContextoChange(() => cargar());
-      if (getContexto().ruc) await cargar();
+      aplicarPermisosUI(perfil, 'compras_pedidos');
+      onContextoChange(async () => { await cargar(); aplicarPermisosUI(perfil, 'compras_pedidos'); });
+      if (getContexto().ruc) { await cargar(); aplicarPermisosUI(perfil, 'compras_pedidos'); }
 
       // Mostrar botón nuevo solo si tiene permiso
       const isCompras = ['admin','compras','gerencia'].includes(perfil.rol) || perfil.perm_op;

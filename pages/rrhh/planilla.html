@@ -409,6 +409,8 @@
       perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_planilla');
       if (!perfil) return;
       renderSidebar(perfil, 'planilla');
+      aplicarPermisosUI(perfil, 'rrhh_planilla');
+      if (!puedeCrear(perfil,'rrhh_planilla')) document.querySelector('.btn-primary')?.style.setProperty('display','none');
       onContextoChange(() => loadPeriodos());
       if (getContexto().ruc) await loadPeriodos();
       await loadPeriodos();

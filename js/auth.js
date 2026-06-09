@@ -215,6 +215,41 @@ async function aplicarFiltroEmpresas(perfil, selectId) {
   }
 }
 
+// ── PERMISOS DE UI ───────────────────────────────────────────────────────────
+// Oculta botones de acción según permisos del perfil
+// Uso: aplicarPermisosUI(perfil, 'rrhh_empleados')
+function aplicarPermisosUI(perfil, modulo) {
+  if (perfil.rol === 'admin') return; // admin ve todo
+
+  // Botones de crear (clase .btn-nuevo o id btn-nuevo o primer .btn-primary del header)
+  if (!puedeCrear(perfil, modulo)) {
+    document.querySelectorAll('#btn-nuevo, .btn-nuevo, .page-header-right .btn-primary').forEach(el => {
+      el.style.display = 'none';
+    });
+  }
+
+  // Botones de editar
+  if (!puedeEditar(perfil, modulo)) {
+    document.querySelectorAll('.btn-edit, [data-action="editar"]').forEach(el => {
+      el.style.display = 'none';
+    });
+  }
+
+  // Botones de eliminar
+  if (!puedeEliminar(perfil, modulo)) {
+    document.querySelectorAll('.btn-delete, [data-action="eliminar"]').forEach(el => {
+      el.style.display = 'none';
+    });
+  }
+
+  // Solo lectura — deshabilitar formularios si no puede editar ni crear
+  if (!puedeEditar(perfil, modulo) && !puedeCrear(perfil, modulo)) {
+    document.querySelectorAll('.modal input, .modal select, .modal textarea').forEach(el => {
+      el.disabled = true;
+    });
+  }
+}
+
 // ── AUDITORÍA ─────────────────────────────────────────────────────────────────
 async function auditar(perfil, accion, modulo, detalle) {
   try {

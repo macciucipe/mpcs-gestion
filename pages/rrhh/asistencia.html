@@ -253,6 +253,7 @@
       perfil = await requireAuth(['admin','rrhh','gerencia','supervisor'], 'rrhh_asistencia');
       if (!perfil) return;
       renderSidebar(perfil, 'asistencia');
+      aplicarPermisosUI(perfil, 'rrhh_asistencia');
       onContextoChange(() => loadAsistencia());
       if (getContexto().ruc) await loadAsistencia();
       await loadAsistencia();

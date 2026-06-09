@@ -104,8 +104,12 @@
       perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_empleados');
       if (!perfil) return;
       renderSidebar(perfil, 'empleados');
-      onContextoChange(ctx => { if(ctx.ruc) loadEmpleados(); });
+      aplicarPermisosUI(perfil, 'rrhh_empleados');
+      // Permisos de acción
+      if (!puedeCrear(perfil,'rrhh_empleados')) document.querySelector('.btn-primary')?.style.setProperty('display','none');
+      onContextoChange(async ctx => { if(ctx.ruc) { await loadEmpleados(); aplicarPermisosUI(perfil, 'rrhh_empleados'); } });
       await loadEmpleados();
+      aplicarPermisosUI(perfil, 'rrhh_empleados');
     }
 
     async function loadEmpresasFiltro() {

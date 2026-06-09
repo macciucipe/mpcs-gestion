@@ -167,8 +167,10 @@
       perfil = await requireAuth(['admin','compras','gerencia'], 'compras_productos');
       if (!perfil) return;
       renderSidebar(perfil, 'productos');
-      onContextoChange(() => cargar());
-      if (getContexto().ruc) await cargar();
+      aplicarPermisosUI(perfil, 'compras_productos');
+      if (!puedeCrear(perfil,'compras_productos')) document.querySelector('.btn-primary')?.style.setProperty('display','none');
+      onContextoChange(async () => { await cargar(); aplicarPermisosUI(perfil, 'compras_productos'); });
+      if (getContexto().ruc) { await cargar(); aplicarPermisosUI(perfil, 'compras_productos'); }
     }
 
     async function cargarEmpresas() {
@@ -300,9 +302,9 @@
             <td>${getEstadoBadge(p.estado||'activo')}</td>
             <td>
               <div style="display:flex;gap:6px">
-                <button class="btn btn-sm btn-ghost" onclick="editar('${p.id_producto}')">
+                ${puedeEditar(perfil,'compras_productos') ? '<button class="btn btn-sm btn-ghost" onclick="editar('${p.id_producto}')>
                   ${icons.edit} Editar
-                </button>
+                </button>' : ''}
                 <button class="btn btn-sm btn-ghost" onclick="toggleEstado('${p.id_producto}', '${p.estado}')">
                   ${p.estado === 'activo' ? '⏸ Desactivar' : '▶ Activar'}
                 </button>

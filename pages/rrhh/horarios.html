@@ -184,6 +184,8 @@
       perfil = await requireAuth(['admin','rrhh','gerencia','supervisor'], 'rrhh_horarios');
       if (!perfil) return;
       renderSidebar(perfil, 'horarios');
+      aplicarPermisosUI(perfil, 'rrhh_horarios');
+      if (!puedeCrear(perfil,'rrhh_horarios')) { document.querySelector('.btn-primary')?.style.setProperty('display','none'); document.getElementById('btn-subir-excel')?.style.setProperty('display','none'); }
       setSemana(lunes(new Date()));
       onContextoChange(() => loadGrilla());
       // Cargar si ya hay contexto guardado

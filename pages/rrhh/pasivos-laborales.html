@@ -196,8 +196,9 @@
       perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_pasivos');
       if (!perfil) return;
       renderSidebar(perfil, 'pasivos-laborales');
-      onContextoChange(() => cargar());
-      if (getContexto().ruc) await cargar();
+      aplicarPermisosUI(perfil, 'rrhh_pasivos');
+      onContextoChange(async () => { await cargar(); aplicarPermisosUI(perfil, 'rrhh_pasivos'); });
+      if (getContexto().ruc) { await cargar(); aplicarPermisosUI(perfil, 'rrhh_pasivos'); }
       await cargar();
     }
 

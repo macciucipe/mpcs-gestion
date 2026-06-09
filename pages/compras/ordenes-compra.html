@@ -328,8 +328,9 @@
       perfil = await requireAuth(['admin','compras','gerencia'], 'compras_oc');
       if (!perfil) return;
       renderSidebar(perfil, 'oc');
-      onContextoChange(() => cargar());
-      if (getContexto().ruc) await cargar();
+      aplicarPermisosUI(perfil, 'compras_oc');
+      onContextoChange(async () => { await cargar(); aplicarPermisosUI(perfil, 'compras_oc'); });
+      if (getContexto().ruc) { await cargar(); aplicarPermisosUI(perfil, 'compras_oc'); }
 
       // Detectar si viene desde pedidos con sessionStorage
       const opPendiente = sessionStorage.getItem('mpcs_op_para_oc');

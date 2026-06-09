@@ -140,8 +140,10 @@
       perfil = await requireAuth(['admin','compras','gerencia'], 'compras_productos');
       if (!perfil) return;
       renderSidebar(perfil, 'catalogo-local');
-      onContextoChange(() => cargar());
-      if (getContexto().ruc) await cargar();
+      aplicarPermisosUI(perfil, 'compras_catalogo');
+      if (!puedeCrear(perfil,'compras_catalogo')) document.querySelector('.btn-primary')?.style.setProperty('display','none');
+      onContextoChange(async () => { await cargar(); aplicarPermisosUI(perfil, 'compras_catalogo'); });
+      if (getContexto().ruc) { await cargar(); aplicarPermisosUI(perfil, 'compras_catalogo'); }
     }
 
     async function cargarConceptos() {
@@ -288,9 +290,9 @@
               : '<span class="badge badge-gray">Inactivo</span>'}</td>
             <td>
               <div style="display:flex;gap:6px">
-                <button class="btn btn-sm btn-ghost" onclick="editar('${i.id_producto_local}')">
+                ${puedeEditar(perfil,'compras_catalogo') ? '<button class="btn btn-sm btn-ghost" onclick="editar('${i.id_producto_local}')>
                   ${icons.edit} Editar
-                </button>
+                </button>' : ''}
                 <button class="btn btn-sm btn-ghost" onclick="toggleEstado('${i.id_producto_local}', ${i.activo})">
                   ${i.activo ? '⏸ Desactivar' : '▶ Activar'}
                 </button>
