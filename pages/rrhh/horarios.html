@@ -186,6 +186,8 @@
       renderSidebar(perfil, 'horarios');
       setSemana(lunes(new Date()));
       onContextoChange(() => loadGrilla());
+      // Cargar si ya hay contexto guardado
+      if (getContexto().ruc) await loadGrilla();
     }
 
     function lunes(d) {
