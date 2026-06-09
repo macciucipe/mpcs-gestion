@@ -120,6 +120,10 @@
         <h1 id="page-title">Perfil del empleado</h1>
       </div>
       <div class="page-header-right">
+        <button class="btn btn-ghost" onclick="crearAccesoPortal()" id="btn-portal" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          Crear acceso portal
+        </button>
         <button class="btn" onclick="generarPDF()" id="btn-pdf">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           Descargar PDF
@@ -723,6 +727,48 @@
 
     let empleadoId = null, empleado = null, documentos = [], isDirty = false, pendingFile = null, perfilUser = null, isNuevo = false;
 
+    async function crearAccesoPortal() {
+      const btn = document.getElementById('btn-portal');
+      if (!empleado?.email) { alert('El empleado no tiene email registrado.'); return; }
+
+      if (!confirm(`¿Crear acceso al portal para ${empleado.nombres} ${empleado.apellidos}?\nSe enviará un email a ${empleado.email} para que establezca su contraseña.`)) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Creando...';
+
+      try {
+        const { data: { session } } = await sbClient.auth.getSession();
+        const res = await fetch('/api/crear-usuario-portal', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            email:       empleado.email,
+            nombre:      `${empleado.nombres} ${empleado.apellidos}`,
+            id_empleado: empleadoId,
+            ruc_empresa: empleado.ruc_empresa,
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          alert('Error: ' + data.error);
+          btn.disabled = false;
+          btn.textContent = 'Crear acceso portal';
+        } else {
+          alert('✅ ' + data.message);
+          btn.textContent = '✓ Tiene acceso';
+          btn.style.color = 'var(--success)';
+        }
+      } catch(e) {
+        alert('Error: ' + e.message);
+        btn.disabled = false;
+        btn.textContent = 'Crear acceso portal';
+      }
+    }
+
     async function init() {
       perfilUser = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_empleados');
       if (!perfilUser) return;
@@ -756,6 +802,20 @@
         await loadDocumentos();
         await loadHistorial();
         if (window._soloLectura) { document.querySelectorAll('input:not([disabled]), select:not([disabled]), textarea:not([disabled])').forEach(el => el.disabled = true); }
+        // Mostrar botón de portal solo si es admin y el empleado tiene email
+        if (perfilUser.rol === 'admin' && empleado?.email) {
+          // Verificar si ya tiene acceso
+          const { data: perfilEmp } = await sbClient.from('perfiles').select('user_id').eq('email', empleado.email).single();
+          const btnPortal = document.getElementById('btn-portal');
+          if (!perfilEmp) {
+            btnPortal.style.display = '';
+          } else {
+            btnPortal.style.display = '';
+            btnPortal.textContent = '✓ Tiene acceso';
+            btnPortal.disabled = true;
+            btnPortal.style.color = 'var(--success)';
+          }
+        }
       }
     }
 
