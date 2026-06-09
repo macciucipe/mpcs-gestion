@@ -168,6 +168,7 @@
       if (!perfil) return;
       renderSidebar(perfil, 'productos');
       onContextoChange(() => cargar());
+      if (getContexto().ruc) await cargar();
     }
 
     async function cargarEmpresas() {

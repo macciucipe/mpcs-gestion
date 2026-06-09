@@ -199,6 +199,7 @@
       if (!perfil) return;
       renderSidebar(perfil, 'pedidos');
       onContextoChange(() => cargar());
+      if (getContexto().ruc) await cargar();
 
       // Mostrar botón nuevo solo si tiene permiso
       const isCompras = ['admin','compras','gerencia'].includes(perfil.rol) || perfil.perm_op;

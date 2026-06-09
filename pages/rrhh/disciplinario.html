@@ -109,6 +109,7 @@
       if (!perfil) return;
       renderSidebar(perfil, 'disciplinario');
       onContextoChange(() => loadSolicitudes());
+      if (getContexto().ruc) await loadSolicitudes();
       await loadSolicitudes();
     }
 

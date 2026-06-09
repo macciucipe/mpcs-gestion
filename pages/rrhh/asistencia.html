@@ -254,6 +254,7 @@
       if (!perfil) return;
       renderSidebar(perfil, 'asistencia');
       onContextoChange(() => loadAsistencia());
+      if (getContexto().ruc) await loadAsistencia();
       await loadAsistencia();
     }
 

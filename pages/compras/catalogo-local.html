@@ -141,6 +141,7 @@
       if (!perfil) return;
       renderSidebar(perfil, 'catalogo-local');
       onContextoChange(() => cargar());
+      if (getContexto().ruc) await cargar();
     }
 
     async function cargarConceptos() {

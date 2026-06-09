@@ -410,6 +410,7 @@
       if (!perfil) return;
       renderSidebar(perfil, 'planilla');
       onContextoChange(() => loadPeriodos());
+      if (getContexto().ruc) await loadPeriodos();
       await loadPeriodos();
     }
 

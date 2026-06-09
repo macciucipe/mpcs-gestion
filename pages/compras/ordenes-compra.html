@@ -329,6 +329,7 @@
       if (!perfil) return;
       renderSidebar(perfil, 'oc');
       onContextoChange(() => cargar());
+      if (getContexto().ruc) await cargar();
 
       // Detectar si viene desde pedidos con sessionStorage
       const opPendiente = sessionStorage.getItem('mpcs_op_para_oc');

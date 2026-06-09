@@ -167,6 +167,7 @@
       if (!perfil) return;
       renderSidebar(perfil, 'costo-laboral');
       onContextoChange(() => cargar());
+      if (getContexto().ruc) await cargar();
       await cargar();
     }
 

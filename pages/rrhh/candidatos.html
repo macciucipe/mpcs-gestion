@@ -171,6 +171,7 @@
       if (!perfil) return;
       renderSidebar(perfil, 'candidatos');
       onContextoChange(() => loadCandidatos());
+      if (getContexto().ruc) await loadCandidatos();
       await loadCandidatos();
     }
 

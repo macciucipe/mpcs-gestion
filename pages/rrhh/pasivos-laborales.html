@@ -197,6 +197,7 @@
       if (!perfil) return;
       renderSidebar(perfil, 'pasivos-laborales');
       onContextoChange(() => cargar());
+      if (getContexto().ruc) await cargar();
       await cargar();
     }
 

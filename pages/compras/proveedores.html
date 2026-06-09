@@ -262,6 +262,7 @@
       if (!perfil) return;
       renderSidebar(perfil, 'proveedores');
       onContextoChange(() => cargar());
+      if (getContexto().ruc) await cargar();
     }
 
     async function cargar() {
