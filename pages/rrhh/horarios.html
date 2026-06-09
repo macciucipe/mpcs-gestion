@@ -79,12 +79,6 @@
 
     <div class="page-body">
       <div class="toolbar">
-        <select id="sel-empresa" onchange="onEmpresaChange()">
-          <option value="">Empresa...</option>
-        </select>
-        <select id="sel-local" onchange="loadGrilla()">
-          <option value="">Local...</option>
-        </select>
         <div class="week-nav">
           <button class="week-btn" onclick="cambiarSemana(-1)">‹</button>
           <span class="week-label" id="week-label">—</span>
@@ -191,7 +185,6 @@
       if (!perfil) return;
       renderSidebar(perfil, 'horarios');
       setSemana(lunes(new Date()));
-      await loadLocales();
       onContextoChange(() => loadGrilla());
     }
 
@@ -252,21 +245,7 @@
       locales = data || [];
     }
 
-    async function onEmpresaChange() {
-      const ruc = getContexto().ruc;
-      const sel = document.getElementById('sel-local');
-      sel.innerHTML = '<option value="">Local...</option>';
-      const filtrados = ruc ? locales.filter(l => l.ruc_empresa === ruc) : locales;
-      filtrados.forEach(l => {
-        const o = document.createElement('option');
-        o.value = l.id_local;
-        o.textContent = l.nombre;
-        sel.appendChild(o);
-      });
-      if (perfil.id_local) {
-        sel.value = perfil.id_local;
-        sel.disabled = perfil.rol !== 'admin';
-      }
+
       // Si la empresa no tiene locales o el usuario no tiene local fijo,
       // cargar igual todos los empleados de la empresa
       if (ruc && filtrados.length === 0) {
@@ -279,7 +258,7 @@
 
     async function loadGrilla() {
       const idLocales = getContexto().idLocales || [];
-      const ruc = getContexto().ruc;
+      const { ruc, idLocales } = getContexto();
       if (!ruc) return;
 
       const desde = fmtDate(semanaInicio);
@@ -510,7 +489,7 @@
       if (!ruc || !empleados.length) { alert('Seleccioná empresa y cargá empleados primero.'); return; }
 
       const wb = XLSX.utils.book_new();
-      const localNombre = document.getElementById('sel-local').options[document.getElementById('sel-local').selectedIndex]?.text || 'Todos';
+      const localNombre = getContexto().locales?.map(l=>l.nombre).join(', ') || 'Todos';
 
       // Hoja de instrucciones con locales de la empresa
       const localesEmpresa = locales.filter(l => l.ruc_empresa === ruc);
