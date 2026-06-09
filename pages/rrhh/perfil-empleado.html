@@ -717,7 +717,7 @@
   <script src="../../js/config.js"></script>
   <script src="../../js/auth.js"></script>
   <script>
-    const RENIEC_TOKEN = 'TDLajRBPVKrg62OjRIJQ7PAXzlCaSnGns5R1I98p4xYZbX0RJRxB16AJBBVq';
+    const RENIEC_TOKEN = 'a26db6d95f35f6c3ffe47be304049b1a024c4103a279ab48ed2161a59dc72fa7';
     const SUNAT_TOKEN  = 'a26db6d95f35f6c3ffe47be304049b1a024c4103a279ab48ed2161a59dc72fa7';
     const catLabels    = { foto:'Foto', dni_ce:'DNI/CE', contrato:'Contrato', libreta_sanitaria:'Libreta sanitaria', permiso_residencia:'Permiso residencia', sancion:'Sanción', notificacion:'Notificación', boleta:'Boleta de pago', otro:'Otro' };
 
@@ -957,21 +957,21 @@
       if (!num) { alert('Ingresá el número de documento primero.'); return; }
       try {
         if (tipo === 'DNI') {
-          const res = await fetch('https://api.migo.pe/api/v1/dni', {
+          const res = await fetch('https://apiperu.dev/api/dni', {
             method: 'POST',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: RENIEC_TOKEN, dni: num })
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${RENIEC_TOKEN}` },
+            body: JSON.stringify({ dni: num })
           });
-          const d = await res.json();
           if (!d.success) { alert('No se encontró el DNI en RENIEC.'); return; }
-          const nombres = d.nombres || d.nombre || '';
-          let ap = d.apellido_paterno || '', am = d.apellido_materno || '';
+          const datos = d.data || d;
+          const nombres = datos.nombres || datos.nombre_completo || '';
+          let ap = datos.apellido_paterno || '', am = datos.apellido_materno || '';
           let nom = nombres;
           if (nom && !ap) {
             const p = nom.trim().split(/\s+/);
             if (p.length >= 3) { ap = p[0]; am = p[1]; nom = p.slice(2).join(' '); }
           }
-          let fn = d.fecha_nacimiento || '';
+          let fn = datos.fecha_nacimiento || '';
           if (fn && fn.includes('/')) { const pf = fn.split('/'); if (pf.length===3) fn = `${pf[2]}-${pf[1]}-${pf[0]}`; }
           setVal('e-ap-paterno', ap);
           setVal('e-ap-materno', am);
