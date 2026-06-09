@@ -430,6 +430,8 @@ function renderSidebar(perfil, activePage) {
           );
           _renderChipsLocales();
         }
+        // Notificar para que las páginas carguen con el contexto restaurado
+        setTimeout(() => _notificarContexto(), 100);
       }
     }
 
