@@ -5,9 +5,50 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard · MPC Gestión</title>
   <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-bottom:20px; }
+    .kpi-card { background:var(--hover-bg,#f5f5f5); border-radius:8px; padding:14px 16px; }
+    .kpi-label { font-size:12px; color:var(--text-muted); margin-bottom:4px; display:flex; align-items:center; gap:5px; }
+    .kpi-val { font-size:24px; font-weight:500; color:var(--text); line-height:1.2; }
+    .kpi-sub { font-size:11px; color:var(--text-muted); margin-top:3px; }
+    .kpi-delta { font-size:11px; margin-top:3px; }
+    .kpi-delta.up { color:var(--success,#059669); }
+    .kpi-delta.down { color:var(--error,#DC2626); }
+
+    .db-section { background:var(--card-bg,#fff); border:1px solid var(--border); border-radius:10px; margin-bottom:12px; overflow:hidden; }
+    .db-section-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; cursor:pointer; user-select:none; }
+    .db-section-header:hover { background:var(--hover-bg,#f9f9f9); }
+    .db-section-title { font-size:14px; font-weight:500; display:flex; align-items:center; gap:8px; }
+    .db-section-icon { width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .db-section-icon.blue { background:#E6F1FB; color:#0C447C; }
+    .db-section-icon.green { background:#EAF3DE; color:#27500A; }
+    .db-section-icon.yellow { background:#FAEEDA; color:#633806; }
+    .db-section-icon.red { background:#FCEBEB; color:#791F1F; }
+    .db-chevron { transition:transform .2s; color:var(--text-muted); }
+    .db-section.collapsed .db-chevron { transform:rotate(-90deg); }
+    .db-section.collapsed .db-section-body { display:none; }
+    .db-section-body { padding:16px; border-top:1px solid var(--border); }
+
+    .mini-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:8px; margin-bottom:14px; }
+    .mini-card { background:var(--hover-bg,#f5f5f5); border-radius:8px; padding:10px 14px; }
+    .mini-label { font-size:11px; color:var(--text-muted); margin-bottom:3px; }
+    .mini-val { font-size:20px; font-weight:500; }
+    .mini-val.danger { color:var(--error,#DC2626); }
+    .mini-val.warning { color:var(--warning,#D97706); }
+    .mini-val.success { color:var(--success,#059669); }
+    .mini-val.info { color:#185FA5; }
+
+    .db-two-col { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .db-sub-label { font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px; }
+    .db-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .db-table th { font-size:11px; font-weight:500; color:var(--text-muted); padding:4px 8px; border-bottom:1px solid var(--border); text-align:left; }
+    .db-table td { padding:7px 8px; border-bottom:1px solid var(--border); }
+    .db-table tr:last-child td { border-bottom:none; }
+    .db-empty { text-align:center; color:var(--text-muted); font-size:13px; padding:20px 0; }
+  </style>
 </head>
 <body class="portal-layout">
-  <div class="main-content" id="main">
+  <div class="main-content">
     <div class="page-header">
       <div class="page-header-left">
         <h1 id="page-title">Dashboard</h1>
@@ -19,93 +60,155 @@
     </div>
 
     <div class="page-body">
-      <div class="stats-grid" id="stats-grid">
-        <div class="stat-card">
-          <div class="stat-card-top">
-            <div class="stat-icon blue">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            </div>
+      <!-- KPIs globales -->
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Colaboradores activos
           </div>
-          <div class="stat-value" id="stat-empleados">—</div>
-          <div class="stat-label">Empleados activos</div>
+          <div class="kpi-val" id="kpi-emp">—</div>
+          <div class="kpi-sub" id="kpi-emp-sub"></div>
         </div>
-        <div class="stat-card">
-          <div class="stat-card-top">
-            <div class="stat-icon yellow">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            </div>
+        <div class="kpi-card" id="kpi-card-alertas">
+          <div class="kpi-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Alertas RRHH
           </div>
-          <div class="stat-value" id="stat-pendientes">—</div>
-          <div class="stat-label">Solicitudes pendientes</div>
+          <div class="kpi-val" id="kpi-alertas" style="color:var(--error,#DC2626)">—</div>
+          <div class="kpi-sub">Contratos y documentos</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-card-top">
-            <div class="stat-icon blue">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            </div>
+        <div class="kpi-card" id="kpi-card-costo">
+          <div class="kpi-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Costo laboral
           </div>
-          <div class="stat-value" id="stat-empresas">—</div>
-          <div class="stat-label">Empresas activas</div>
+          <div class="kpi-val" id="kpi-costo">—</div>
+          <div class="kpi-sub">Sueldo bruto mensual</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-card-top">
-            <div class="stat-icon green">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            </div>
+        <div class="kpi-card" id="kpi-card-oc" style="display:none">
+          <div class="kpi-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            OC pendientes
           </div>
-          <div class="stat-value" id="stat-locales">—</div>
-          <div class="stat-label">Locales activos</div>
+          <div class="kpi-val" id="kpi-oc">—</div>
+          <div class="kpi-sub">Sin aprobar / en proceso</div>
         </div>
-        <!-- Stats compras (solo visible si tiene acceso) -->
-        <div class="stat-card" id="stat-card-oc" style="display:none">
-          <div class="stat-card-top">
-            <div class="stat-icon yellow">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-            </div>
+        <div class="kpi-card" id="kpi-card-disciplinario">
+          <div class="kpi-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+            Medidas pendientes
           </div>
-          <div class="stat-value" id="stat-oc">—</div>
-          <div class="stat-label">OC/OS pendientes</div>
-        </div>
-        <div class="stat-card" id="stat-card-prov" style="display:none">
-          <div class="stat-card-top">
-            <div class="stat-icon green">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-            </div>
-          </div>
-          <div class="stat-value" id="stat-prov">—</div>
-          <div class="stat-label">Proveedores activos</div>
+          <div class="kpi-val" id="kpi-disciplinario">—</div>
+          <div class="kpi-sub">Sin resolver</div>
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        <!-- Últimas solicitudes disciplinarias -->
-        <div class="card">
-          <div class="card-header">
-            <h2>Últimas solicitudes disciplinarias</h2>
-            <a href="rrhh/disciplinario.html" class="btn btn-ghost btn-sm">Ver todas</a>
+      <!-- Sección RRHH -->
+      <div class="db-section" id="sec-rrhh">
+        <div class="db-section-header" onclick="toggleSection('sec-rrhh')">
+          <div class="db-section-title">
+            <div class="db-section-icon blue">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            RRHH
           </div>
-          <div class="card-body" id="list-disciplinario">
-            <div class="loading">Cargando...</div>
+          <svg class="db-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="db-section-body">
+          <div class="mini-grid">
+            <div class="mini-card"><div class="mini-label">Contratos por vencer (30d)</div><div class="mini-val danger" id="rrhh-contratos">—</div></div>
+            <div class="mini-card"><div class="mini-label">Documentos vencidos</div><div class="mini-val danger" id="rrhh-docs">—</div></div>
+            <div class="mini-card"><div class="mini-label">Cumpleaños este mes</div><div class="mini-val warning" id="rrhh-cumple">—</div></div>
+            <div class="mini-card"><div class="mini-label">En período de prueba</div><div class="mini-val info" id="rrhh-prueba">—</div></div>
+          </div>
+          <div class="db-two-col">
+            <div>
+              <div class="db-sub-label">Contratos por vencer</div>
+              <table class="db-table">
+                <thead><tr><th>Colaborador</th><th>Local</th><th>Vence</th><th></th></tr></thead>
+                <tbody id="tbody-contratos"><tr><td colspan="4" class="db-empty">Cargando...</td></tr></tbody>
+              </table>
+            </div>
+            <div>
+              <div class="db-sub-label">Cumpleaños del mes</div>
+              <table class="db-table">
+                <thead><tr><th>Colaborador</th><th>Área</th><th>Fecha</th></tr></thead>
+                <tbody id="tbody-cumple"><tr><td colspan="3" class="db-empty">Cargando...</td></tr></tbody>
+              </table>
+            </div>
           </div>
         </div>
+      </div>
 
-        <!-- Últimas OC (solo si tiene acceso compras) -->
-        <div class="card" id="card-oc" style="display:none">
-          <div class="card-header">
-            <h2>Últimas órdenes de compra</h2>
-            <a href="compras/ordenes-compra.html" class="btn btn-ghost btn-sm">Ver todas</a>
+      <!-- Sección Costo laboral -->
+      <div class="db-section" id="sec-costo">
+        <div class="db-section-header" onclick="toggleSection('sec-costo')">
+          <div class="db-section-title">
+            <div class="db-section-icon green">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            Costo laboral
           </div>
-          <div class="card-body" id="list-oc">
-            <div class="loading">Cargando...</div>
-          </div>
+          <svg class="db-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
-
-        <!-- Accesos rápidos -->
-        <div class="card" id="card-accesos">
-          <div class="card-header"><h2>Accesos rápidos</h2></div>
-          <div class="card-body">
-            <div style="display:flex;flex-direction:column;gap:8px" id="accesos-rapidos"></div>
+        <div class="db-section-body">
+          <div class="mini-grid">
+            <div class="mini-card"><div class="mini-label">Sueldo bruto total</div><div class="mini-val" id="costo-sueldo">—</div></div>
+            <div class="mini-card"><div class="mini-label">Asignación familiar</div><div class="mini-val" id="costo-asig">—</div></div>
+            <div class="mini-card"><div class="mini-label">CTS proyectado</div><div class="mini-val" id="costo-cts">—</div></div>
+            <div class="mini-card"><div class="mini-label">Gratificación proyect.</div><div class="mini-val" id="costo-grat">—</div></div>
           </div>
+          <div class="db-sub-label">Distribución por local</div>
+          <table class="db-table">
+            <thead><tr><th>Local</th><th>Colaboradores</th><th>Sueldo total</th><th>% del total</th></tr></thead>
+            <tbody id="tbody-costo"><tr><td colspan="4" class="db-empty">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Sección Compras -->
+      <div class="db-section" id="sec-compras" style="display:none">
+        <div class="db-section-header" onclick="toggleSection('sec-compras')">
+          <div class="db-section-title">
+            <div class="db-section-icon yellow">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            </div>
+            Compras
+          </div>
+          <svg class="db-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="db-section-body">
+          <div class="mini-grid">
+            <div class="mini-card"><div class="mini-label">OP pendientes</div><div class="mini-val warning" id="comp-op">—</div></div>
+            <div class="mini-card"><div class="mini-label">OC sin aprobar</div><div class="mini-val danger" id="comp-oc">—</div></div>
+            <div class="mini-card"><div class="mini-label">Recepciones pend.</div><div class="mini-val warning" id="comp-or">—</div></div>
+            <div class="mini-card"><div class="mini-label">Proveedores activos</div><div class="mini-val success" id="comp-prov">—</div></div>
+          </div>
+          <div class="db-sub-label">Últimas órdenes de compra</div>
+          <table class="db-table">
+            <thead><tr><th>Número</th><th>Proveedor</th><th>Total</th><th>Estado</th></tr></thead>
+            <tbody id="tbody-oc"><tr><td colspan="4" class="db-empty">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Sección Disciplinario -->
+      <div class="db-section" id="sec-disciplinario">
+        <div class="db-section-header" onclick="toggleSection('sec-disciplinario')">
+          <div class="db-section-title">
+            <div class="db-section-icon red">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            Medidas disciplinarias
+          </div>
+          <svg class="db-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="db-section-body">
+          <table class="db-table">
+            <thead><tr><th>Colaborador</th><th>Empresa</th><th>Clasificación</th><th>Estado</th></tr></thead>
+            <tbody id="tbody-disciplinario"><tr><td colspan="4" class="db-empty">Cargando...</td></tr></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -117,131 +220,194 @@
   <script>
     let perfil = null;
 
+    function toggleSection(id) {
+      document.getElementById(id).classList.toggle('collapsed');
+    }
+
+    function fmt(n) {
+      return 'S/ ' + Math.round(n).toLocaleString('es-PE');
+    }
+
+    function diasHasta(fecha) {
+      const hoy = new Date(); hoy.setHours(0,0,0,0);
+      const d = new Date(fecha + 'T12:00:00');
+      return Math.round((d - hoy) / 86400000);
+    }
+
+    function badgeDias(dias) {
+      if (dias <= 7)  return '<span class="badge badge-red">' + dias + 'd</span>';
+      if (dias <= 15) return '<span class="badge badge-yellow">' + dias + 'd</span>';
+      return '<span class="badge badge-green">' + dias + 'd</span>';
+    }
+
     async function init() {
       perfil = await requireAuth();
       if (!perfil) return;
 
       renderSidebar(perfil, 'dashboard');
       document.getElementById('page-sub').textContent = `Bienvenido, ${perfil.nombre.split(' ')[0]}`;
-      document.getElementById('header-empresa').textContent =
-        perfil.empresas?.razon_social || 'MPC Soluciones';
 
-      const isCompras = ['admin','compras','gerencia'].includes(perfil.rol) ||
-                        perfil.perm_oc || perfil.perm_or || perfil.perm_prov;
+      const tieneCompras = perfil.rol === 'admin' ||
+        puedeVer(perfil,'compras_oc') || puedeVer(perfil,'compras_pedidos');
+      const tieneRRHH   = perfil.rol === 'admin' ||
+        puedeVer(perfil,'rrhh_empleados') || puedeVer(perfil,'rrhh_planilla');
 
-      if (isCompras) {
-        document.getElementById('stat-card-oc').style.display   = '';
-        document.getElementById('stat-card-prov').style.display = '';
-        document.getElementById('card-oc').style.display        = '';
-        document.getElementById('card-accesos').style.gridColumn = '';
+      if (tieneCompras) {
+        document.getElementById('sec-compras').style.display = '';
+        document.getElementById('kpi-card-oc').style.display = '';
+      }
+      if (!tieneRRHH) {
+        document.getElementById('sec-rrhh').style.display = 'none';
+        document.getElementById('sec-costo').style.display = 'none';
+        document.getElementById('kpi-card-alertas').style.display = 'none';
+        document.getElementById('kpi-card-costo').style.display = 'none';
       }
 
-      await loadStats(isCompras);
-      await loadDisciplinario();
-      if (isCompras) await loadUltimasOC();
-      renderAccesos(isCompras);
+      onContextoChange(() => loadDashboard(tieneCompras, tieneRRHH));
+      if (getContexto().ruc) await loadDashboard(tieneCompras, tieneRRHH);
     }
 
-    async function loadStats(isCompras) {
-      const isAdmin = perfil.rol === 'admin';
+    async function loadDashboard(tieneCompras, tieneRRHH) {
+      const { ruc } = getContexto();
 
-      let qEmp = sbClient.from('empleados').select('id_empleado', {count:'exact'}).eq('estado','activo');
-      if (!isAdmin) qEmp = qEmp.eq('ruc_empresa', perfil.ruc_empresa);
-      const { count: cEmp } = await qEmp;
-      document.getElementById('stat-empleados').textContent = cEmp || 0;
+      // KPI empleados
+      let qEmp = sbClient.from('empleados').select('id_empleado,sueldo_basico,id_local,fecha_nacimiento,fecha_ingreso,locales(nombre)', {count:'exact'}).eq('estado','activo');
+      if (ruc) qEmp = qEmp.eq('ruc_empresa', ruc);
+      const { data: emps, count: cEmp } = await qEmp;
+      document.getElementById('kpi-emp').textContent = cEmp || 0;
 
-      const { count: cPend } = await sbClient.from('medidas_disciplinarias')
-        .select('id', {count:'exact'}).eq('estado','pendiente');
-      document.getElementById('stat-pendientes').textContent = cPend || 0;
+      if (tieneRRHH && emps) {
+        // Costo laboral
+        const totalSueldo = emps.reduce((s, e) => s + (parseFloat(e.sueldo_basico) || 0), 0);
+        const asigFam     = emps.filter(e => e.sueldo_basico).length * 130; // estimado
+        document.getElementById('kpi-costo').textContent  = fmt(totalSueldo);
+        document.getElementById('costo-sueldo').textContent = fmt(totalSueldo);
+        document.getElementById('costo-asig').textContent   = fmt(asigFam);
+        document.getElementById('costo-cts').textContent    = fmt(totalSueldo / 6);
+        document.getElementById('costo-grat').textContent   = fmt(totalSueldo / 6);
 
-      if (isAdmin) {
-        const { count: cEmpres } = await sbClient.from('empresas')
-          .select('ruc', {count:'exact'}).eq('estado','activa');
-        document.getElementById('stat-empresas').textContent = cEmpres || 0;
-      } else {
-        document.getElementById('stat-empresas').textContent = '1';
+        // Distribución por local
+        const porLocal = {};
+        emps.forEach(e => {
+          const nom = e.locales?.nombre || 'Sin local';
+          if (!porLocal[nom]) porLocal[nom] = { count: 0, total: 0 };
+          porLocal[nom].count++;
+          porLocal[nom].total += parseFloat(e.sueldo_basico) || 0;
+        });
+        document.getElementById('tbody-costo').innerHTML = Object.entries(porLocal)
+          .sort((a,b) => b[1].total - a[1].total)
+          .map(([nom, d]) => `<tr>
+            <td>${nom}</td>
+            <td>${d.count}</td>
+            <td>${fmt(d.total)}</td>
+            <td>${totalSueldo ? Math.round(d.total/totalSueldo*100) : 0}%</td>
+          </tr>`).join('') || '<tr><td colspan="4" class="db-empty">Sin datos</td></tr>';
+
+        // Contratos por vencer (30 días)
+        const hoy = new Date(); hoy.setHours(0,0,0,0);
+        const en30 = new Date(hoy); en30.setDate(en30.getDate() + 30);
+
+        let qContr = sbClient.from('empleados').select('apellidos,nombres,id_local,locales(nombre),fecha_ingreso')
+          .eq('estado','activo').eq('tipo_contrato','plazo_fijo')
+          .not('fecha_ingreso','is',null);
+        if (ruc) qContr = qContr.eq('ruc_empresa', ruc);
+        const { data: contratos } = await qContr;
+
+        const porVencer = (contratos || []).filter(e => {
+          if (!e.fecha_ingreso) return false;
+          // Estimamos fin de contrato 3 meses desde ingreso si no hay fecha_cese
+          const fin = new Date(e.fecha_ingreso);
+          fin.setMonth(fin.getMonth() + 3);
+          const dias = Math.round((fin - hoy) / 86400000);
+          e._diasFin = dias;
+          e._fechaFin = fin.toISOString().split('T')[0];
+          return dias >= 0 && dias <= 30;
+        }).sort((a,b) => a._diasFin - b._diasFin);
+
+        document.getElementById('rrhh-contratos').textContent = porVencer.length;
+        document.getElementById('kpi-alertas').textContent = porVencer.length;
+        document.getElementById('tbody-contratos').innerHTML = porVencer.slice(0,5).map(e =>
+          `<tr>
+            <td>${e.apellidos || ''}, ${e.nombres || ''}</td>
+            <td>${e.locales?.nombre || '—'}</td>
+            <td>${e._fechaFin}</td>
+            <td>${badgeDias(e._diasFin)}</td>
+          </tr>`
+        ).join('') || '<tr><td colspan="4" class="db-empty">Sin contratos próximos a vencer</td></tr>';
+
+        // Cumpleaños del mes
+        const mesActual = new Date().getMonth() + 1;
+        const cumple = (emps || []).filter(e => {
+          if (!e.fecha_nacimiento) return false;
+          return new Date(e.fecha_nacimiento).getMonth() + 1 === mesActual;
+        }).sort((a,b) => new Date(a.fecha_nacimiento).getDate() - new Date(b.fecha_nacimiento).getDate());
+
+        document.getElementById('rrhh-cumple').textContent = cumple.length;
+        document.getElementById('tbody-cumple').innerHTML = cumple.slice(0,5).map(e => {
+          const d = new Date(e.fecha_nacimiento);
+          return `<tr>
+            <td>${e.apellidos || ''}, ${e.nombres || ''}</td>
+            <td>${e.area || '—'}</td>
+            <td>${d.getDate()} ${['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][d.getMonth()]}</td>
+          </tr>`;
+        }).join('') || '<tr><td colspan="3" class="db-empty">Sin cumpleaños este mes</td></tr>';
+
+        // Período de prueba (ingresados hace menos de 3 meses)
+        const hace3m = new Date(); hace3m.setMonth(hace3m.getMonth() - 3);
+        const enPrueba = (emps || []).filter(e => e.fecha_ingreso && new Date(e.fecha_ingreso) >= hace3m);
+        document.getElementById('rrhh-prueba').textContent = enPrueba.length;
+        document.getElementById('rrhh-docs').textContent = '—';
       }
 
-      let qLoc = sbClient.from('locales').select('id_local', {count:'exact'}).eq('estado','activo');
-      if (!isAdmin) qLoc = qLoc.eq('ruc_empresa', perfil.ruc_empresa);
-      const { count: cLoc } = await qLoc;
-      document.getElementById('stat-locales').textContent = cLoc || 0;
+      // Disciplinario
+      let qDisc = sbClient.from('medidas_disciplinarias')
+        .select('nombre_trabajador,empresa,clasificacion,estado,fecha_envio')
+        .order('fecha_envio', {ascending: false}).limit(8);
+      if (ruc) { /* filtrar por empresa si hay campo */ }
+      const { data: disc } = await qDisc;
+      const pendDisc = (disc || []).filter(d => d.estado === 'pendiente').length;
+      document.getElementById('kpi-disciplinario').textContent = pendDisc;
+      document.getElementById('tbody-disciplinario').innerHTML = (disc || []).map(d =>
+        `<tr>
+          <td>${d.nombre_trabajador || '—'}</td>
+          <td>${d.empresa || '—'}</td>
+          <td>${d.clasificacion || '—'}</td>
+          <td>${getEstadoBadge(d.estado)}</td>
+        </tr>`
+      ).join('') || '<tr><td colspan="4" class="db-empty">Sin medidas recientes</td></tr>';
 
-      if (isCompras) {
-        const { count: cOC } = await sbClient.from('ordenes_compra')
-          .select('id_oc', {count:'exact'}).eq('estado','pendiente');
-        document.getElementById('stat-oc').textContent = cOC || 0;
+      // Compras
+      if (tieneCompras) {
+        let qOP = sbClient.from('pedidos').select('id',{count:'exact'}).eq('estado','pendiente');
+        if (ruc) qOP = qOP.eq('ruc_empresa', ruc);
+        const { count: cOP } = await qOP;
+        document.getElementById('comp-op').textContent = cOP || 0;
+        document.getElementById('kpi-oc').textContent  = cOP || 0;
 
-        const { count: cProv } = await sbClient.from('proveedores')
-          .select('documento', {count:'exact'}).eq('estado','activo');
-        document.getElementById('stat-prov').textContent = cProv || 0;
+        let qOC = sbClient.from('ordenes_compra').select('id_oc',{count:'exact'}).eq('estado','pendiente');
+        if (ruc) qOC = qOC.eq('ruc_empresa', ruc);
+        const { count: cOC } = await qOC;
+        document.getElementById('comp-oc').textContent = cOC || 0;
+
+        let qProv = sbClient.from('proveedores').select('documento',{count:'exact'}).eq('estado','activo');
+        const { count: cProv } = await qProv;
+        document.getElementById('comp-prov').textContent = cProv || 0;
+        document.getElementById('comp-or').textContent = '—';
+
+        let qOCList = sbClient.from('ordenes_compra')
+          .select('numero,proveedor,total,estado')
+          .order('created_at',{ascending:false}).limit(5);
+        if (ruc) qOCList = qOCList.eq('ruc_empresa', ruc);
+        const { data: ocList } = await qOCList;
+        document.getElementById('tbody-oc').innerHTML = (ocList || []).map(o =>
+          `<tr>
+            <td>${o.numero || '—'}</td>
+            <td>${o.proveedor || '—'}</td>
+            <td>S/ ${parseFloat(o.total||0).toLocaleString('es-PE',{minimumFractionDigits:2})}</td>
+            <td>${getEstadoBadge(o.estado)}</td>
+          </tr>`
+        ).join('') || '<tr><td colspan="4" class="db-empty">Sin órdenes recientes</td></tr>';
       }
-    }
-
-    async function loadDisciplinario() {
-      const { data } = await sbClient.from('medidas_disciplinarias')
-        .select('id, nombre_trabajador, empresa, clasificacion, estado, fecha_envio')
-        .order('fecha_envio', { ascending: false })
-        .limit(5);
-
-      const container = document.getElementById('list-disciplinario');
-      if (!data || data.length === 0) {
-        container.innerHTML = '<div class="empty-state"><p>No hay solicitudes recientes</p></div>';
-        return;
-      }
-      container.innerHTML = data.map(d => `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-          <div>
-            <div style="font-size:13px;font-weight:500">${d.nombre_trabajador}</div>
-            <div style="font-size:12px;color:var(--text-muted)">${d.empresa} · ${d.clasificacion}</div>
-          </div>
-          ${getEstadoBadge(d.estado)}
-        </div>
-      `).join('');
-    }
-
-    async function loadUltimasOC() {
-      const { data } = await sbClient.from('ordenes_compra')
-        .select('numero, tipo, proveedor, id_local, total, estado, created_at')
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      const container = document.getElementById('list-oc');
-      if (!data || data.length === 0) {
-        container.innerHTML = '<div class="empty-state"><p>No hay órdenes recientes</p></div>';
-        return;
-      }
-      container.innerHTML = data.map(d => `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-          <div>
-            <div style="font-size:13px;font-weight:500">${d.numero || d.id_oc}</div>
-            <div style="font-size:12px;color:var(--text-muted)">${d.proveedor} · S/ ${parseFloat(d.total||0).toFixed(2)}</div>
-          </div>
-          ${getEstadoBadge(d.estado)}
-        </div>
-      `).join('');
-    }
-
-    function renderAccesos(isCompras) {
-      const links = [];
-      if (['admin','rrhh','gerencia'].includes(perfil.rol)) {
-        links.push({ href: 'rrhh/empleados.html',    label: 'Ver empleados',           icon: icons.users });
-        links.push({ href: 'rrhh/disciplinario.html', label: 'Medidas disciplinarias', icon: icons.alert });
-      }
-      if (isCompras) {
-        links.push({ href: 'compras/proveedores.html',    label: 'Gestionar proveedores',  icon: icons.users });
-        links.push({ href: 'compras/ordenes-compra.html', label: 'Nueva orden de compra',  icon: icons.cart  });
-      }
-      if (perfil.rol === 'admin') {
-        links.push({ href: 'admin/empresas.html', label: 'Gestionar empresas', icon: icons.building });
-        links.push({ href: 'admin/usuarios.html', label: 'Gestionar usuarios', icon: icons.shield   });
-      }
-
-      document.getElementById('accesos-rapidos').innerHTML = links.map(l => `
-        <a href="${l.href}" class="btn" style="justify-content:flex-start;gap:10px">
-          ${l.icon} ${l.label}
-        </a>
-      `).join('');
     }
 
     init();
