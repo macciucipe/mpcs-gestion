@@ -128,6 +128,12 @@
           </button>
         </div>
 
+        <div style="margin-bottom:12px">
+          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">Local del día</label>
+          <select id="f-local-dia" style="width:100%;font-size:13px;padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--card-bg);color:var(--text)">
+            <option value="">Sin local asignado</option>
+          </select>
+        </div>
         <div id="campos-horario">
           <div class="time-grid">
             <div class="time-field">
@@ -347,11 +353,13 @@
           if (h && h.tipo_turno === 'corrido') {
             celdas += `<div class="turno-tipo corrido">Corrido</div>`;
             celdas += `<div class="turno-hora">${h.entrada1||''} — ${h.salida1||''}</div>`;
+            if (h.local) { const loc = locales.find(l => l.id_local === h.local); if (loc) celdas += `<div class="turno-hora2">${loc.nombre}</div>`; }
             if (h.horas_planif) totalHs += parseFloat(h.horas_planif);
           } else if (h && h.tipo_turno === 'partido') {
             celdas += `<div class="turno-tipo partido">Partido</div>`;
             celdas += `<div class="turno-hora">${h.entrada1||''} — ${h.salida1||''}</div>`;
             celdas += `<div class="turno-hora2">${h.entrada2||''} — ${h.salida2||''}</div>`;
+            if (h.local) { const loc = locales.find(l => l.id_local === h.local); if (loc) celdas += `<div class="turno-hora2">${loc.nombre}</div>`; }
             if (h.horas_planif) totalHs += parseFloat(h.horas_planif);
           } else if (h && h.tipo_turno === 'descanso') {
             celdas += `<div class="turno-tipo descanso">Descanso</div>`;
@@ -386,6 +394,19 @@
       document.getElementById('f-salida1').value  = h?.salida1  || '';
       document.getElementById('f-entrada2').value = h?.entrada2 || '';
       document.getElementById('f-salida2').value  = h?.salida2  || '';
+
+      // Poblar selector de local con los de la empresa actual
+      const ruc = document.getElementById('sel-empresa').value;
+      const selLocal = document.getElementById('f-local-dia');
+      selLocal.innerHTML = '<option value="">Sin local asignado</option>';
+      locales.filter(l => l.ruc_empresa === ruc).forEach(l => {
+        const o = document.createElement('option');
+        o.value = l.id_local;
+        o.textContent = l.nombre;
+        selLocal.appendChild(o);
+      });
+      // Preseleccionar: primero el del horario guardado, luego el local fijo del empleado
+      selLocal.value = h?.local || emp?.id_local || document.getElementById('sel-local').value || '';
 
       document.getElementById('modal-turno').classList.remove('hidden');
     }
@@ -423,6 +444,7 @@
       const s1 = document.getElementById('f-salida1').value;
       const e2 = document.getElementById('f-entrada2').value;
       const s2 = document.getElementById('f-salida2').value;
+      const localDia = document.getElementById('f-local-dia').value;
 
       pendientes[key] = {
         id_empleado: idEmpleado,
@@ -433,7 +455,7 @@
         entrada2:     tipoActual === 'partido'  ? e2 : null,
         salida2:      tipoActual === 'partido'  ? s2 : null,
         horas_planif: tipoActual !== 'descanso' ? calcHoras(e1, s1, e2, s2) : 0,
-        local:        document.getElementById('sel-local').value,
+        local:        localDia || document.getElementById('sel-local').value,
         ruc_empresa:  document.getElementById('sel-empresa').value,
         creado_por:   perfil.user_id,
       };
