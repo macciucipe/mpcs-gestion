@@ -2,17 +2,40 @@
 // js/auth.js — MPCS Gestión
 // ============================================================
 
-// ── CONTEXTO GLOBAL (empresa y local activos) ────────────────────────────────
-let _contextoEmpresa = null; // { ruc, razon_social, abreviatura }
-let _contextoLocal   = null; // { id_local, nombre }
+// ── CONTEXTO GLOBAL (empresa y locales activos) ──────────────────────────────
+let _contextoEmpresa    = null;  // { ruc, razon_social, abreviatura }
+let _contextoLocales    = [];    // array de { id_local, nombre }
 let _localesDisponibles = [];
+
+// Persistencia en sessionStorage
+function _saveContexto() {
+  try {
+    sessionStorage.setItem('mpcs_ctx', JSON.stringify({
+      empresa: _contextoEmpresa,
+      locales: _contextoLocales,
+    }));
+  } catch(e) {}
+}
+
+function _loadContexto() {
+  try {
+    const raw = sessionStorage.getItem('mpcs_ctx');
+    if (!raw) return;
+    const ctx = JSON.parse(raw);
+    _contextoEmpresa = ctx.empresa || null;
+    _contextoLocales = ctx.locales || [];
+  } catch(e) {}
+}
 
 function getContexto() {
   return {
-    empresa: _contextoEmpresa,
-    local:   _contextoLocal,
-    ruc:     _contextoEmpresa?.ruc || null,
-    idLocal: _contextoLocal?.id_local || null,
+    empresa:  _contextoEmpresa,
+    locales:  _contextoLocales,
+    ruc:      _contextoEmpresa?.ruc || null,
+    // idLocal: primer local seleccionado (retrocompatibilidad)
+    idLocal:  _contextoLocales.length === 1 ? _contextoLocales[0].id_local : null,
+    // idLocales: array de ids para filtros múltiples
+    idLocales: _contextoLocales.map(l => l.id_local),
   };
 }
 
@@ -22,13 +45,47 @@ function onContextoChange(callback) {
 }
 
 function _notificarContexto() {
+  _saveContexto();
   (window._contextoCallbacks || []).forEach(fn => { try { fn(getContexto()); } catch(e) {} });
+}
+
+function _renderChipsLocales() {
+  const wrap = document.getElementById('ctx-locales-wrap');
+  if (!wrap) return;
+  if (!_localesDisponibles.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  wrap.innerHTML = '';
+
+  // Chip "Todos"
+  const todosSelected = _contextoLocales.length === 0;
+  const chipTodos = document.createElement('div');
+  chipTodos.className = 'ctx-chip' + (todosSelected ? ' ctx-chip-on' : '');
+  chipTodos.textContent = 'Todos';
+  chipTodos.onclick = () => { _contextoLocales = []; _renderChipsLocales(); _notificarContexto(); };
+  wrap.appendChild(chipTodos);
+
+  _localesDisponibles.forEach(l => {
+    const sel = _contextoLocales.some(x => x.id_local === l.id_local);
+    const chip = document.createElement('div');
+    chip.className = 'ctx-chip' + (sel ? ' ctx-chip-on' : '');
+    chip.textContent = l.nombre;
+    chip.onclick = () => {
+      if (sel) {
+        _contextoLocales = _contextoLocales.filter(x => x.id_local !== l.id_local);
+      } else {
+        _contextoLocales.push(l);
+      }
+      _renderChipsLocales();
+      _notificarContexto();
+    };
+    wrap.appendChild(chip);
+  });
 }
 
 async function setEmpresa(ruc, empresas) {
   const emp = empresas.find(e => e.ruc === ruc);
   _contextoEmpresa = emp || null;
-  _contextoLocal   = null;
+  _contextoLocales = [];
 
   // Cargar locales de esta empresa
   const { data } = await sbClient.from('locales')
@@ -38,25 +95,7 @@ async function setEmpresa(ruc, empresas) {
     .order('nombre');
   _localesDisponibles = data || [];
 
-  // Actualizar selector de local en sidebar
-  const selLocal = document.getElementById('ctx-local');
-  if (selLocal) {
-    selLocal.innerHTML = '<option value="">Todos los locales</option>';
-    _localesDisponibles.forEach(l => {
-      const o = document.createElement('option');
-      o.value = l.id_local;
-      o.textContent = l.nombre;
-      o.style.background = '#1B3A5C';
-      selLocal.appendChild(o);
-    });
-    selLocal.style.display = _localesDisponibles.length ? '' : 'none';
-  }
-
-  _notificarContexto();
-}
-
-function setLocal(idLocal) {
-  _contextoLocal = _localesDisponibles.find(l => l.id_local === idLocal) || null;
+  _renderChipsLocales();
   _notificarContexto();
 }
 
@@ -247,14 +286,19 @@ function renderSidebar(perfil, activePage) {
         </div>
         <div class="sidebar-tagline">Portal de gestión</div>
       </div>
+      <style>
+        .ctx-chip { display:inline-block; font-size:11px; padding:3px 8px; border-radius:20px; border:1px solid rgba(255,255,255,0.25); color:rgba(255,255,255,0.6); cursor:pointer; margin:2px 2px 2px 0; transition:all .15s; }
+        .ctx-chip:hover { border-color:rgba(255,255,255,0.5); color:#fff; }
+        .ctx-chip-on { background:rgba(255,255,255,0.15); border-color:rgba(255,255,255,0.6); color:#fff; font-weight:500; }
+      </style>
       <div class="sidebar-context" id="sidebar-context" style="padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.08)">
         <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Operando en</div>
-        <select id="ctx-empresa" onchange="window._onCtxEmpresaChange(this.value)" style="width:100%;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:#1B3A5C;color:#fff;margin-bottom:5px;cursor:pointer">
+        <select id="ctx-empresa" onchange="window._onCtxEmpresaChange(this.value)" style="width:100%;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:#1B3A5C;color:#fff;margin-bottom:6px;cursor:pointer">
           <option value="" style="background:#1B3A5C">Seleccionar empresa...</option>
         </select>
-        <select id="ctx-local" onchange="window._onCtxLocalChange(this.value)" style="width:100%;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:#1B3A5C;color:#fff;display:none;cursor:pointer">
-          <option value="" style="background:#1B3A5C">Todos los locales</option>
-        </select>
+        <div id="ctx-locales-wrap" style="display:none;margin-top:2px">
+          <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:4px">Locales</div>
+        </div>
       </div>
       <nav class="sidebar-nav">
         <div class="nav-section">
@@ -334,8 +378,28 @@ function renderSidebar(perfil, activePage) {
       selEmp.appendChild(o);
     });
 
+    // Restaurar contexto previo de sessionStorage
+    _loadContexto();
+    if (_contextoEmpresa) {
+      const empPrev = empDisponibles.find(e => e.ruc === _contextoEmpresa.ruc);
+      if (empPrev) {
+        selEmp.value = empPrev.ruc;
+        const { data: locData } = await sbClient.from('locales')
+          .select('id_local,nombre').eq('ruc_empresa', empPrev.ruc).eq('estado','activo').order('nombre');
+        _localesDisponibles = locData || [];
+        _renderChipsLocales();
+        // Restaurar locales seleccionados
+        if (_contextoLocales.length) {
+          _contextoLocales = _contextoLocales.filter(l =>
+            _localesDisponibles.some(x => x.id_local === l.id_local)
+          );
+          _renderChipsLocales();
+        }
+      }
+    }
+
     // Si solo tiene una empresa, seleccionarla automáticamente
-    if (empDisponibles.length === 1) {
+    if (empDisponibles.length === 1 && !_contextoEmpresa) {
       selEmp.value = empDisponibles[0].ruc;
       selEmp.disabled = true;
       await setEmpresa(empDisponibles[0].ruc, empDisponibles);
@@ -344,10 +408,7 @@ function renderSidebar(perfil, activePage) {
     window._empDisponibles = empDisponibles;
     window._onCtxEmpresaChange = async (ruc) => {
       if (ruc) await setEmpresa(ruc, empDisponibles);
-      else { _contextoEmpresa = null; _contextoLocal = null; _notificarContexto(); }
-    };
-    window._onCtxLocalChange = (idLocal) => {
-      setLocal(idLocal);
+      else { _contextoEmpresa = null; _contextoLocales = []; _localesDisponibles = []; _renderChipsLocales(); _notificarContexto(); }
     };
   })();
 }

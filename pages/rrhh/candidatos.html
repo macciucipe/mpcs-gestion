@@ -175,7 +175,10 @@
     }
 
     async function loadCandidatos() {
-      const { data } = await sbClient.from('candidatos').select('*').order('created_at', { ascending: false });
+      const { ruc } = getContexto();
+      let q = sbClient.from('candidatos').select('*');
+      if (ruc) q = q.eq('ruc_empresa', ruc);
+      const { data } = await q.order('created_at', { ascending: false });
       candidatos = data || [];
 
       document.getElementById('st-total').textContent       = candidatos.length;

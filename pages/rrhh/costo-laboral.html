@@ -57,7 +57,7 @@
         <p>Análisis de costo real vs. proyección máxima</p>
       </div>
       <div class="page-header-right">
-        <select id="sel-empresa" class="btn" onchange="onEmpresaChange()" style="padding:7px 12px">
+        <select id="sel-empresa" style="display:none" class="btn" onchange="onEmpresaChange()" style="padding:7px 12px">
           <option value="">Seleccionar empresa...</option>
         </select>
         <select id="sel-periodo" class="btn" onchange="loadDetalle()" style="padding:7px 12px">
@@ -172,7 +172,7 @@
 
     async function loadEmpresas() {
       const { data } = await sbClient.from('empresas').select('ruc, razon_social, abreviatura').eq('estado','activa').order('razon_social');
-      const sel = document.getElementById('sel-empresa');
+      // selector reemplazado por contexto global
       (data||[]).forEach(e => {
         const o = document.createElement('option');
         o.value = e.ruc; o.textContent = `${e.abreviatura} — ${e.razon_social}`;
@@ -182,7 +182,7 @@
     }
 
     async function onEmpresaChange() {
-      empresaActual = document.getElementById('sel-empresa').value;
+      empresaActual = getContexto().ruc;
       if (!empresaActual) return;
       const { data } = await sbClient.from('planilla_periodos')
         .select('id, mes, anio, estado')

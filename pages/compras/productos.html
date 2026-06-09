@@ -230,7 +230,7 @@
       document.getElementById('tbody').innerHTML =
         '<tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>';
 
-      const ruc = getContexto().ruc;
+      const { ruc, idLocales } = getContexto();
       let query = sbClient.from('productos')
         .select('*')
         .order('nombre');

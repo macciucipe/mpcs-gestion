@@ -14,7 +14,7 @@
         <p>Requerimientos de locales al área de compras</p>
       </div>
       <div class="page-header-right">
-        <select id="filtro-empresa" class="btn" onchange="cargar()" style="padding:7px 12px">
+        <select id="filtro-empresa" style="display:none" class="btn" onchange="cargar()" style="padding:7px 12px">
           <option value="">Todas las empresas</option>
         </select>
         <button class="btn btn-primary" id="btn-nuevo" onclick="abrirNuevo()" style="display:none">
@@ -198,6 +198,7 @@
       perfil = await requireAuth(['admin','compras','gerencia'], 'compras_pedidos');
       if (!perfil) return;
       renderSidebar(perfil, 'pedidos');
+      onContextoChange(() => cargar());
 
       // Mostrar botón nuevo solo si tiene permiso
       const isCompras = ['admin','compras','gerencia'].includes(perfil.rol) || perfil.perm_op;
@@ -207,7 +208,6 @@
       }
 
       await cargarEmpresas();
-      await aplicarFiltroEmpresas(perfil, 'filtro-empresa');
       await cargar();
     }
 
@@ -242,7 +242,7 @@
       document.getElementById('tbody').innerHTML =
         '<tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>';
 
-      const ruc = document.getElementById('filtro-empresa').value;
+      const { ruc, idLocales } = getContexto();
       let query = sbClient.from('pedidos')
         .select('*, locales(nombre, id_concepto)')
         .order('created_at', { ascending: false });

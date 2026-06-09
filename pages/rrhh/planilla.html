@@ -425,7 +425,7 @@
     }
 
     async function loadPeriodos() {
-      const empresa = getContexto().ruc;
+      const { ruc: empresa, idLocales } = getContexto();
       let q = sbClient.from('planilla_periodos').select('*, empresas(razon_social,abreviatura)').order('anio',{ascending:false}).order('mes',{ascending:false});
       if (empresa) q = q.eq('ruc_empresa', empresa);
       const { data } = await q;

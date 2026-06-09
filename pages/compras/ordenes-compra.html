@@ -387,7 +387,7 @@
     async function cargar() {
       document.getElementById('tbody').innerHTML =
         '<tr><td colspan="9"><div class="loading">Cargando...</div></td></tr>';
-      const ruc = getContexto().ruc;
+      const { ruc, idLocales } = getContexto();
       let q = sbClient.from('ordenes_compra')
         .select('*').order('created_at', { ascending: false });
       if (ruc) q = q.eq('ruc_empresa', ruc);

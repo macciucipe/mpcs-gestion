@@ -278,7 +278,7 @@
     }
 
     async function loadGrilla() {
-      const idLocal = getContexto().idLocal;
+      const idLocales = getContexto().idLocales || [];
       const ruc = getContexto().ruc;
       if (!ruc) return;
 
@@ -293,13 +293,14 @@
         .eq('estado','activo')
         .order('apellidos');
 
-      if (idLocal) {
+      if (idLocales.length > 0) {
+        const localFilter = idLocales.map(id => `id_local.eq.${id}`).join(',') + ',id_local.is.null';
         queryEmps = sbClient
           .from('empleados')
           .select('id_empleado,nombres,apellidos,area,id_local')
           .eq('ruc_empresa', ruc)
           .eq('estado','activo')
-          .or(`id_local.eq.${idLocal},id_local.is.null`)
+          .or(localFilter)
           .order('apellidos');
       }
 
@@ -314,7 +315,9 @@
         .gte('fecha', desde)
         .lte('fecha', hasta);
 
-      if (idLocal) queryHors = queryHors.eq('local', idLocal);
+      const idLocales = getContexto().idLocales;
+      if (idLocales.length === 1) queryHors = queryHors.eq('local', idLocales[0]);
+      else if (idLocales.length > 1) queryHors = queryHors.in('local', idLocales);
 
       const { data: hors } = await queryHors;
 
@@ -639,7 +642,7 @@
 
         let importados = 0;
         let errores = [];
-        const idLocal = getContexto().idLocal;
+        const idLocales = getContexto().idLocales || [];
 
         for (let r = 1; r < rows.length; r++) {
           const row = rows[r];

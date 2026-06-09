@@ -48,7 +48,7 @@
         <p>CTS, gratificaciones, vacaciones e indemnización contingente</p>
       </div>
       <div class="page-header-right">
-        <select id="sel-empresa" class="btn" onchange="onEmpresaChange()" style="padding:7px 12px">
+        <select id="sel-empresa" style="display:none" class="btn" onchange="onEmpresaChange()" style="padding:7px 12px">
           <option value="">Seleccionar empresa...</option>
         </select>
       </div>
@@ -202,7 +202,7 @@
 
     async function loadEmpresas() {
       const { data } = await sbClient.from('empresas').select('ruc, razon_social, abreviatura').eq('estado','activa').order('razon_social');
-      const sel = document.getElementById('sel-empresa');
+      // selector reemplazado por contexto global
       (data||[]).forEach(e => {
         const o = document.createElement('option');
         o.value = e.ruc; o.textContent = `${e.abreviatura} — ${e.razon_social}`;
@@ -212,7 +212,7 @@
     }
 
     async function onEmpresaChange() {
-      empresaActual = document.getElementById('sel-empresa').value;
+      empresaActual = getContexto().ruc;
       if (!empresaActual) return;
 
       const [empsRes, ctsRes, gratRes] = await Promise.all([
