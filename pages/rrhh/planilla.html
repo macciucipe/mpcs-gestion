@@ -198,12 +198,36 @@
                   <div class="concepto-left">
                     <input type="checkbox" class="toggle-check" id="chk-movilidad" onchange="calcular()" />
                     <div>
-                      <div class="concepto-label">Movilidad fija</div>
+                      <div class="concepto-label">Movilidad</div>
                       <div class="concepto-sublabel" id="lbl-movilidad"></div>
                     </div>
                   </div>
                   <div class="concepto-right">
                     <span class="concepto-monto" id="m-movilidad">S/ 0.00</span>
+                  </div>
+                </div>
+                <div class="concepto-row" id="row-objetivo" style="display:none">
+                  <div class="concepto-left">
+                    <input type="checkbox" class="toggle-check" id="chk-objetivo" onchange="calcular()" />
+                    <div>
+                      <div class="concepto-label">Objetivo de ventas</div>
+                      <div class="concepto-sublabel" id="lbl-objetivo">Bonos pasan del 10% al 15%</div>
+                    </div>
+                  </div>
+                  <div class="concepto-right">
+                    <span class="concepto-monto" id="m-objetivo">S/ 0.00</span>
+                  </div>
+                </div>
+                <div class="concepto-row" id="row-antiguedad" style="display:none">
+                  <div class="concepto-left">
+                    <input type="checkbox" class="toggle-check" id="chk-antiguedad" onchange="calcular()" checked />
+                    <div>
+                      <div class="concepto-label">Bono antigüedad</div>
+                      <div class="concepto-sublabel" id="lbl-antiguedad">1% por año efectivo</div>
+                    </div>
+                  </div>
+                  <div class="concepto-right">
+                    <span class="concepto-monto" id="m-antiguedad">S/ 0.00</span>
                   </div>
                 </div>
               </div>
@@ -394,13 +418,62 @@
     const SNP_RATE     = 0.13;
     const ESSALUD_RATE = 0.09;
 
-    // Config de bonos por empleado ETW (% del básico)
-    const BONOS_CONFIG = {
-      puntualidad: 0.10,
-      asistencia:  0.10,
-      desempeno:   0.10,
+    // Configuración de bonos por empresa
+    const EMPRESA_CONFIG = {
+      // ETW — Régimen General, movilidad fija por empleado
+      '20602716385': {
+        regimen: 'general',
+        bonos: { puntualidad: 0.10, asistencia: 0.10, desempeno: 0.10 },
+        movilidad_tipo: 'fija',
+        movilidad_map: { 'ETW-EMP-001': 0, 'ETW-EMP-002': 150 },
+        tiene_objetivo: false,
+        tiene_antiguedad: false,
+      },
+      // CYC — MYPE, movilidad S/4 x día efectivo, objetivo de ventas, antigüedad
+      '20605195408': {
+        regimen: 'mype',
+        bonos: { puntualidad: 0.10, asistencia: 0.10, desempeno: 0.10 },
+        bonos_con_objetivo: { puntualidad: 0.15, asistencia: 0.15, desempeno: 0.15 },
+        movilidad_tipo: 'por_dia',
+        movilidad_diaria: 4,
+        tiene_objetivo: true,
+        tiene_antiguedad: true,
+        antiguedad_max: 0.10,  // tope 10%
+      },
     };
-    const MOVILIDAD_ETW = { 'ETW-EMP-001': 0, 'ETW-EMP-002': 150 };
+
+    // Obtener config de la empresa actual
+    function getEmpresaConfig(ruc) {
+      return EMPRESA_CONFIG[ruc] || {
+        regimen: 'general',
+        bonos: { puntualidad: 0.10, asistencia: 0.10, desempeno: 0.10 },
+        movilidad_tipo: 'ninguna',
+        tiene_objetivo: false,
+        tiene_antiguedad: false,
+      };
+    }
+
+    // Calcular bono de antigüedad
+    function calcularAntiguedad(fechaIngreso, sueldo, config) {
+      if (!config.tiene_antiguedad || !fechaIngreso) return 0;
+      const hoy = new Date();
+      const ingreso = new Date(fechaIngreso);
+      const anios = Math.floor((hoy - ingreso) / (365.25 * 24 * 3600 * 1000));
+      if (anios < 1) return 0;
+      const pct = Math.min(anios * 0.01, config.antiguedad_max || 0.10);
+      return suel * pct;
+    }
+
+    // Calcular movilidad según tipo
+    function calcularMovilidad(config, empleadoId, diasEfectivos) {
+      if (config.movilidad_tipo === 'fija') {
+        return config.movilidad_map?.[empleadoId] || 0;
+      }
+      if (config.movilidad_tipo === 'por_dia') {
+        return (config.movilidad_diaria || 4) * diasEfectivos;
+      }
+      return 0;
+    }
 
     let perfil = null, periodos = [], currentPeriodo = null;
     let empleados = [], currentEmpleado = null, detalleMap = {};
@@ -580,7 +653,9 @@
       const e    = currentEmpleado;
       const suel = e.sueldo_basico || 0;
       const asig = e.asignacion_familiar || 0;
-      const mov  = MOVILIDAD_ETW[id] || 0;
+      const cfg  = getEmpresaConfig(e.ruc_empresa);
+      const dias = detalleMap[id]?.dias_laborados || 30;
+      const mov  = calcularMovilidad(cfg, id, dias);
       const det  = detalleMap[id];
       const esPeriodoEditable = currentPeriodo.estado === 'borrador';
 
@@ -607,10 +682,15 @@
 
       // Labels de referencia
       document.getElementById('lbl-basico').textContent      = `S/ ${suel.toFixed(2)} / mes`;
-      document.getElementById('lbl-puntualidad').textContent = `10% básico = S/ ${(suel*BONOS_CONFIG.puntualidad).toFixed(2)}`;
-      document.getElementById('lbl-asistencia').textContent  = `10% básico = S/ ${(suel*BONOS_CONFIG.asistencia).toFixed(2)}`;
-      document.getElementById('lbl-desempeno').textContent   = `10% básico = S/ ${(suel*BONOS_CONFIG.desempeno).toFixed(2)}`;
-      document.getElementById('lbl-movilidad').textContent   = mov > 0 ? `S/ ${mov.toFixed(2)} fijo` : 'No aplica';
+      document.getElementById('lbl-puntualidad').textContent = `${(cfg.bonos.puntualidad*100).toFixed(0)}% básico = S/ ${(suel*cfg.bonos.puntualidad).toFixed(2)}`;
+      document.getElementById('lbl-asistencia').textContent  = `${(cfg.bonos.asistencia*100).toFixed(0)}% básico = S/ ${(suel*cfg.bonos.asistencia).toFixed(2)}`;
+      document.getElementById('lbl-desempeno').textContent   = `${(cfg.bonos.desempeno*100).toFixed(0)}% básico = S/ ${(suel*cfg.bonos.desempeno).toFixed(2)}`;
+      document.getElementById('lbl-movilidad').textContent   = cfg.movilidad_tipo === 'por_dia' ? `S/ ${cfg.movilidad_diaria}/día efectivo` : (mov > 0 ? `S/ ${mov.toFixed(2)} fijo` : 'No aplica');
+      // Mostrar/ocultar campos según empresa
+      const rowObjetivo = document.getElementById('row-objetivo');
+      const rowAntiguedad = document.getElementById('row-antiguedad');
+      if (rowObjetivo) rowObjetivo.style.display = cfg.tiene_objetivo ? 'flex' : 'none';
+      if (rowAntiguedad) rowAntiguedad.style.display = cfg.tiene_antiguedad ? 'flex' : 'none';
 
       // Mostrar/ocultar asig familiar
       document.getElementById('row-asig-fam').style.display = asig > 0 ? 'flex' : 'none';
@@ -667,24 +747,39 @@
       const e    = currentEmpleado;
       const suel = e.sueldo_basico || 0;
       const asig = e.asignacion_familiar || 0;
-      const mov  = MOVILIDAD_ETW[e.id_empleado] || 0;
+      const cfg  = getEmpresaConfig(e.ruc_empresa);
       const dias = gv('f-dias');
 
       // Remuneración proporcional (base 30 días)
       const remun = (suel / 30) * dias;
       const asigP = dias >= 30 ? asig : 0;
 
-      const punt  = gchk('chk-puntualidad') ? suel * BONOS_CONFIG.puntualidad : 0;
-      const asis  = gchk('chk-asistencia')  ? suel * BONOS_CONFIG.asistencia  : 0;
-      const desemp= gchk('chk-desempeno')   ? suel * BONOS_CONFIG.desempeno   : 0;
-      const movil = gchk('chk-movilidad')   ? mov  : 0;
+      // Bonos — si hay objetivo de ventas y se cumplió, subir al 15%
+      const cumpleObjetivo = cfg.tiene_objetivo && gchk('chk-objetivo');
+      const bonos = cumpleObjetivo && cfg.bonos_con_objetivo ? cfg.bonos_con_objetivo : cfg.bonos;
+
+      const punt  = gchk('chk-puntualidad') ? suel * bonos.puntualidad : 0;
+      const asis  = gchk('chk-asistencia')  ? suel * bonos.asistencia  : 0;
+      const desemp= gchk('chk-desempeno')   ? suel * bonos.desempeno   : 0;
+
+      // Movilidad — por día efectivo o fija
+      const diasEfectivos = dias - (gv('f-faltas') || 0);
+      const movBase = calcularMovilidad(cfg, e.id_empleado, diasEfectivos);
+      const movil = gchk('chk-movilidad') ? movBase : 0;
+
+      // Antigüedad
+      const antiguedad = gchk('chk-antiguedad') ? calcularAntiguedad(e.fecha_ingreso, suel, cfg) : 0;
       const feria = gv('f-feriados');
       const he25  = gv('f-he25');
       const he35  = gv('f-he35');
       const bonoE = gv('f-bono-exc');
       const otrosI= gv('f-otros-ing');
 
-      const totalIngresos = remun + asigP + punt + asis + desemp + movil + feria + he25 + he35 + bonoE + otrosI;
+      // Remunerativos (base para CTS, grat, vac) vs no remunerativos
+      const objetivo = cfg.tiene_objetivo && gchk('chk-objetivo') ? gv('f-objetivo') : 0;
+      const totalRemunerativo = remun + asigP + punt + asis + desemp + antiguedad;
+      const totalNoRemunerativo = movil + objetivo;
+      const totalIngresos = totalRemunerativo + totalNoRemunerativo + feria + he25 + he35 + bonoE + otrosI;
 
       // Descuentos
       const montFaltas = (suel / 30) * gv('f-faltas');
@@ -694,19 +789,28 @@
 
       // AFP / SNP sobre remuneración computable
       let afpObl=0, afpCom=0, afpSeg=0, snp=0;
+      const baseAfp = totalRemunerativo; // AFP solo sobre remunerativo
       if (e.sistema_pensionario === 'ONP') {
-        snp = remun * SNP_RATE;
+        snp = baseAfp * SNP_RATE;
       } else if (e.afp) {
         const r = AFP_RATES[e.afp] || AFP_RATES['PRIMA'];
-        afpObl = remun * r.oblig;
-        afpCom = remun * r.comision;
-        afpSeg = remun * r.seguro;
+        afpObl = baseAfp * r.oblig;
+        afpCom = baseAfp * r.comision;
+        afpSeg = baseAfp * r.seguro;
       }
       const totalAfp = afpObl + afpCom + afpSeg + snp;
       const totalOtrosDsc = montFaltas + tardanzas + adelanto + otrosDsc;
       const totalDescuentos = totalAfp + totalOtrosDsc;
       const neto = totalIngresos - totalDescuentos;
-      const essalud = remun * ESSALUD_RATE;
+      const essalud = totalRemunerativo * ESSALUD_RATE;
+
+      // Pasivos según régimen
+      const esGeneral = cfg.regimen === 'general';
+      const esMype    = cfg.regimen === 'mype';
+      const provCts  = esMype ? totalRemunerativo / 24 : totalRemunerativo / 12;
+      const provGrat = esMype ? totalRemunerativo / 12 : totalRemunerativo / 6;
+      const provGratEssalud = provGrat * 0.09;
+      const provVac  = totalRemunerativo / 24;
 
       // Actualizar UI
       document.getElementById('m-basico').textContent      = `S/ ${remun.toFixed(2)}`;
@@ -715,6 +819,15 @@
       document.getElementById('m-asistencia').textContent  = `S/ ${asis.toFixed(2)}`;
       document.getElementById('m-desempeno').textContent   = `S/ ${desemp.toFixed(2)}`;
       document.getElementById('m-movilidad').textContent   = `S/ ${movil.toFixed(2)}`;
+      if (document.getElementById('m-objetivo'))  document.getElementById('m-objetivo').textContent  = `S/ ${objetivo.toFixed(2)}`;
+      if (document.getElementById('m-antiguedad')) document.getElementById('m-antiguedad').textContent = `S/ ${antiguedad.toFixed(2)}`;
+      // Actualizar label de antigüedad con años reales
+      if (cfg.tiene_antiguedad && e.fecha_ingreso) {
+        const anios = Math.floor((new Date() - new Date(e.fecha_ingreso)) / (365.25*24*3600*1000));
+        const pct = Math.min(anios * 0.01, cfg.antiguedad_max || 0.10);
+        const eld = document.getElementById('lbl-antiguedad');
+        if (eld) eld.textContent = anios >= 1 ? `${anios} año${anios>1?'s':''} = ${(pct*100).toFixed(0)}% = S/ ${(suel*pct).toFixed(2)}` : 'Menos de 1 año — no aplica';
+      }
       document.getElementById('m-faltas').textContent      = montFaltas > 0 ? `-S/ ${montFaltas.toFixed(2)}` : 'S/ 0.00';
       document.getElementById('r-ingresos').textContent    = `S/ ${totalIngresos.toFixed(2)}`;
       document.getElementById('r-afp').textContent         = `S/ ${totalAfp.toFixed(2)}`;
@@ -723,7 +836,9 @@
       document.getElementById('r-neto').textContent        = `S/ ${neto.toFixed(2)}`;
 
       window._calc = { totalIngresos, totalDescuentos, neto, essalud, afpObl, afpCom, afpSeg, snp,
-        punt, asis, desemp, movil, feria, he25, he35, bonoE, otrosI, montFaltas, remun, asigP };
+        punt, asis, desemp, movil, antiguedad, objetivo, feria, he25, he35, bonoE, otrosI,
+        montFaltas, remun, asigP, totalRemunerativo, totalNoRemunerativo,
+        provCts, provGrat, provGratEssalud, provVac };
     }
 
     async function guardarDetalle() {
@@ -738,6 +853,12 @@
         bono_puntualidad:     c.punt,
         bono_asistencia:      c.asis,
         bono_desempeno:       c.desemp,
+        bono_objetivo:        c.objetivo || 0,
+        bono_antiguedad:      c.antiguedad || 0,
+        remun_remunerativa:   c.totalRemunerativo || 0,
+        prov_cts:             c.provCts || 0,
+        prov_grat:            c.provGrat || 0,
+        prov_vac:             c.provVac || 0,
         movilidad:            c.movil,
         bono_dia_trabajador:  c.feria,
         horas_extras_25:      c.he25,
