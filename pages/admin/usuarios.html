@@ -413,11 +413,12 @@
       }
 
       // Guardar permisos de módulos
-      const checks = document.querySelectorAll('.perm-check:not([disabled])');
+      const checks = document.querySelectorAll('.perm-check[data-modulo][data-tipo]:not([disabled])');
       const moduloMap = {};
       checks.forEach(ch => {
         const mod = ch.dataset.modulo;
         const tipo = ch.dataset.tipo;
+        if (!mod || !tipo) return;
         if (!moduloMap[mod]) moduloMap[mod] = { puede_ver: false, puede_crear: false, puede_editar: false, puede_eliminar: false };
         moduloMap[mod][`puede_${tipo}`] = ch.checked;
       });
