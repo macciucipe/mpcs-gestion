@@ -260,28 +260,43 @@
     async function loadGrilla() {
       const idLocal = document.getElementById('sel-local').value;
       const ruc = document.getElementById('sel-empresa').value;
-      if (!idLocal || !ruc) return;
+      if (!ruc) return;
 
       const desde = fmtDate(semanaInicio);
       const hasta = fmtDate(addDays(semanaInicio, 6));
 
-      const { data: emps } = await sbClient
+      // Cargar empleados — con local si está seleccionado, sino todos de la empresa
+      let queryEmps = sbClient
         .from('empleados')
-        .select('id_empleado,nombres,apellidos,area')
+        .select('id_empleado,nombres,apellidos,area,id_local')
         .eq('ruc_empresa', ruc)
-        .eq('id_local', idLocal)
         .eq('estado','activo')
         .order('apellidos');
 
+      if (idLocal) {
+        queryEmps = sbClient
+          .from('empleados')
+          .select('id_empleado,nombres,apellidos,area,id_local')
+          .eq('ruc_empresa', ruc)
+          .eq('estado','activo')
+          .or(`id_local.eq.${idLocal},id_local.is.null`)
+          .order('apellidos');
+      }
+
+      const { data: emps } = await queryEmps;
       empleados = emps || [];
 
-      const { data: hors } = await sbClient
+      // Cargar horarios de la semana
+      let queryHors = sbClient
         .from('horarios_planificados')
         .select('*')
-        .eq('local', idLocal)
         .eq('ruc_empresa', ruc)
         .gte('fecha', desde)
         .lte('fecha', hasta);
+
+      if (idLocal) queryHors = queryHors.eq('local', idLocal);
+
+      const { data: hors } = await queryHors;
 
       horarios = {};
       pendientes = {};
