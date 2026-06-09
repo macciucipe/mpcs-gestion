@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Horarios · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+    .toolbar select { font-size:13px; padding:6px 10px; border-radius:7px; border:1px solid var(--border); background:var(--card-bg); color:var(--text); }
+    .week-nav { display:flex; align-items:center; gap:6px; }
+    .week-btn { width:30px; height:30px; border-radius:7px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
+    .week-btn:hover { background:var(--hover-bg,#f5f5f5); }
+    .week-label { font-size:13px; font-weight:500; min-width:180px; text-align:center; }
+    .grid-wrap { overflow-x:auto; border-radius:10px; border:1px solid var(--border); }
+    .hor-table { width:100%; border-collapse:collapse; font-size:12px; min-width:780px; }
+    .hor-table th { padding:8px 6px; text-align:center; font-size:11px; font-weight:500; color:var(--text-muted); border-bottom:1px solid var(--border); white-space:nowrap; background:var(--card-bg); }
+    .hor-table th:first-child { text-align:left; padding-left:14px; min-width:140px; }
+    .hor-table th.hoy { background:#E6F1FB; color:#0C447C; }
+    .hor-table td { padding:3px 3px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    .hor-table td:first-child { padding:6px 14px; }
+    .hor-table tr:last-child td { border-bottom:none; }
+    .emp-name { font-size:12px; font-weight:500; }
+    .emp-area { font-size:10px; color:var(--text-muted); }
+    .celda { min-width:88px; border-radius:6px; padding:5px 6px; text-align:center; cursor:pointer; border:1px solid transparent; transition:all .15s; }
+    .celda:hover { opacity:.85; transform:scale(1.02); }
+    .celda.corrido { background:#E6F1FB; border-color:#85B7EB; }
+    .celda.partido { background:#EAF3DE; border-color:#97C459; }
+    .celda.descanso { background:var(--hover-bg,#f5f5f5); border-color:var(--border); }
+    .celda.vacio { background:transparent; border:1px dashed var(--border); color:var(--text-muted); font-size:11px; padding:8px 6px; }
+    .turno-tipo { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+    .turno-tipo.corrido { color:#0C447C; }
+    .turno-tipo.partido { color:#27500A; }
+    .turno-tipo.descanso { color:var(--text-muted); }
+    .turno-hora { font-size:11px; color:var(--text-muted); margin-top:1px; }
+    .turno-hora2 { font-size:10px; color:var(--text-muted); opacity:.8; }
+    .hs-cell { text-align:center; font-size:12px; font-weight:500; color:var(--text-muted); white-space:nowrap; }
+    .legend { display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+    .leg-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-muted); }
+    .leg-dot { width:10px; height:10px; border-radius:3px; }
+
+    /* Modal turno */
+    .modal-turno { max-width:360px; }
+    .tipo-selector { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+    .tipo-btn { padding:8px; border-radius:8px; border:1.5px solid var(--border); background:transparent; cursor:pointer; text-align:center; font-size:12px; transition:all .15s; }
+    .tipo-btn.sel-corrido { border-color:#185FA5; background:#E6F1FB; color:#0C447C; }
+    .tipo-btn.sel-partido { border-color:#3B6D11; background:#EAF3DE; color:#27500A; }
+    .tipo-btn.sel-descanso { border-color:var(--border); background:var(--hover-bg,#f5f5f5); }
+    .time-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .time-field label { font-size:11px; color:var(--text-muted); display:block; margin-bottom:4px; }
+    .time-field input { width:100%; font-size:13px; padding:6px 8px; border-radius:7px; border:1px solid var(--border); background:var(--card-bg); color:var(--text); box-sizing:border-box; }
+    .turno2-section { margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
+    .turno2-label { font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px; }
+  </style>
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Horarios</h1>
+        <p>Planificación semanal por local</p>
+      </div>
+      <div class="page-header-right">
+        <button class="btn btn-ghost" onclick="descargarPlantilla()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Descargar plantilla
+        </button>
+        <label class="btn btn-ghost" style="cursor:pointer">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Subir Excel
+          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importarExcel(this)" />
+        </label>
+        <button class="btn btn-primary" onclick="guardarHorario()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Guardar horario
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="toolbar">
+        <select id="sel-empresa" onchange="onEmpresaChange()">
+          <option value="">Empresa...</option>
+        </select>
+        <select id="sel-local" onchange="loadGrilla()">
+          <option value="">Local...</option>
+        </select>
+        <div class="week-nav">
+          <button class="week-btn" onclick="cambiarSemana(-1)">‹</button>
+          <span class="week-label" id="week-label">—</span>
+          <button class="week-btn" onclick="cambiarSemana(1)">›</button>
+        </div>
+      </div>
+
+      <div class="grid-wrap">
+        <table class="hor-table" id="hor-table">
+          <thead id="hor-thead"></thead>
+          <tbody id="hor-tbody">
+            <tr><td colspan="9" style="padding:40px;text-align:center;color:var(--text-muted)">Seleccioná empresa y local para ver el horario</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="legend">
+        <div class="leg-item"><div class="leg-dot" style="background:#E6F1FB;border:1px solid #85B7EB"></div> Turno corrido</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#EAF3DE;border:1px solid #97C459"></div> Turno partido</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--hover-bg,#f5f5f5);border:1px solid var(--border)"></div> Descanso</div>
+        <div class="leg-item"><div class="leg-dot" style="background:transparent;border:1px dashed var(--border)"></div> Sin cargar</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal editar turno -->
+  <div class="modal-overlay hidden" id="modal-turno">
+    <div class="modal modal-turno">
+      <div class="modal-header">
+        <h3 id="modal-turno-title">Editar turno</h3>
+        <button class="modal-close" onclick="cerrarModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="tipo-selector">
+          <button class="tipo-btn" id="btn-corrido" onclick="selTipo('corrido')">
+            <div style="font-size:13px;margin-bottom:2px">☀️</div>
+            <div>Corrido</div>
+          </button>
+          <button class="tipo-btn" id="btn-partido" onclick="selTipo('partido')">
+            <div style="font-size:13px;margin-bottom:2px">✂️</div>
+            <div>Partido</div>
+          </button>
+          <button class="tipo-btn" id="btn-descanso" onclick="selTipo('descanso')">
+            <div style="font-size:13px;margin-bottom:2px">💤</div>
+            <div>Descanso</div>
+          </button>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">Local del día</label>
+          <select id="f-local-dia" style="width:100%;font-size:13px;padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--card-bg);color:var(--text)">
+            <option value="">Sin local asignado</option>
+          </select>
+        </div>
+        <div id="campos-horario">
+          <div class="time-grid">
+            <div class="time-field">
+              <label>Entrada</label>
+              <input type="time" id="f-entrada1" />
+            </div>
+            <div class="time-field">
+              <label>Salida</label>
+              <input type="time" id="f-salida1" />
+            </div>
+          </div>
+          <div class="turno2-section" id="turno2-section" style="display:none">
+            <div class="turno2-label">2do tramo</div>
+            <div class="time-grid">
+              <div class="time-field">
+                <label>Entrada 2</label>
+                <input type="time" id="f-entrada2" />
+              </div>
+              <div class="time-field">
+                <label>Salida 2</label>
+                <input type="time" id="f-salida2" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarCelda()">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let perfil, empleados = [], locales = [], empresas = [];
+    let semanaInicio = null;
+    let horarios = {};
+    let pendientes = {};
+    let editandoCelda = null;
+    let tipoActual = 'corrido';
+
+    const DIAS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+    async function init() {
+      perfil = await requireAuth(['admin','rrhh','gerencia','supervisor'], 'rrhh_horarios');
+      if (!perfil) return;
+      renderSidebar(perfil, 'horarios');
+      setSemana(lunes(new Date()));
+      await loadLocales();
+      onContextoChange(() => loadGrilla());
+    }
+
+    function lunes(d) {
+      const dia = new Date(d);
+      const dow = dia.getDay();
+      const diff = dow === 0 ? -6 : 1 - dow;
+      dia.setDate(dia.getDate() + diff);
+      dia.setHours(0,0,0,0);
+      return dia;
+    }
+
+    function addDays(d, n) {
+      const r = new Date(d);
+      r.setDate(r.getDate() + n);
+      return r;
+    }
+
+    function fmtDate(d) {
+      return d.toISOString().split('T')[0];
+    }
+
+    function fmtLabel(d) {
+      return d.toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit' });
+    }
+
+    function setSemana(lun) {
+      semanaInicio = lun;
+      const dom = addDays(lun, 6);
+      document.getElementById('week-label').textContent =
+        `Lun ${fmtLabel(lun)} — Dom ${fmtLabel(dom)}`;
+    }
+
+    function cambiarSemana(dir) {
+      setSemana(addDays(semanaInicio, dir * 7));
+      if (getContexto().idLocal) loadGrilla();
+    }
+
+    async function loadEmpresas() {
+      const { data } = await sbClient.from('empresas').select('ruc,abreviatura,razon_social').eq('estado','activa').order('razon_social');
+      empresas = data || [];
+      const sel = document.getElementById('sel-empresa');
+      empresas.forEach(e => {
+        const o = document.createElement('option');
+        o.value = e.ruc;
+        o.textContent = `${e.abreviatura} — ${e.razon_social}`;
+        sel.appendChild(o);
+      });
+      if (perfil.rol !== 'admin' && perfil.ruc_empresa) {
+        sel.value = perfil.ruc_empresa;
+        sel.disabled = true;
+        await onEmpresaChange();
+      }
+    }
+
+    async function loadLocales() {
+      const { data } = await sbClient.from('locales').select('id_local,nombre,ruc_empresa').eq('estado','activo').order('nombre');
+      locales = data || [];
+    }
+
+    async function onEmpresaChange() {
+      const ruc = getContexto().ruc;
+      const sel = document.getElementById('sel-local');
+      sel.innerHTML = '<option value="">Local...</option>';
+      const filtrados = ruc ? locales.filter(l => l.ruc_empresa === ruc) : locales;
+      filtrados.forEach(l => {
+        const o = document.createElement('option');
+        o.value = l.id_local;
+        o.textContent = l.nombre;
+        sel.appendChild(o);
+      });
+      if (perfil.id_local) {
+        sel.value = perfil.id_local;
+        sel.disabled = perfil.rol !== 'admin';
+      }
+      // Si la empresa no tiene locales o el usuario no tiene local fijo,
+      // cargar igual todos los empleados de la empresa
+      if (ruc && filtrados.length === 0) {
+        await loadGrilla();
+      } else if (ruc && !sel.value) {
+        // Tiene locales pero ninguno seleccionado — cargar igual sin filtro de local
+        await loadGrilla();
+      }
+    }
+
+    async function loadGrilla() {
+      const idLocales = getContexto().idLocales || [];
+      const ruc = getContexto().ruc;
+      if (!ruc) return;
+
+      const desde = fmtDate(semanaInicio);
+      const hasta = fmtDate(addDays(semanaInicio, 6));
+
+      // Cargar empleados — con local si está seleccionado, sino todos de la empresa
+      let queryEmps = sbClient
+        .from('empleados')
+        .select('id_empleado,nombres,apellidos,area,id_local')
+        .eq('ruc_empresa', ruc)
+        .eq('estado','activo')
+        .order('apellidos');
+
+      if (idLocales.length > 0) {
+        const localFilter = idLocales.map(id => `id_local.eq.${id}`).join(',') + ',id_local.is.null';
+        queryEmps = sbClient
+          .from('empleados')
+          .select('id_empleado,nombres,apellidos,area,id_local')
+          .eq('ruc_empresa', ruc)
+          .eq('estado','activo')
+          .or(localFilter)
+          .order('apellidos');
+      }
+
+      const { data: emps } = await queryEmps;
+      empleados = emps || [];
+
+      // Cargar horarios de la semana
+      let queryHors = sbClient
+        .from('horarios_planificados')
+        .select('*')
+        .eq('ruc_empresa', ruc)
+        .gte('fecha', desde)
+        .lte('fecha', hasta);
+
+      if (idLocales.length === 1) queryHors = queryHors.eq('local', idLocales[0]);
+      else if (idLocales.length > 1) queryHors = queryHors.in('local', idLocales);
+
+      const { data: hors } = await queryHors;
+
+      horarios = {};
+      pendientes = {};
+      (hors || []).forEach(h => {
+        horarios[`${h.id_empleado}_${h.fecha}`] = h;
+      });
+
+      renderGrilla();
+    }
+
+    function renderGrilla() {
+      const hoy = fmtDate(new Date());
+      const thead = document.getElementById('hor-thead');
+      const tbody = document.getElementById('hor-tbody');
+
+      // Cabecera
+      let ths = '<tr><th>Empleado</th>';
+      for (let i = 0; i < 7; i++) {
+        const d = addDays(semanaInicio, i);
+        const esHoy = fmtDate(d) === hoy;
+        ths += `<th class="${esHoy?'hoy':''}">${DIAS[i]}<br><span style="font-weight:400">${fmtLabel(d)}</span></th>`;
+      }
+      ths += '<th>Hs.</th></tr>';
+      thead.innerHTML = ths;
+
+      // Filas
+      if (!empleados.length) {
+        tbody.innerHTML = '<tr><td colspan="9" style="padding:30px;text-align:center;color:var(--text-muted)">No hay empleados activos en este local</td></tr>';
+        return;
+      }
+
+      let rows = '';
+      empleados.forEach(emp => {
+        let totalHs = 0;
+        let celdas = '';
+        for (let i = 0; i < 7; i++) {
+          const d = addDays(semanaInicio, i);
+          const key = `${emp.id_empleado}_${fmtDate(d)}`;
+          const h = pendientes[key] || horarios[key];
+          celdas += `<td><div class="celda ${h ? h.tipo_turno : 'vacio'}" onclick="abrirModal('${emp.id_empleado}','${fmtDate(d)}')">`;
+          if (h && h.tipo_turno === 'corrido') {
+            celdas += `<div class="turno-tipo corrido">Corrido</div>`;
+            celdas += `<div class="turno-hora">${h.entrada1||''} — ${h.salida1||''}</div>`;
+            if (h.local) { const loc = locales.find(l => l.id_local === h.local); if (loc) celdas += `<div class="turno-hora2">${loc.nombre}</div>`; }
+            if (h.horas_planif) totalHs += parseFloat(h.horas_planif);
+          } else if (h && h.tipo_turno === 'partido') {
+            celdas += `<div class="turno-tipo partido">Partido</div>`;
+            celdas += `<div class="turno-hora">${h.entrada1||''} — ${h.salida1||''}</div>`;
+            celdas += `<div class="turno-hora2">${h.entrada2||''} — ${h.salida2||''}</div>`;
+            if (h.local) { const loc = locales.find(l => l.id_local === h.local); if (loc) celdas += `<div class="turno-hora2">${loc.nombre}</div>`; }
+            if (h.horas_planif) totalHs += parseFloat(h.horas_planif);
+          } else if (h && h.tipo_turno === 'descanso') {
+            celdas += `<div class="turno-tipo descanso">Descanso</div>`;
+          } else {
+            celdas += `+ Agregar`;
+          }
+          celdas += `</div></td>`;
+        }
+        const nombre = `${emp.apellidos}, ${emp.nombres}`.substring(0, 20);
+        rows += `<tr>
+          <td><div class="emp-name">${nombre}</div><div class="emp-area">${emp.area||''}</div></td>
+          ${celdas}
+          <td class="hs-cell">${totalHs > 0 ? totalHs+'h' : '—'}</td>
+        </tr>`;
+      });
+      tbody.innerHTML = rows;
+    }
+
+    function abrirModal(idEmpleado, fecha) {
+      editandoCelda = { idEmpleado, fecha };
+      const key = `${idEmpleado}_${fecha}`;
+      const h = pendientes[key] || horarios[key];
+
+      const emp = empleados.find(e => e.id_empleado === idEmpleado);
+      document.getElementById('modal-turno-title').textContent =
+        `${emp?.apellidos || ''} — ${new Date(fecha+'T12:00:00').toLocaleDateString('es-PE',{weekday:'long',day:'numeric',month:'short'})}`;
+
+      tipoActual = h?.tipo_turno || 'corrido';
+      selTipo(tipoActual);
+
+      document.getElementById('f-entrada1').value = h?.entrada1 || '';
+      document.getElementById('f-salida1').value  = h?.salida1  || '';
+      document.getElementById('f-entrada2').value = h?.entrada2 || '';
+      document.getElementById('f-salida2').value  = h?.salida2  || '';
+
+      // Poblar selector de local con los de la empresa actual
+      const ruc = getContexto().ruc;
+      const selLocal = document.getElementById('f-local-dia');
+      selLocal.innerHTML = '<option value="">Sin local asignado</option>';
+      locales.filter(l => l.ruc_empresa === ruc).forEach(l => {
+        const o = document.createElement('option');
+        o.value = l.id_local;
+        o.textContent = l.nombre;
+        selLocal.appendChild(o);
+      });
+      // Preseleccionar: primero el del horario guardado, luego el local fijo del empleado
+      selLocal.value = h?.local || emp?.id_local || getContexto().idLocal || '';
+
+      document.getElementById('modal-turno').classList.remove('hidden');
+    }
+
+    function selTipo(tipo) {
+      tipoActual = tipo;
+      ['corrido','partido','descanso'].forEach(t => {
+        document.getElementById(`btn-${t}`).className = `tipo-btn${tipo===t ? ` sel-${t}` : ''}`;
+      });
+      const campos = document.getElementById('campos-horario');
+      const t2 = document.getElementById('turno2-section');
+      campos.style.display = tipo === 'descanso' ? 'none' : 'block';
+      t2.style.display = tipo === 'partido' ? 'block' : 'none';
+    }
+
+    function calcHoras(e1, s1, e2, s2) {
+      function mins(t) {
+        if (!t) return 0;
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+      }
+      function diff(e, s) {
+        if (!e || !s) return 0;
+        let d = mins(s) - mins(e);
+        if (d < 0) d += 24 * 60;
+        return d;
+      }
+      return Math.round((diff(e1, s1) + diff(e2, s2)) / 60 * 100) / 100;
+    }
+
+    function guardarCelda() {
+      const { idEmpleado, fecha } = editandoCelda;
+      const key = `${idEmpleado}_${fecha}`;
+      const e1 = document.getElementById('f-entrada1').value;
+      const s1 = document.getElementById('f-salida1').value;
+      const e2 = document.getElementById('f-entrada2').value;
+      const s2 = document.getElementById('f-salida2').value;
+      const localDia = document.getElementById('f-local-dia').value;
+
+      pendientes[key] = {
+        id_empleado: idEmpleado,
+        fecha,
+        tipo_turno:   tipoActual,
+        entrada1:     tipoActual !== 'descanso' ? e1 : null,
+        salida1:      tipoActual !== 'descanso' ? s1 : null,
+        entrada2:     tipoActual === 'partido'  ? e2 : null,
+        salida2:      tipoActual === 'partido'  ? s2 : null,
+        horas_planif: tipoActual !== 'descanso' ? calcHoras(e1, s1, e2, s2) : 0,
+        local:        localDia || getContexto().idLocal,
+        ruc_empresa:  getContexto().ruc,
+        creado_por:   perfil.user_id,
+      };
+      cerrarModal();
+      renderGrilla();
+    }
+
+    function cerrarModal() {
+      document.getElementById('modal-turno').classList.add('hidden');
+      editandoCelda = null;
+    }
+
+    async function guardarHorario() {
+      const rows = Object.values(pendientes);
+      if (!rows.length) {
+        alert('No hay cambios pendientes para guardar.');
+        return;
+      }
+      const btn = document.querySelector('.btn-primary');
+      btn.disabled = true; btn.textContent = 'Guardando...';
+
+      for (const row of rows) {
+        const existing = horarios[`${row.id_empleado}_${row.fecha}`];
+        if (existing) {
+          await sbClient.from('horarios_planificados').update(row).eq('id', existing.id);
+        } else {
+          const newRow = { ...row, id: `HP-${row.id_empleado}-${row.fecha}` };
+          await sbClient.from('horarios_planificados').insert([newRow]);
+        }
+      }
+
+      await auditar(perfil, 'CREAR', 'horarios_planificados',
+        `Guardó horario semana ${fmtDate(semanaInicio)} local ${getContexto().idLocal}`);
+
+      btn.disabled = false;
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Guardar horario`;
+
+      await loadGrilla();
+    }
+
+    function descargarPlantilla() {
+      const ruc = getContexto().ruc;
+      if (!ruc || !empleados.length) { alert('Seleccioná empresa y cargá empleados primero.'); return; }
+
+      const wb = XLSX.utils.book_new();
+      const localNombre = document.getElementById('sel-local').options[document.getElementById('sel-local').selectedIndex]?.text || 'Todos';
+
+      // Hoja de instrucciones con locales de la empresa
+      const localesEmpresa = locales.filter(l => l.ruc_empresa === ruc);
+      const instrData = [
+        ['INSTRUCCIONES DE CARGA DE HORARIOS'],
+        [''],
+        ['Formatos aceptados en cada celda:'],
+        ['  Turno corrido:  8:00-17:00'],
+        ['  Turno partido:  13:00-17:00/20:00-00:00'],
+        ['  Descanso:       DESCANSO'],
+        ['  Sin turno:      (dejar vacío)'],
+        [''],
+        ['Local del día (opcional): agregar | al final seguido del CÓDIGO de local'],
+        ['  Ejemplo: 8:00-17:00|LOCAL-001'],
+        [''],
+        ['LOCALES DISPONIBLES PARA ESTA EMPRESA:'],
+        ['  CÓDIGO', 'NOMBRE'],
+      ];
+      localesEmpresa.forEach(l => {
+        instrData.push([`  ${l.id_local}`, l.nombre]);
+      });
+      if (!localesEmpresa.length) {
+        instrData.push(['  (Esta empresa no tiene locales registrados)']);
+      }
+      instrData.push(['']);
+      instrData.push(['NO modificar las columnas ID ni Empleado.']);
+      instrData.push(['NO agregar ni eliminar filas.']);
+
+      const instrSheet = XLSX.utils.aoa_to_sheet(instrData);
+      instrSheet['!cols'] = [{ wch: 30 }, { wch: 35 }];
+      XLSX.utils.book_append_sheet(wb, instrSheet, 'Instrucciones');
+
+      // Hoja de horario
+      const headers = ['ID', 'Empleado', 'Área'];
+      for (let i = 0; i < 7; i++) {
+        headers.push(`${DIAS[i]} ${fmtLabel(addDays(semanaInicio, i))}`);
+      }
+      headers.push('SEMANA');
+
+      const rows = [headers];
+      empleados.forEach(emp => {
+        const fila = [emp.id_empleado, `${emp.apellidos}, ${emp.nombres}`, emp.area || ''];
+        for (let i = 0; i < 7; i++) {
+          const key = `${emp.id_empleado}_${fmtDate(addDays(semanaInicio, i))}`;
+          const h = pendientes[key] || horarios[key];
+          if (!h) { fila.push(''); continue; }
+          if (h.tipo_turno === 'descanso') { fila.push('DESCANSO'); continue; }
+          let celda = `${h.entrada1||''}-${h.salida1||''}`;
+          if (h.tipo_turno === 'partido' && h.entrada2) celda += `/${h.entrada2}-${h.salida2}`;
+          if (h.local) celda += `|${h.local}`;
+          fila.push(celda);
+        }
+        fila.push('');
+        rows.push(fila);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 14 }, { wch: 28 }, { wch: 12 },
+        ...Array(7).fill({ wch: 22 }),
+        { wch: 10 }
+      ];
+      // Proteger col A y B (solo lectura visual con color)
+      XLSX.utils.book_append_sheet(wb, ws, 'Horario');
+
+      const idLocal = getContexto().idLocal || 'todos';
+      XLSX.writeFile(wb, `plantilla_horario_${idLocal}_${fmtDate(semanaInicio)}.xlsx`);
+    }
+
+    function parsearTurno(celda) {
+      if (!celda || celda.toString().trim() === '') return null;
+      const txt = celda.toString().trim().toUpperCase();
+      if (txt === 'DESCANSO' || txt === 'FRANCO' || txt === 'DESC') {
+        return { tipo_turno: 'descanso', entrada1: null, salida1: null, entrada2: null, salida2: null, horas_planif: 0, local_dia: null };
+      }
+      // Separar local si viene con |
+      let horaParte = txt;
+      let local_dia = null;
+      if (txt.includes('|')) {
+        [horaParte, local_dia] = txt.split('|');
+      }
+      // Turno partido: contiene /
+      if (horaParte.includes('/')) {
+        const [tramo1, tramo2] = horaParte.split('/');
+        const [e1, s1] = tramo1.split('-').map(t => t.trim().toLowerCase());
+        const [e2, s2] = tramo2.split('-').map(t => t.trim().toLowerCase());
+        const hs = calcHoras(e1, s1, e2, s2);
+        return { tipo_turno: 'partido', entrada1: e1, salida1: s1, entrada2: e2, salida2: s2, horas_planif: hs, local_dia };
+      }
+      // Turno corrido
+      const partes = horaParte.split('-');
+      if (partes.length >= 2) {
+        const e1 = partes[0].trim().toLowerCase();
+        const s1 = partes[1].trim().toLowerCase();
+        const hs = calcHoras(e1, s1, null, null);
+        return { tipo_turno: 'corrido', entrada1: e1, salida1: s1, entrada2: null, salida2: null, horas_planif: hs, local_dia };
+      }
+      return null;
+    }
+
+    function importarExcel(input) {
+      const ruc = getContexto().ruc;
+      if (!ruc) { alert('Seleccioná la empresa primero.'); input.value = ''; return; }
+      if (!input.files[0]) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets['Horario'] || wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+        if (rows.length < 2) { alert('El archivo no tiene datos.'); return; }
+
+        // Detectar fechas en la cabecera (fila 0)
+        const header = rows[0];
+        const fechasCols = []; // { colIdx, fecha }
+        for (let c = 3; c < header.length - 1; c++) {
+          const label = header[c]?.toString() || '';
+          // Buscar fecha en el label buscando semanaInicio + offset
+          for (let i = 0; i < 7; i++) {
+            const d = addDays(semanaInicio, i);
+            if (label.includes(fmtLabel(d)) || label.includes(DIAS[i])) {
+              fechasCols.push({ colIdx: c, fecha: fmtDate(d) });
+              break;
+            }
+          }
+        }
+
+        let importados = 0;
+        let errores = [];
+        const idLocales = getContexto().idLocales || [];
+
+        for (let r = 1; r < rows.length; r++) {
+          const row = rows[r];
+          const idEmp = row[0]?.toString().trim();
+          if (!idEmp) continue;
+
+          const empObj = empleados.find(e => e.id_empleado === idEmp);
+          if (!empObj) { errores.push(`Fila ${r+1}: empleado ${idEmp} no encontrado`); continue; }
+
+          fechasCols.forEach(({ colIdx, fecha }) => {
+            const celda = row[colIdx];
+            const turno = parsearTurno(celda);
+            if (turno === null) return;
+            const key = `${idEmp}_${fecha}`;
+            pendientes[key] = {
+              id_empleado: idEmp,
+              fecha,
+              tipo_turno:   turno.tipo_turno,
+              entrada1:     turno.entrada1,
+              salida1:      turno.salida1,
+              entrada2:     turno.entrada2,
+              salida2:      turno.salida2,
+              horas_planif: turno.horas_planif,
+              local:        turno.local_dia || idLocal || null,
+              ruc_empresa:  ruc,
+              creado_por:   perfil.user_id,
+            };
+            importados++;
+          });
+        }
+
+        input.value = '';
+        renderGrilla();
+
+        let msg = `✓ ${importados} turnos importados correctamente.`;
+        if (errores.length) msg += `\n\nAdvertencias:\n${errores.join('\n')}`;
+        msg += '\n\nRevisá la grilla y hacé click en "Guardar horario" para confirmar.';
+        alert(msg);
+      };
+      reader.readAsArrayBuffer(input.files[0]);
+    }
+
+    init();
+  </script>
+</body>
+</html>
