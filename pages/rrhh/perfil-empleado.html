@@ -962,6 +962,7 @@
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${RENIEC_TOKEN}` },
             body: JSON.stringify({ dni: num })
           });
+          const d = await res.json();
           if (!d.success) { alert('No se encontró el DNI en RENIEC.'); return; }
           const datos = d.data || d;
           const nombres = datos.nombres || datos.nombre_completo || '';
