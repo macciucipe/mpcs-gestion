@@ -130,7 +130,7 @@ function renderSidebar(perfil, activePage) {
     puedeVer(perfil,'rrhh_empleados') || puedeVer(perfil,'rrhh_asistencia') ||
     puedeVer(perfil,'rrhh_candidatos') || puedeVer(perfil,'rrhh_disciplinario') ||
     puedeVer(perfil,'rrhh_planilla') || puedeVer(perfil,'rrhh_costo') ||
-    puedeVer(perfil,'rrhh_pasivos');
+    puedeVer(perfil,'rrhh_pasivos') || puedeVer(perfil,'rrhh_horarios');
 
   const showCompras = isAdmin ||
     puedeVer(perfil,'compras_pedidos') || puedeVer(perfil,'compras_oc') ||
@@ -158,6 +158,7 @@ function renderSidebar(perfil, activePage) {
         <div class="nav-section">
           <div class="nav-section-label">RRHH</div>
           ${puedeVer(perfil,'rrhh_empleados') ? `<a href="/pages/rrhh/empleados.html" class="nav-item ${activePage==='empleados'?'active':''}">${icons.users} Empleados</a>` : ''}
+          ${puedeVer(perfil,'rrhh_horarios') ? `<a href="/pages/rrhh/horarios.html" class="nav-item ${activePage==='horarios'?'active':''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01"/></svg> Horarios</a>` : ''}
           ${puedeVer(perfil,'rrhh_asistencia') ? `<a href="/pages/rrhh/asistencia.html" class="nav-item ${activePage==='asistencia'?'active':''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Asistencia</a>` : ''}
           ${puedeVer(perfil,'rrhh_candidatos') ? `<a href="/pages/rrhh/candidatos.html" class="nav-item ${activePage==='candidatos'?'active':''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg> Candidatos</a>` : ''}
           ${puedeVer(perfil,'rrhh_disciplinario') ? `<a href="/pages/rrhh/disciplinario.html" class="nav-item ${activePage==='disciplinario'?'active':''}">${icons.alert} Medidas disciplinarias</a>` : ''}
