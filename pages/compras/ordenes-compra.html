@@ -354,10 +354,7 @@
         opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
         sel.appendChild(opt);
       });
-      if (!['admin','gerencia'].includes(perfil.rol) && perfil.ruc_empresa) {
-        sel.value = perfil.ruc_empresa;
-        sel.disabled = true;
-      }
+      await aplicarFiltroEmpresas(perfil, 'filtro-empresa');
       renderBotonesEmpresa();
     }
 
@@ -972,8 +969,7 @@
       const colW = [8, 12, 10, 62, 32, 20, 18, 18];
       const colX = [mL];
       colW.forEach((w,i) => { if(i>0) colX.push(colX[i-1]+colW[i-1]); });
-      const headers = ['N°','Cant.','Und','Descripción / Artículo','Detalle','P. Unit.
-Bruto','IGV','Total'];
+      const headers = ['N°','Cant.','Und','Descripción / Artículo','Detalle','P. Unit. Bruto','IGV','Total'];
 
       // Header
       doc.setFillColor(...azul);
