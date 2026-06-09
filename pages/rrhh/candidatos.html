@@ -170,6 +170,7 @@
       const perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_candidatos');
       if (!perfil) return;
       renderSidebar(perfil, 'candidatos');
+      onContextoChange(() => loadCandidatos());
       await loadCandidatos();
     }
 

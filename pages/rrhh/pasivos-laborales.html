@@ -196,7 +196,8 @@
       perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_pasivos');
       if (!perfil) return;
       renderSidebar(perfil, 'pasivos-laborales');
-      await loadEmpresas();
+      onContextoChange(() => cargar());
+      await cargar();
     }
 
     async function loadEmpresas() {

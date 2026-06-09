@@ -261,7 +261,7 @@
       perfil = await requireAuth(['admin','compras','gerencia'], 'compras_proveedores');
       if (!perfil) return;
       renderSidebar(perfil, 'proveedores');
-      await cargar();
+      onContextoChange(() => cargar());
     }
 
     async function cargar() {

@@ -191,7 +191,8 @@
       if (!perfil) return;
       renderSidebar(perfil, 'horarios');
       setSemana(lunes(new Date()));
-      await Promise.all([loadEmpresas(), loadLocales()]);
+      await loadLocales();
+      onContextoChange(() => loadGrilla());
     }
 
     function lunes(d) {
@@ -226,7 +227,7 @@
 
     function cambiarSemana(dir) {
       setSemana(addDays(semanaInicio, dir * 7));
-      if (document.getElementById('sel-local').value) loadGrilla();
+      if (getContexto().idLocal) loadGrilla();
     }
 
     async function loadEmpresas() {
@@ -252,7 +253,7 @@
     }
 
     async function onEmpresaChange() {
-      const ruc = document.getElementById('sel-empresa').value;
+      const ruc = getContexto().ruc;
       const sel = document.getElementById('sel-local');
       sel.innerHTML = '<option value="">Local...</option>';
       const filtrados = ruc ? locales.filter(l => l.ruc_empresa === ruc) : locales;
@@ -277,8 +278,8 @@
     }
 
     async function loadGrilla() {
-      const idLocal = document.getElementById('sel-local').value;
-      const ruc = document.getElementById('sel-empresa').value;
+      const idLocal = getContexto().idLocal;
+      const ruc = getContexto().ruc;
       if (!ruc) return;
 
       const desde = fmtDate(semanaInicio);
@@ -402,7 +403,7 @@
       document.getElementById('f-salida2').value  = h?.salida2  || '';
 
       // Poblar selector de local con los de la empresa actual
-      const ruc = document.getElementById('sel-empresa').value;
+      const ruc = getContexto().ruc;
       const selLocal = document.getElementById('f-local-dia');
       selLocal.innerHTML = '<option value="">Sin local asignado</option>';
       locales.filter(l => l.ruc_empresa === ruc).forEach(l => {
@@ -412,7 +413,7 @@
         selLocal.appendChild(o);
       });
       // Preseleccionar: primero el del horario guardado, luego el local fijo del empleado
-      selLocal.value = h?.local || emp?.id_local || document.getElementById('sel-local').value || '';
+      selLocal.value = h?.local || emp?.id_local || getContexto().idLocal || '';
 
       document.getElementById('modal-turno').classList.remove('hidden');
     }
@@ -461,8 +462,8 @@
         entrada2:     tipoActual === 'partido'  ? e2 : null,
         salida2:      tipoActual === 'partido'  ? s2 : null,
         horas_planif: tipoActual !== 'descanso' ? calcHoras(e1, s1, e2, s2) : 0,
-        local:        localDia || document.getElementById('sel-local').value,
-        ruc_empresa:  document.getElementById('sel-empresa').value,
+        local:        localDia || getContexto().idLocal,
+        ruc_empresa:  getContexto().ruc,
         creado_por:   perfil.user_id,
       };
       cerrarModal();
@@ -494,7 +495,7 @@
       }
 
       await auditar(perfil, 'CREAR', 'horarios_planificados',
-        `Guardó horario semana ${fmtDate(semanaInicio)} local ${document.getElementById('sel-local').value}`);
+        `Guardó horario semana ${fmtDate(semanaInicio)} local ${getContexto().idLocal}`);
 
       btn.disabled = false;
       btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Guardar horario`;
@@ -503,7 +504,7 @@
     }
 
     function descargarPlantilla() {
-      const ruc = document.getElementById('sel-empresa').value;
+      const ruc = getContexto().ruc;
       if (!ruc || !empleados.length) { alert('Seleccioná empresa y cargá empleados primero.'); return; }
 
       const wb = XLSX.utils.book_new();
@@ -573,7 +574,7 @@
       // Proteger col A y B (solo lectura visual con color)
       XLSX.utils.book_append_sheet(wb, ws, 'Horario');
 
-      const idLocal = document.getElementById('sel-local').value || 'todos';
+      const idLocal = getContexto().idLocal || 'todos';
       XLSX.writeFile(wb, `plantilla_horario_${idLocal}_${fmtDate(semanaInicio)}.xlsx`);
     }
 
@@ -609,7 +610,7 @@
     }
 
     function importarExcel(input) {
-      const ruc = document.getElementById('sel-empresa').value;
+      const ruc = getContexto().ruc;
       if (!ruc) { alert('Seleccioná la empresa primero.'); input.value = ''; return; }
       if (!input.files[0]) return;
 
@@ -638,7 +639,7 @@
 
         let importados = 0;
         let errores = [];
-        const idLocal = document.getElementById('sel-local').value;
+        const idLocal = getContexto().idLocal;
 
         for (let r = 1; r < rows.length; r++) {
           const row = rows[r];

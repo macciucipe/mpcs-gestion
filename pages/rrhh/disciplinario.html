@@ -108,6 +108,7 @@
       const perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_disciplinario');
       if (!perfil) return;
       renderSidebar(perfil, 'disciplinario');
+      onContextoChange(() => loadSolicitudes());
       await loadSolicitudes();
     }
 

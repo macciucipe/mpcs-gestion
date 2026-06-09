@@ -166,7 +166,8 @@
       perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_costo');
       if (!perfil) return;
       renderSidebar(perfil, 'costo-laboral');
-      await loadEmpresas();
+      onContextoChange(() => cargar());
+      await cargar();
     }
 
     async function loadEmpresas() {

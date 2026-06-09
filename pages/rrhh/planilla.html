@@ -97,7 +97,7 @@
         <div class="card">
           <div class="card-header">
             <h2 id="periodos-label">Períodos</h2>
-            <select id="filtro-empresa-plan" class="btn btn-sm" onchange="loadPeriodos()" style="padding:5px 10px">
+            <select id="filtro-empresa-plan" style="display:none" class="btn btn-sm" onchange="loadPeriodos()" style="padding:5px 10px">
               <option value="">Todas las empresas</option>
             </select>
           </div>
@@ -409,7 +409,7 @@
       perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_planilla');
       if (!perfil) return;
       renderSidebar(perfil, 'planilla');
-      await loadEmpresas();
+      onContextoChange(() => loadPeriodos());
       await loadPeriodos();
     }
 
@@ -425,7 +425,7 @@
     }
 
     async function loadPeriodos() {
-      const empresa = document.getElementById('filtro-empresa-plan').value;
+      const empresa = getContexto().ruc;
       let q = sbClient.from('planilla_periodos').select('*, empresas(razon_social,abreviatura)').order('anio',{ascending:false}).order('mes',{ascending:false});
       if (empresa) q = q.eq('ruc_empresa', empresa);
       const { data } = await q;

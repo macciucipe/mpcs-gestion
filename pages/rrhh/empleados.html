@@ -14,7 +14,7 @@
         <p id="page-sub">Listado de personal</p>
       </div>
       <div class="page-header-right">
-        <select id="filtro-empresa" class="btn" onchange="loadEmpleados()" style="padding:7px 12px">
+        <select id="filtro-empresa" style="display:none" class="btn" onchange="loadEmpleados()" style="padding:7px 12px">
           <option value="">Todas las empresas</option>
         </select>
         <div class="search-bar">
@@ -104,7 +104,7 @@
       perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_empleados');
       if (!perfil) return;
       renderSidebar(perfil, 'empleados');
-      await loadEmpresasFiltro();
+      onContextoChange(ctx => { if(ctx.ruc) loadEmpleados(); });
       await loadEmpleados();
     }
 
@@ -116,11 +116,11 @@
         opt.value = e.ruc; opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
         sel.appendChild(opt);
       });
-      await aplicarFiltroEmpresas(perfil, 'filtro-empresa');
+      
     }
 
     async function loadEmpleados() {
-      const empresa = document.getElementById('filtro-empresa').value || perfil.ruc_empresa;
+      const empresa = getContexto().ruc;
       let query = sbClient.from('empleados')
         .select('*, locales(nombre)')
         .order('apellidos');

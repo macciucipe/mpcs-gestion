@@ -2,6 +2,63 @@
 // js/auth.js — MPCS Gestión
 // ============================================================
 
+// ── CONTEXTO GLOBAL (empresa y local activos) ────────────────────────────────
+let _contextoEmpresa = null; // { ruc, razon_social, abreviatura }
+let _contextoLocal   = null; // { id_local, nombre }
+let _localesDisponibles = [];
+
+function getContexto() {
+  return {
+    empresa: _contextoEmpresa,
+    local:   _contextoLocal,
+    ruc:     _contextoEmpresa?.ruc || null,
+    idLocal: _contextoLocal?.id_local || null,
+  };
+}
+
+function onContextoChange(callback) {
+  window._contextoCallbacks = window._contextoCallbacks || [];
+  window._contextoCallbacks.push(callback);
+}
+
+function _notificarContexto() {
+  (window._contextoCallbacks || []).forEach(fn => { try { fn(getContexto()); } catch(e) {} });
+}
+
+async function setEmpresa(ruc, empresas) {
+  const emp = empresas.find(e => e.ruc === ruc);
+  _contextoEmpresa = emp || null;
+  _contextoLocal   = null;
+
+  // Cargar locales de esta empresa
+  const { data } = await sbClient.from('locales')
+    .select('id_local,nombre')
+    .eq('ruc_empresa', ruc)
+    .eq('estado','activo')
+    .order('nombre');
+  _localesDisponibles = data || [];
+
+  // Actualizar selector de local en sidebar
+  const selLocal = document.getElementById('ctx-local');
+  if (selLocal) {
+    selLocal.innerHTML = '<option value="">Todos los locales</option>';
+    _localesDisponibles.forEach(l => {
+      const o = document.createElement('option');
+      o.value = l.id_local;
+      o.textContent = l.nombre;
+      selLocal.appendChild(o);
+    });
+    selLocal.style.display = _localesDisponibles.length ? '' : 'none';
+  }
+
+  _notificarContexto();
+}
+
+function setLocal(idLocal) {
+  _contextoLocal = _localesDisponibles.find(l => l.id_local === idLocal) || null;
+  _notificarContexto();
+}
+
 async function signIn(email, password) {
   const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
   return { data, error };
@@ -189,6 +246,15 @@ function renderSidebar(perfil, activePage) {
         </div>
         <div class="sidebar-tagline">Portal de gestión</div>
       </div>
+      <div class="sidebar-context" id="sidebar-context" style="padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.08)">
+        <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Operando en</div>
+        <select id="ctx-empresa" onchange="window._onCtxEmpresaChange(this.value)" style="width:100%;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#fff;margin-bottom:5px">
+          <option value="">Seleccionar empresa...</option>
+        </select>
+        <select id="ctx-local" onchange="window._onCtxLocalChange(this.value)" style="width:100%;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#fff;display:none">
+          <option value="">Todos los locales</option>
+        </select>
+      </div>
       <nav class="sidebar-nav">
         <div class="nav-section">
           <div class="nav-section-label">Principal</div>
@@ -245,6 +311,44 @@ function renderSidebar(perfil, activePage) {
       </div>
     </aside>`;
   document.body.insertAdjacentHTML('afterbegin', nav);
+
+  // Inicializar selector de empresa en sidebar
+  (async () => {
+    const { data: todasEmpresas } = await sbClient.from('empresas')
+      .select('ruc,razon_social,abreviatura')
+      .eq('estado','activa')
+      .order('razon_social');
+
+    const empDisponibles = perfil.rol === 'admin'
+      ? (todasEmpresas || [])
+      : (todasEmpresas || []).filter(e => perfil._empresas?.has(e.ruc));
+
+    const selEmp = document.getElementById('ctx-empresa');
+    if (!selEmp) return;
+
+    empDisponibles.forEach(e => {
+      const o = document.createElement('option');
+      o.value = e.ruc;
+      o.textContent = `${e.abreviatura} — ${e.razon_social}`;
+      selEmp.appendChild(o);
+    });
+
+    // Si solo tiene una empresa, seleccionarla automáticamente
+    if (empDisponibles.length === 1) {
+      selEmp.value = empDisponibles[0].ruc;
+      selEmp.disabled = true;
+      await setEmpresa(empDisponibles[0].ruc, empDisponibles);
+    }
+
+    window._empDisponibles = empDisponibles;
+    window._onCtxEmpresaChange = async (ruc) => {
+      if (ruc) await setEmpresa(ruc, empDisponibles);
+      else { _contextoEmpresa = null; _contextoLocal = null; _notificarContexto(); }
+    };
+    window._onCtxLocalChange = (idLocal) => {
+      setLocal(idLocal);
+    };
+  })();
 }
 
 const icons = {

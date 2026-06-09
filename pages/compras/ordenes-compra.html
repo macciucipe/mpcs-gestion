@@ -69,7 +69,7 @@
         <div class="card-header">
           <h2 id="count-label">Órdenes</h2>
           <div style="display:flex;gap:8px;align-items:center">
-            <select id="filtro-empresa" class="btn btn-sm" onchange="cargar()" style="padding:5px 10px">
+            <select id="filtro-empresa" style="display:none" class="btn btn-sm" onchange="cargar()" style="padding:5px 10px">
               <option value="">Todas las empresas</option>
             </select>
             <select id="filtro-tipo" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
@@ -328,8 +328,7 @@
       perfil = await requireAuth(['admin','compras','gerencia'], 'compras_oc');
       if (!perfil) return;
       renderSidebar(perfil, 'oc');
-      await Promise.all([cargarEmpresas(), cargarProveedores(), cargarItems(), cargarOPsPendientes()]);
-      await cargar();
+      onContextoChange(() => cargar());
 
       // Detectar si viene desde pedidos con sessionStorage
       const opPendiente = sessionStorage.getItem('mpcs_op_para_oc');
@@ -354,7 +353,6 @@
         opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
         sel.appendChild(opt);
       });
-      await aplicarFiltroEmpresas(perfil, 'filtro-empresa');
       renderBotonesEmpresa();
     }
 
@@ -389,7 +387,7 @@
     async function cargar() {
       document.getElementById('tbody').innerHTML =
         '<tr><td colspan="9"><div class="loading">Cargando...</div></td></tr>';
-      const ruc = document.getElementById('filtro-empresa').value;
+      const ruc = getContexto().ruc;
       let q = sbClient.from('ordenes_compra')
         .select('*').order('created_at', { ascending: false });
       if (ruc) q = q.eq('ruc_empresa', ruc);

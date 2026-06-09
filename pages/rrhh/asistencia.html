@@ -104,10 +104,10 @@
           </div>
           <button onclick="cambiarMes(1)">▶</button>
         </div>
-        <select id="filtro-empresa-as" class="btn" onchange="onEmpresaChange()" style="padding:7px 12px">
+        <select id="filtro-empresa-as" style="display:none" class="btn" onchange="onEmpresaChange()" style="padding:7px 12px">
           <option value="">Todas las empresas</option>
         </select>
-        <select id="filtro-local-as" class="btn" onchange="loadAsistencia()" style="padding:7px 12px">
+        <select id="filtro-local-as" style="display:none" class="btn" onchange="loadAsistencia()" style="padding:7px 12px">
           <option value="">Todos los locales</option>
         </select>
         <div class="search-bar">
@@ -253,7 +253,7 @@
       perfil = await requireAuth(['admin','rrhh','gerencia','supervisor'], 'rrhh_asistencia');
       if (!perfil) return;
       renderSidebar(perfil, 'asistencia');
-      await loadEmpresas();
+      onContextoChange(() => loadAsistencia());
       await loadAsistencia();
     }
 
@@ -272,7 +272,7 @@
     }
 
     async function onEmpresaChange() {
-      const ruc = document.getElementById('filtro-empresa-as').value;
+      const ruc = getContexto().ruc;
       const sel = document.getElementById('filtro-local-as');
       sel.innerHTML = '<option value="">Todos los locales</option>';
       if (ruc) {
@@ -291,8 +291,8 @@
 
     // ── Carga de datos ────────────────────────────────────
     async function loadAsistencia() {
-      const empresa = document.getElementById('filtro-empresa-as').value || perfil.ruc_empresa;
-      const local   = document.getElementById('filtro-local-as').value;
+      const empresa = getContexto().ruc;
+      const local   = getContexto().idLocal;
 
       // Empleados
       let qEmp = sbClient.from('empleados')
@@ -490,7 +490,7 @@
 
     // ── Pre-cargar planilla ───────────────────────────────
     async function exportarPlanilla() {
-      const empresa = document.getElementById('filtro-empresa-as').value || perfil.ruc_empresa;
+      const empresa = getContexto().ruc;
       if (!empresa) { alert('Seleccioná una empresa primero.'); return; }
       const { data: periodo } = await sbClient.from('planilla_periodos')
         .select('id, estado').eq('ruc_empresa', empresa)

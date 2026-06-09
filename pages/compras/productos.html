@@ -14,7 +14,7 @@
         <p>Maestro de ítems por empresa</p>
       </div>
       <div class="page-header-right">
-        <select id="filtro-empresa" class="btn" onchange="cargar()" style="padding:7px 12px">
+        <select id="filtro-empresa" style="display:none" class="btn" onchange="cargar()" style="padding:7px 12px">
           <option value="">Todas las empresas</option>
         </select>
         <div class="search-bar">
@@ -167,8 +167,7 @@
       perfil = await requireAuth(['admin','compras','gerencia'], 'compras_productos');
       if (!perfil) return;
       renderSidebar(perfil, 'productos');
-      await Promise.all([cargarEmpresas(), cargarUnidades()]);
-      await cargar();
+      onContextoChange(() => cargar());
     }
 
     async function cargarEmpresas() {
@@ -231,7 +230,7 @@
       document.getElementById('tbody').innerHTML =
         '<tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>';
 
-      const ruc = document.getElementById('filtro-empresa').value;
+      const ruc = getContexto().ruc;
       let query = sbClient.from('productos')
         .select('*')
         .order('nombre');
