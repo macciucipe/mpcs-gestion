@@ -727,6 +727,28 @@
 
     let empleadoId = null, empleado = null, documentos = [], isDirty = false, pendingFile = null, perfilUser = null, isNuevo = false;
 
+    function initGoogleMaps() {
+      const input = document.getElementById('e-dir');
+      if (!input || !window.google) return;
+      const ac = new google.maps.places.Autocomplete(input, {
+        componentRestrictions: { country: 'pe' },
+        fields: ['formatted_address', 'address_components']
+      });
+      ac.addListener('place_changed', () => {
+        const place = ac.getPlace();
+        if (place.formatted_address) {
+          input.value = place.formatted_address;
+          markDirty();
+          // Extraer distrito si está disponible
+          const distComp = place.address_components?.find(c => c.types.includes('locality') || c.types.includes('sublocality'));
+          if (distComp) {
+            const distInput = document.getElementById('e-distrito');
+            if (distInput) { distInput.value = distComp.long_name; }
+          }
+        }
+      });
+    }
+
     async function crearAccesoPortal() {
       const btn = document.getElementById('btn-portal');
       if (!empleado?.email) { alert('El empleado no tiene email registrado.'); return; }
@@ -877,9 +899,12 @@
       document.getElementById('perfil-meta').innerHTML = `<span>${data.cargo||'Sin cargo'}</span><span>·</span><span>${data.tipo_documento} ${data.numero_documento}</span><span>·</span><span>Desde ${data.fecha_ingreso||'—'}</span>`;
       await loadFotoActual();
       // Cargar campos — parsear apellidos si están juntos
-      const extra = data.datos_extra ? JSON.parse(data.datos_extra) : {};
-      setVal('e-ap-paterno',    extra.ap_paterno || '');
-      setVal('e-ap-materno',    extra.ap_materno || '');
+      // datos_extra puede venir como objeto (Supabase lo parsea) o como string
+      const extra = data.datos_extra 
+        ? (typeof data.datos_extra === 'string' ? JSON.parse(data.datos_extra) : data.datos_extra)
+        : {};
+      setVal('e-ap-paterno',    extra.apellido_paterno || extra.ap_paterno || '');
+      setVal('e-ap-materno',    extra.apellido_materno || extra.ap_materno || '');
       setVal('e-nombres',       data.nombres);
       setVal('e-tipo-doc',      data.tipo_documento);
       setVal('e-num-doc',       data.numero_documento);
@@ -1297,5 +1322,6 @@
 
     init();
   </script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB0N4DS4-6zKehujK6VSVw0i0A8CfRutNs&libraries=places&callback=initGoogleMaps" async defer></script>
 </body>
 </html>
