@@ -509,8 +509,9 @@
       const wb = XLSX.utils.book_new();
       const localNombre = document.getElementById('sel-local').options[document.getElementById('sel-local').selectedIndex]?.text || 'Todos';
 
-      // Hoja de instrucciones
-      const instrSheet = XLSX.utils.aoa_to_sheet([
+      // Hoja de instrucciones con locales de la empresa
+      const localesEmpresa = locales.filter(l => l.ruc_empresa === ruc);
+      const instrData = [
         ['INSTRUCCIONES DE CARGA DE HORARIOS'],
         [''],
         ['Formatos aceptados en cada celda:'],
@@ -519,12 +520,24 @@
         ['  Descanso:       DESCANSO'],
         ['  Sin turno:      (dejar vacío)'],
         [''],
-        ['Local del día (opcional): agregar | al final seguido del código de local'],
-        ['  Ejemplo con local: 8:00-17:00|SAN-ISIDRO-001'],
+        ['Local del día (opcional): agregar | al final seguido del CÓDIGO de local'],
+        ['  Ejemplo: 8:00-17:00|LOCAL-001'],
         [''],
-        ['NO modificar las columnas ID ni Empleado.'],
-        ['NO agregar ni eliminar filas.'],
-      ]);
+        ['LOCALES DISPONIBLES PARA ESTA EMPRESA:'],
+        ['  CÓDIGO', 'NOMBRE'],
+      ];
+      localesEmpresa.forEach(l => {
+        instrData.push([`  ${l.id_local}`, l.nombre]);
+      });
+      if (!localesEmpresa.length) {
+        instrData.push(['  (Esta empresa no tiene locales registrados)']);
+      }
+      instrData.push(['']);
+      instrData.push(['NO modificar las columnas ID ni Empleado.']);
+      instrData.push(['NO agregar ni eliminar filas.']);
+
+      const instrSheet = XLSX.utils.aoa_to_sheet(instrData);
+      instrSheet['!cols'] = [{ wch: 30 }, { wch: 35 }];
       XLSX.utils.book_append_sheet(wb, instrSheet, 'Instrucciones');
 
       // Hoja de horario
