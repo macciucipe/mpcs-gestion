@@ -246,15 +246,7 @@
     }
 
 
-      // Si la empresa no tiene locales o el usuario no tiene local fijo,
-      // cargar igual todos los empleados de la empresa
-      if (ruc && filtrados.length === 0) {
-        await loadGrilla();
-      } else if (ruc && !sel.value) {
-        // Tiene locales pero ninguno seleccionado — cargar igual sin filtro de local
-        await loadGrilla();
-      }
-    }
+
 
     async function loadGrilla() {
       const idLocales = getContexto().idLocales || [];
