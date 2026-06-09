@@ -250,7 +250,7 @@
 
     // ── Init ──────────────────────────────────────────────
     async function init() {
-      perfil = await requireAuth(['admin','rrhh','gerencia','supervisor']);
+      perfil = await requireAuth(['admin','rrhh','gerencia','supervisor'], 'rrhh_asistencia');
       if (!perfil) return;
       renderSidebar(perfil, 'asistencia');
       await loadEmpresas();

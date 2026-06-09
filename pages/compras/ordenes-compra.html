@@ -325,7 +325,7 @@
 
     // ── INIT ────────────────────────────────────────────────────
     async function init() {
-      perfil = await requireAuth();
+      perfil = await requireAuth(['admin','compras','gerencia'], 'compras_oc');
       if (!perfil) return;
       renderSidebar(perfil, 'oc');
       await Promise.all([cargarEmpresas(), cargarProveedores(), cargarItems(), cargarOPsPendientes()]);

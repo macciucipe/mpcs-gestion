@@ -167,7 +167,7 @@
     let currentId  = null;
 
     async function init() {
-      const perfil = await requireAuth(['admin','rrhh','gerencia']);
+      const perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_candidatos');
       if (!perfil) return;
       renderSidebar(perfil, 'candidatos');
       await loadCandidatos();

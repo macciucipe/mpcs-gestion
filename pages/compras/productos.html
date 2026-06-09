@@ -164,7 +164,7 @@
     let idEditando = null;
 
     async function init() {
-      perfil = await requireAuth(['admin','compras','gerencia']);
+      perfil = await requireAuth(['admin','compras','gerencia'], 'compras_productos');
       if (!perfil) return;
       renderSidebar(perfil, 'productos');
       await Promise.all([cargarEmpresas(), cargarUnidades()]);

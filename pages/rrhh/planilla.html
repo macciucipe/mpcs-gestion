@@ -406,7 +406,7 @@
     let empleados = [], currentEmpleado = null, detalleMap = {};
 
     async function init() {
-      perfil = await requireAuth(['admin','rrhh','gerencia']);
+      perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_planilla');
       if (!perfil) return;
       renderSidebar(perfil, 'planilla');
       await loadEmpresas();

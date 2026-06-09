@@ -193,7 +193,7 @@
     let empresaActual = null, empModalId = null;
 
     async function init() {
-      perfil = await requireAuth(['admin','rrhh','gerencia']);
+      perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_pasivos');
       if (!perfil) return;
       renderSidebar(perfil, 'pasivos-laborales');
       await loadEmpresas();

@@ -163,7 +163,7 @@
     let empresaActual = null;
 
     async function init() {
-      perfil = await requireAuth(['admin','rrhh','gerencia']);
+      perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_costo');
       if (!perfil) return;
       renderSidebar(perfil, 'costo-laboral');
       await loadEmpresas();

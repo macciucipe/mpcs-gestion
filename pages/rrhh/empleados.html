@@ -101,7 +101,7 @@
     let perfil    = null;
 
     async function init() {
-      perfil = await requireAuth(['admin','rrhh','gerencia']);
+      perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_empleados');
       if (!perfil) return;
       renderSidebar(perfil, 'empleados');
       await loadEmpresasFiltro();
@@ -116,11 +116,7 @@
         opt.value = e.ruc; opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
         sel.appendChild(opt);
       });
-      // Si no es admin, fija la empresa
-      if (perfil.rol !== 'admin' && perfil.ruc_empresa) {
-        sel.value = perfil.ruc_empresa;
-        sel.disabled = true;
-      }
+      await aplicarFiltroEmpresas(perfil, 'filtro-empresa');
     }
 
     async function loadEmpleados() {

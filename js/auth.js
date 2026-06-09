@@ -63,16 +63,59 @@ function tieneEmpresa(perfil, ruc) {
   return perfil._empresas?.has(ruc);
 }
 
-async function requireAuth(allowedRoles = null) {
+async function requireAuth(allowedRoles = null, moduloRequerido = null) {
   const session = await checkSession();
   if (!session) { window.location.href = '/index.html'; return null; }
   const perfil = await getPerfil();
   if (!perfil) { window.location.href = '/index.html'; return null; }
+
+  // Admin pasa siempre
+  if (perfil.rol === 'admin') return perfil;
+
+  // Verificar rol
   if (allowedRoles && !allowedRoles.includes(perfil.rol)) {
     window.location.href = '/pages/dashboard.html';
     return null;
   }
+
+  // Verificar permiso de módulo si se especifica
+  if (moduloRequerido && !puedeVer(perfil, moduloRequerido)) {
+    window.location.href = '/pages/dashboard.html';
+    return null;
+  }
+
   return perfil;
+}
+
+// Devuelve solo las empresas a las que el usuario tiene acceso
+function empresasPermitidas(perfil) {
+  if (perfil.rol === 'admin') return null; // null = todas
+  return [...(perfil._empresas || new Set())];
+}
+
+// Aplica restricción de empresas a un selector <select>
+async function aplicarFiltroEmpresas(perfil, selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+
+  if (perfil.rol === 'admin') return; // admin ve todo, no tocar
+
+  const permitidas = empresasPermitidas(perfil);
+  // Ocultar opciones que no tiene acceso
+  Array.from(sel.options).forEach(opt => {
+    if (opt.value && !permitidas.includes(opt.value)) {
+      opt.remove();
+    }
+  });
+
+  // Si solo tiene acceso a una empresa, seleccionarla y deshabilitar
+  if (permitidas.length === 1) {
+    sel.value = permitidas[0];
+    sel.disabled = true;
+  } else if (permitidas.length === 0) {
+    sel.innerHTML = '<option value="">Sin acceso a empresas</option>';
+    sel.disabled = true;
+  }
 }
 
 // ── AUDITORÍA ─────────────────────────────────────────────────────────────────

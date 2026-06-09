@@ -187,7 +187,7 @@
     const DIAS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 
     async function init() {
-      perfil = await requireAuth(['admin','rrhh','gerencia','supervisor']);
+      perfil = await requireAuth(['admin','rrhh','gerencia','supervisor'], 'rrhh_horarios');
       if (!perfil) return;
       renderSidebar(perfil, 'horarios');
       setSemana(lunes(new Date()));

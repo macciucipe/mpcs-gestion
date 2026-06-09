@@ -137,7 +137,7 @@
     let idEditando = null;
 
     async function init() {
-      perfil = await requireAuth(['admin','compras','gerencia']);
+      perfil = await requireAuth(['admin','compras','gerencia'], 'compras_productos');
       if (!perfil) return;
       renderSidebar(perfil, 'catalogo-local');
       await Promise.all([cargarConceptos(), cargarUnidades()]);

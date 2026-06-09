@@ -195,7 +195,7 @@
     let catalogoActual = [];
 
     async function init() {
-      perfil = await requireAuth();
+      perfil = await requireAuth(['admin','compras','gerencia'], 'compras_pedidos');
       if (!perfil) return;
       renderSidebar(perfil, 'pedidos');
 

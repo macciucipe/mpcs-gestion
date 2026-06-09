@@ -258,7 +258,7 @@
     const TOKEN_API = 'a26db6d95f35f6c3ffe47be304049b1a024c4103a279ab48ed2161a59dc72fa7';
 
     async function init() {
-      perfil = await requireAuth();
+      perfil = await requireAuth(['admin','compras','gerencia'], 'compras_proveedores');
       if (!perfil) return;
       renderSidebar(perfil, 'proveedores');
       await cargar();
