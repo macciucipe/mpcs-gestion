@@ -169,7 +169,7 @@
       aplicarPermisosUI(perfil, 'rrhh_costo');
       onContextoChange(async () => { await loadDetalle(); aplicarPermisosUI(perfil, 'rrhh_costo'); });
       if (getContexto().ruc) { await loadDetalle(); aplicarPermisosUI(perfil, 'rrhh_costo'); }
-      await cargar();
+      // carga manejada por onContextoChange
     }
 
     async function loadEmpresas() {
