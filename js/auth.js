@@ -46,6 +46,7 @@ async function setEmpresa(ruc, empresas) {
       const o = document.createElement('option');
       o.value = l.id_local;
       o.textContent = l.nombre;
+      o.style.background = '#1B3A5C';
       selLocal.appendChild(o);
     });
     selLocal.style.display = _localesDisponibles.length ? '' : 'none';
@@ -248,11 +249,11 @@ function renderSidebar(perfil, activePage) {
       </div>
       <div class="sidebar-context" id="sidebar-context" style="padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.08)">
         <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Operando en</div>
-        <select id="ctx-empresa" onchange="window._onCtxEmpresaChange(this.value)" style="width:100%;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#fff;margin-bottom:5px">
-          <option value="">Seleccionar empresa...</option>
+        <select id="ctx-empresa" onchange="window._onCtxEmpresaChange(this.value)" style="width:100%;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:#1B3A5C;color:#fff;margin-bottom:5px;cursor:pointer">
+          <option value="" style="background:#1B3A5C">Seleccionar empresa...</option>
         </select>
-        <select id="ctx-local" onchange="window._onCtxLocalChange(this.value)" style="width:100%;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#fff;display:none">
-          <option value="">Todos los locales</option>
+        <select id="ctx-local" onchange="window._onCtxLocalChange(this.value)" style="width:100%;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:#1B3A5C;color:#fff;display:none;cursor:pointer">
+          <option value="" style="background:#1B3A5C">Todos los locales</option>
         </select>
       </div>
       <nav class="sidebar-nav">
