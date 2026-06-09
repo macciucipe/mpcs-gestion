@@ -166,8 +166,9 @@
       perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_costo');
       if (!perfil) return;
       renderSidebar(perfil, 'costo-laboral');
-      onContextoChange(() => cargar());
-      if (getContexto().ruc) await cargar();
+      aplicarPermisosUI(perfil, 'rrhh_costo');
+      onContextoChange(async () => { await loadDetalle(); aplicarPermisosUI(perfil, 'rrhh_costo'); });
+      if (getContexto().ruc) { await loadDetalle(); aplicarPermisosUI(perfil, 'rrhh_costo'); }
       await cargar();
     }
 

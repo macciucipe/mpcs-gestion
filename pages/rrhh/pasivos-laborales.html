@@ -197,8 +197,8 @@
       if (!perfil) return;
       renderSidebar(perfil, 'pasivos-laborales');
       aplicarPermisosUI(perfil, 'rrhh_pasivos');
-      onContextoChange(async () => { await cargar(); aplicarPermisosUI(perfil, 'rrhh_pasivos'); });
-      if (getContexto().ruc) { await cargar(); aplicarPermisosUI(perfil, 'rrhh_pasivos'); }
+      onContextoChange(async () => { aplicarPermisosUI(perfil, 'rrhh_pasivos'); });
+      aplicarPermisosUI(perfil, 'rrhh_pasivos');
       await cargar();
     }
 
