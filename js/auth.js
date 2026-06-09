@@ -178,7 +178,7 @@ function renderSidebar(perfil, activePage) {
   const showCompras = isAdmin ||
     puedeVer(perfil,'compras_pedidos') || puedeVer(perfil,'compras_oc') ||
     puedeVer(perfil,'compras_recepciones') || puedeVer(perfil,'compras_proveedores') ||
-    puedeVer(perfil,'compras_productos');
+    puedeVer(perfil,'compras_productos') || puedeVer(perfil,'compras_catalogo');
 
   const nav = `
     <aside class="sidebar" id="sidebar">
@@ -218,7 +218,8 @@ function renderSidebar(perfil, activePage) {
           ${puedeVer(perfil,'compras_recepciones') ? `<a href="/pages/compras/recepciones.html" class="nav-item ${activePage==='or'?'active':''}">${icons.package} Recepciones (OR)</a>` : ''}
           ${puedeVer(perfil,'compras_proveedores') ? `<a href="/pages/compras/proveedores.html" class="nav-item ${activePage==='proveedores'?'active':''}">${icons.users} Proveedores</a>` : ''}
           ${puedeVer(perfil,'compras_productos') ? `<a href="/pages/compras/productos.html" class="nav-item ${activePage==='productos'?'active':''}">${icons.box} Catálogo de compra</a>` : ''}
-          ${isAdmin ? `<a href="/pages/compras/catalogo-local.html" class="nav-item ${activePage==='catalogo-local'?'active':''}">${icons.clipboard} Catálogo de solicitud</a>` : ''}
+          ${puedeVer(perfil,'compras_catalogo') ? `<a href="/pages/compras/catalogo-local.html" class="nav-item ${activePage==='catalogo-local'?'active':''}">${icons.clipboard} Catálogo de solicitud</a>` : ''}
+
         </div>` : ''}
 
         ${isAdmin ? `

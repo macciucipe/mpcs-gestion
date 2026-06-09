@@ -978,8 +978,7 @@
       headers.forEach((h, i) => {
         const isRight = i >= 5;
         const xPos = isRight ? colX[i]+colW[i]-1 : (i===0 ? colX[i]+colW[i]/2 : colX[i]+1);
-        const lines = h.split('
-');
+        const lines = h.split('\n');
         if (lines.length > 1) {
           doc.text(lines[0], xPos, y+3.5, { align: isRight?'right':'left' });
           doc.text(lines[1], xPos, y+6.5, { align: isRight?'right':'left' });
