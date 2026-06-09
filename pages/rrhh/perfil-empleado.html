@@ -805,15 +805,13 @@
         // Mostrar botón de portal solo si es admin y el empleado tiene email
         if (perfilUser.rol === 'admin' && empleado?.email) {
           // Verificar si ya tiene acceso
-          const { data: perfilEmp } = await sbClient.from('perfiles').select('user_id').eq('email', empleado.email).single();
+          const { data: perfilEmp } = await sbClient.from('perfiles').select('user_id').eq('email', empleado.email).maybeSingle();
           const btnPortal = document.getElementById('btn-portal');
-          if (!perfilEmp) {
-            btnPortal.style.display = '';
-          } else {
-            btnPortal.style.display = '';
-            btnPortal.textContent = '✓ Tiene acceso';
+          btnPortal.style.display = '';
+          if (perfilEmp) {
+            btnPortal.innerHTML = '✓ Tiene acceso al portal';
             btnPortal.disabled = true;
-            btnPortal.style.color = 'var(--success)';
+            btnPortal.style.color = 'var(--success,#059669)';
           }
         }
       }
