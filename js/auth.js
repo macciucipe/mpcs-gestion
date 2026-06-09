@@ -19,12 +19,48 @@ async function checkSession() {
 async function getPerfil() {
   const session = await checkSession();
   if (!session) return null;
-  const { data } = await sbClient
+  const { data: perfil } = await sbClient
     .from('perfiles')
     .select('*, empresas(razon_social, abreviatura)')
     .eq('user_id', session.user.id)
     .single();
-  return data;
+  if (!perfil) return null;
+
+  // Cargar permisos y empresas
+  const [permRes, empRes] = await Promise.all([
+    sbClient.from('usuario_permisos').select('*').eq('user_id', session.user.id),
+    sbClient.from('usuario_empresas').select('ruc_empresa').eq('user_id', session.user.id),
+  ]);
+
+  perfil._permisos  = {};
+  (permRes.data || []).forEach(p => { perfil._permisos[p.modulo] = p; });
+  perfil._empresas  = new Set((empRes.data || []).map(e => e.ruc_empresa));
+
+  return perfil;
+}
+
+// ── HELPER DE PERMISOS ────────────────────────────────────────────────────────
+// Uso: puedeVer(perfil, 'rrhh_planilla')
+// Uso: puedeEditar(perfil, 'compras_oc')
+function puedeVer(perfil, modulo) {
+  if (perfil.rol === 'admin') return true;
+  return !!perfil._permisos?.[modulo]?.puede_ver;
+}
+function puedeCrear(perfil, modulo) {
+  if (perfil.rol === 'admin') return true;
+  return !!perfil._permisos?.[modulo]?.puede_crear;
+}
+function puedeEditar(perfil, modulo) {
+  if (perfil.rol === 'admin') return true;
+  return !!perfil._permisos?.[modulo]?.puede_editar;
+}
+function puedeEliminar(perfil, modulo) {
+  if (perfil.rol === 'admin') return true;
+  return !!perfil._permisos?.[modulo]?.puede_eliminar;
+}
+function tieneEmpresa(perfil, ruc) {
+  if (perfil.rol === 'admin') return true;
+  return perfil._empresas?.has(ruc);
 }
 
 async function requireAuth(allowedRoles = null) {
@@ -40,20 +76,14 @@ async function requireAuth(allowedRoles = null) {
 }
 
 // ── AUDITORÍA ─────────────────────────────────────────────────────────────────
-// Uso: await auditar(perfil, 'CREAR', 'compras_proveedores', 'Creó proveedor RUC 20611965274')
-// Uso: await auditar(perfil, 'EDITAR', 'empleados', `Modificó sueldo de EMP-001`)
-// Uso: await auditar(perfil, 'ELIMINAR', 'pedidos', `Anuló OP-CYC-01-26-00001`)
 async function auditar(perfil, accion, modulo, detalle) {
   try {
     await sbClient.from('auditoria').insert({
       user_id:       perfil?.user_id || null,
       usuario_email: perfil?.email   || null,
-      accion:        accion,   // 'CREAR' | 'EDITAR' | 'ELIMINAR' | 'APROBAR' | 'ANULAR' | 'LOGIN' | 'LOGOUT'
-      modulo:        modulo,   // nombre de la tabla o módulo afectado
-      detalle:       detalle,  // texto descriptivo de la acción
+      accion, modulo, detalle,
     });
   } catch(e) {
-    // Auditoría nunca debe romper el flujo principal
     console.warn('Auditoría fallida:', e.message);
   }
 }
@@ -73,41 +103,39 @@ function getRolBadge(rol) {
 
 function getEstadoBadge(estado) {
   const map = {
-    activo:      '<span class="badge badge-green">Activo</span>',
-    inactivo:    '<span class="badge badge-gray">Inactivo</span>',
-    activa:      '<span class="badge badge-green">Activa</span>',
-    inactiva:    '<span class="badge badge-gray">Inactiva</span>',
-    pendiente:   '<span class="badge badge-yellow">Pendiente</span>',
-    atendida:    '<span class="badge badge-blue">Atendida</span>',
-    recepcionada:'<span class="badge badge-blue">Recepcionada</span>',
-    conforme:    '<span class="badge badge-green">Conforme</span>',
-    anulada:     '<span class="badge badge-red">Anulada</span>',
-    en_revision: '<span class="badge badge-blue">En revisión</span>',
-    resuelto:    '<span class="badge badge-green">Resuelto</span>',
-    archivado:   '<span class="badge badge-gray">Archivado</span>',
-    cesado:      '<span class="badge badge-red">Cesado</span>',
+    activo:       '<span class="badge badge-green">Activo</span>',
+    inactivo:     '<span class="badge badge-gray">Inactivo</span>',
+    activa:       '<span class="badge badge-green">Activa</span>',
+    inactiva:     '<span class="badge badge-gray">Inactiva</span>',
+    pendiente:    '<span class="badge badge-yellow">Pendiente</span>',
+    atendida:     '<span class="badge badge-blue">Atendida</span>',
+    recepcionada: '<span class="badge badge-blue">Recepcionada</span>',
+    conforme:     '<span class="badge badge-green">Conforme</span>',
+    anulada:      '<span class="badge badge-red">Anulada</span>',
+    en_revision:  '<span class="badge badge-blue">En revisión</span>',
+    resuelto:     '<span class="badge badge-green">Resuelto</span>',
+    archivado:    '<span class="badge badge-gray">Archivado</span>',
+    cesado:       '<span class="badge badge-red">Cesado</span>',
   };
   return map[estado] || `<span class="badge badge-gray">${estado}</span>`;
 }
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
 function renderSidebar(perfil, activePage) {
-  const isAdmin   = perfil.rol === 'admin';
-  const isRrhh    = ['admin','rrhh','gerencia'].includes(perfil.rol);
-  const isCompras = ['admin','compras','gerencia'].includes(perfil.rol) ||
-                    perfil.perm_op || perfil.perm_oc || perfil.perm_os ||
-                    perfil.perm_or || perfil.perm_cs || perfil.perm_prov;
-  const initials  = perfil.nombre.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
+  const isAdmin = perfil.rol === 'admin';
+  const initials = perfil.nombre.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
 
-  const perm = {
-    op:   isAdmin || perfil.rol === 'gerencia' || perfil.perm_op,
-    oc:   isAdmin || perfil.rol === 'gerencia' || perfil.perm_oc,
-    os:   isAdmin || perfil.rol === 'gerencia' || perfil.perm_os,
-    or:   isAdmin || perfil.rol === 'gerencia' || perfil.perm_or,
-    cs:   isAdmin || perfil.rol === 'gerencia' || perfil.perm_cs,
-    prov: isAdmin || perfil.rol === 'gerencia' || perfil.perm_prov,
-    guias:isAdmin || perfil.rol === 'gerencia' || perfil.perm_guias,
-  };
+  // Secciones visibles según permisos
+  const showRrhh = isAdmin ||
+    puedeVer(perfil,'rrhh_empleados') || puedeVer(perfil,'rrhh_asistencia') ||
+    puedeVer(perfil,'rrhh_candidatos') || puedeVer(perfil,'rrhh_disciplinario') ||
+    puedeVer(perfil,'rrhh_planilla') || puedeVer(perfil,'rrhh_costo') ||
+    puedeVer(perfil,'rrhh_pasivos');
+
+  const showCompras = isAdmin ||
+    puedeVer(perfil,'compras_pedidos') || puedeVer(perfil,'compras_oc') ||
+    puedeVer(perfil,'compras_recepciones') || puedeVer(perfil,'compras_proveedores') ||
+    puedeVer(perfil,'compras_productos');
 
   const nav = `
     <aside class="sidebar" id="sidebar">
@@ -126,87 +154,36 @@ function renderSidebar(perfil, activePage) {
           </a>
         </div>
 
-        ${isRrhh ? `
+        ${showRrhh ? `
         <div class="nav-section">
           <div class="nav-section-label">RRHH</div>
-          <a href="/pages/rrhh/empleados.html" class="nav-item ${activePage==='empleados'?'active':''}">
-            ${icons.users} Empleados
-          </a>
-          <a href="/pages/rrhh/asistencia.html" class="nav-item ${activePage==='asistencia'?'active':''}">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01"/></svg>
-            Asistencia
-          </a>
-          <a href="/pages/rrhh/candidatos.html" class="nav-item ${activePage==='candidatos'?'active':''}">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg>
-            Candidatos
-          </a>
-          <a href="/pages/rrhh/disciplinario.html" class="nav-item ${activePage==='disciplinario'?'active':''}">
-            ${icons.alert} Medidas disciplinarias
-          </a>
-          <a href="/pages/rrhh/planilla.html" class="nav-item ${activePage==='planilla'?'active':''}">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            Planilla
-          </a>
-          <a href="/pages/rrhh/costo-laboral.html" class="nav-item ${activePage==='costo-laboral'?'active':''}">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            Costo laboral
-          </a>
-          <a href="/pages/rrhh/pasivos-laborales.html" class="nav-item ${activePage==='pasivos-laborales'?'active':''}">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            Pasivos laborales
-          </a>
+          ${puedeVer(perfil,'rrhh_empleados') ? `<a href="/pages/rrhh/empleados.html" class="nav-item ${activePage==='empleados'?'active':''}">${icons.users} Empleados</a>` : ''}
+          ${puedeVer(perfil,'rrhh_asistencia') ? `<a href="/pages/rrhh/asistencia.html" class="nav-item ${activePage==='asistencia'?'active':''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Asistencia</a>` : ''}
+          ${puedeVer(perfil,'rrhh_candidatos') ? `<a href="/pages/rrhh/candidatos.html" class="nav-item ${activePage==='candidatos'?'active':''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg> Candidatos</a>` : ''}
+          ${puedeVer(perfil,'rrhh_disciplinario') ? `<a href="/pages/rrhh/disciplinario.html" class="nav-item ${activePage==='disciplinario'?'active':''}">${icons.alert} Medidas disciplinarias</a>` : ''}
+          ${puedeVer(perfil,'rrhh_planilla') ? `<a href="/pages/rrhh/planilla.html" class="nav-item ${activePage==='planilla'?'active':''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Planilla</a>` : ''}
+          ${puedeVer(perfil,'rrhh_costo') ? `<a href="/pages/rrhh/costo-laboral.html" class="nav-item ${activePage==='costo-laboral'?'active':''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Costo laboral</a>` : ''}
+          ${puedeVer(perfil,'rrhh_pasivos') ? `<a href="/pages/rrhh/pasivos-laborales.html" class="nav-item ${activePage==='pasivos-laborales'?'active':''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Pasivos laborales</a>` : ''}
         </div>` : ''}
 
-        ${isCompras ? `
+        ${showCompras ? `
         <div class="nav-section">
-          <div class="nav-section-label">Compras — Operaciones</div>
-          ${perm.op ? `<a href="/pages/compras/pedidos.html" class="nav-item ${activePage==='pedidos'?'active':''}">
-            ${icons.clipboard} Pedidos internos (OP)
-          </a>` : ''}
-          ${perm.oc ? `<a href="/pages/compras/ordenes-compra.html" class="nav-item ${activePage==='oc'?'active':''}">
-            ${icons.cart} Órdenes de compra
-          </a>` : ''}
-          ${perm.os ? `<a href="/pages/compras/ordenes-servicio.html" class="nav-item ${activePage==='os'?'active':''}">
-            ${icons.briefcase} Órdenes de servicio
-          </a>` : ''}
-          ${perm.or ? `<a href="/pages/compras/recepciones.html" class="nav-item ${activePage==='or'?'active':''}">
-            ${icons.package} Recepciones (OR)
-          </a>` : ''}
-          ${perm.cs ? `<a href="/pages/compras/conformidades.html" class="nav-item ${activePage==='cs'?'active':''}">
-            ${icons.check} Conformidad servicios (CS)
-          </a>` : ''}
-          ${perm.guias ? `<a href="/pages/compras/guias.html" class="nav-item ${activePage==='guias'?'active':''}">
-            ${icons.truck} Guías de remisión
-          </a>` : ''}
-        </div>
-        <div class="nav-section">
-          <div class="nav-section-label">Compras — Maestros</div>
-          ${perm.prov ? `<a href="/pages/compras/proveedores.html" class="nav-item ${activePage==='proveedores'?'active':''}">
-            ${icons.users} Proveedores
-          </a>` : ''}
-          <a href="/pages/compras/productos.html" class="nav-item ${activePage==='productos'?'active':''}">
-            ${icons.box} Catálogo de compra
-          </a>
-          ${isAdmin ? `<a href="/pages/compras/catalogo-local.html" class="nav-item ${activePage==='catalogo-local'?'active':''}">
-            ${icons.clipboard} Catálogo de solicitud
-          </a>` : ''}
+          <div class="nav-section-label">Compras</div>
+          ${puedeVer(perfil,'compras_pedidos') ? `<a href="/pages/compras/pedidos.html" class="nav-item ${activePage==='pedidos'?'active':''}">${icons.clipboard} Pedidos internos (OP)</a>` : ''}
+          ${puedeVer(perfil,'compras_oc') ? `<a href="/pages/compras/ordenes-compra.html" class="nav-item ${activePage==='oc'?'active':''}">${icons.cart} Órdenes de compra</a>` : ''}
+          ${puedeVer(perfil,'compras_recepciones') ? `<a href="/pages/compras/recepciones.html" class="nav-item ${activePage==='or'?'active':''}">${icons.package} Recepciones (OR)</a>` : ''}
+          ${puedeVer(perfil,'compras_proveedores') ? `<a href="/pages/compras/proveedores.html" class="nav-item ${activePage==='proveedores'?'active':''}">${icons.users} Proveedores</a>` : ''}
+          ${puedeVer(perfil,'compras_productos') ? `<a href="/pages/compras/productos.html" class="nav-item ${activePage==='productos'?'active':''}">${icons.box} Catálogo de compra</a>` : ''}
+          ${isAdmin ? `<a href="/pages/compras/catalogo-local.html" class="nav-item ${activePage==='catalogo-local'?'active':''}">${icons.clipboard} Catálogo de solicitud</a>` : ''}
         </div>` : ''}
 
         ${isAdmin ? `
         <div class="nav-section">
           <div class="nav-section-label">Administración</div>
-          <a href="/pages/admin/empresas.html" class="nav-item ${activePage==='empresas'?'active':''}">
-            ${icons.building} Empresas
-          </a>
-          <a href="/pages/admin/locales.html" class="nav-item ${activePage==='locales'?'active':''}">
-            ${icons.map} Locales
-          </a>
-          <a href="/pages/admin/usuarios.html" class="nav-item ${activePage==='usuarios'?'active':''}">
-            ${icons.shield} Usuarios
-          </a>
-          <a href="/pages/admin/auditoria.html" class="nav-item ${activePage==='auditoria'?'active':''}">
-            ${icons.eye} Auditoría
-          </a>
+          <a href="/pages/admin/empresas.html" class="nav-item ${activePage==='empresas'?'active':''}">${icons.building} Empresas</a>
+          <a href="/pages/admin/locales.html" class="nav-item ${activePage==='locales'?'active':''}">${icons.map} Locales</a>
+          <a href="/pages/admin/usuarios.html" class="nav-item ${activePage==='usuarios'?'active':''}">${icons.shield} Usuarios</a>
+          <a href="/pages/admin/auditoria.html" class="nav-item ${activePage==='auditoria'?'active':''}">${icons.eye} Auditoría</a>
         </div>` : ''}
       </nav>
       <div class="sidebar-footer">

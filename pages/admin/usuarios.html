@@ -5,16 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Usuarios · MPC Gestión</title>
   <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .panel-layout { display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }
+    .user-list-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .user-list-header { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .user-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background .15s; }
+    .user-item:last-child { border-bottom: none; }
+    .user-item:hover { background: var(--hover-bg, #f5f5f5); }
+    .user-item.active { background: var(--active-bg, #EBF3FC); }
+    .user-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; background: #E6F1FB; color: #0C447C; }
+    .user-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-email { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .detail-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+    .detail-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .detail-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; background: #E6F1FB; color: #0C447C; flex-shrink: 0; }
+    .section-title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin: 18px 0 10px; }
+    .empresa-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+    .empresa-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: transparent; cursor: pointer; color: var(--text-muted); transition: all .15s; user-select: none; }
+    .empresa-chip.on { background: #E6F1FB; border-color: #85B7EB; color: #0C447C; font-weight: 500; }
+    .empresa-chip input { display: none; }
+    .perm-table { width: 100%; border-collapse: collapse; }
+    .perm-table th { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; padding: 6px 10px; text-align: center; border-bottom: 1px solid var(--border); }
+    .perm-table th:first-child { text-align: left; }
+    .perm-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .perm-table tr:last-child td { border-bottom: none; }
+    .perm-table td:first-child { font-size: 13px; }
+    .perm-modulo { font-weight: 500; }
+    .perm-desc { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+    .perm-table td:not(:first-child) { text-align: center; }
+    .check-wrap { display: flex; justify-content: center; }
+    .perm-check { width: 17px; height: 17px; border-radius: 4px; border: 1.5px solid var(--border); appearance: none; cursor: pointer; transition: all .15s; }
+    .perm-check:checked { background: #185FA5; border-color: #185FA5; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 10'%3E%3Cpath d='M1 5l3.5 3.5L11 1' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: center; background-size: 10px; }
+    .perm-section-row td { background: var(--hover-bg, #f9f9f9); font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; padding: 5px 10px; }
+    .empty-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; color: var(--text-muted); font-size: 14px; gap: 8px; }
+    .detail-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; padding-top: 16px; border-bottom: 1px solid var(--border); border-top: 1px solid var(--border); padding-bottom: 16px; }
+    .estado-select { font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); margin-left: auto; }
+    .nuevo-btn { font-size: 13px; }
+  </style>
 </head>
 <body class="portal-layout">
   <div class="main-content">
     <div class="page-header">
       <div class="page-header-left">
         <h1>Usuarios</h1>
-        <p>Gestión de accesos al portal</p>
+        <p>Gestión de accesos y permisos</p>
       </div>
       <div class="page-header-right">
-        <button class="btn btn-primary" onclick="openModal()">
+        <button class="btn btn-primary nuevo-btn" onclick="openNuevoModal()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Nuevo usuario
         </button>
@@ -22,52 +59,45 @@
     </div>
 
     <div class="page-body">
-      <div class="alert alert-info" style="margin-bottom:1rem">
-        Para crear un nuevo usuario, primero invitalo desde <strong>Supabase → Authentication → Users → Add user</strong>, luego registrá su perfil aquí.
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <h2 id="count-label">Usuarios</h2>
-          <div class="search-bar">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="search" placeholder="Buscar usuario..." oninput="filterTable()" />
+      <div class="panel-layout">
+        <!-- Lista de usuarios -->
+        <div class="user-list-card">
+          <div class="user-list-header">
+            <span style="font-size:13px;font-weight:500" id="count-label">Usuarios</span>
+            <input type="text" placeholder="Buscar..." oninput="filterUsers(this.value)" style="font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);width:100px" />
+          </div>
+          <div id="user-list">
+            <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">Cargando...</div>
           </div>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Email</th>
-                <th>Rol</th>
-                <th>Empresa</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="tbody">
-              <tr><td colspan="6"><div class="loading">Cargando...</div></td></tr>
-            </tbody>
-          </table>
+
+        <!-- Panel de permisos -->
+        <div class="detail-card" id="detail-panel">
+          <div class="empty-panel">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".3"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Seleccioná un usuario para gestionar sus permisos</span>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Modal -->
-  <div class="modal-overlay hidden" id="modal">
+  <!-- Modal nuevo usuario -->
+  <div class="modal-overlay hidden" id="modal-nuevo">
     <div class="modal">
       <div class="modal-header">
-        <h3 id="modal-title">Nuevo perfil de usuario</h3>
-        <button class="modal-close" onclick="closeModal()">×</button>
+        <h3>Nuevo usuario</h3>
+        <button class="modal-close" onclick="closeNuevoModal()">×</button>
       </div>
       <div class="modal-body">
         <div id="modal-error" class="alert alert-error" style="display:none"></div>
+        <div class="alert alert-info" style="margin-bottom:1rem">
+          Primero creá el usuario en <strong>Supabase → Authentication → Users → Add user</strong>, luego registralo acá con su UUID.
+        </div>
         <div class="form-grid">
           <div class="field full">
             <label>User ID de Supabase <span class="req">*</span></label>
-            <input type="text" id="f-uid" placeholder="UUID del usuario en Supabase Auth" />
-            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Obtenerlo desde Supabase → Authentication → Users</div>
+            <input type="text" id="f-uid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
           </div>
           <div class="field">
             <label>Nombre completo <span class="req">*</span></label>
@@ -78,7 +108,7 @@
             <input type="email" id="f-email" placeholder="juan@empresa.com" />
           </div>
           <div class="field">
-            <label>Rol <span class="req">*</span></label>
+            <label>Rol</label>
             <select id="f-rol">
               <option value="supervisor">Supervisor</option>
               <option value="rrhh">RRHH</option>
@@ -94,23 +124,11 @@
               <option value="inactivo">Inactivo</option>
             </select>
           </div>
-          <div class="field">
-            <label>Empresa</label>
-            <select id="f-empresa">
-              <option value="">Todas las empresas</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Local</label>
-            <select id="f-local">
-              <option value="">Sin local asignado</option>
-            </select>
-          </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-        <button class="btn btn-primary" id="btn-save" onclick="savePerfil()">Guardar</button>
+        <button class="btn btn-ghost" onclick="closeNuevoModal()">Cancelar</button>
+        <button class="btn btn-primary" id="btn-save" onclick="saveNuevo()">Crear usuario</button>
       </div>
     </div>
   </div>
@@ -119,118 +137,248 @@
   <script src="../../js/config.js"></script>
   <script src="../../js/auth.js"></script>
   <script>
+    const EMPRESAS = [
+      { ruc: '20606559408', label: 'CYC' },
+      { ruc: '20606559999', label: 'MSJ' },
+      { ruc: '20605924274', label: 'MPC' },
+      { ruc: '20606111111', label: 'RMA' },
+      { ruc: '20602796386', label: 'ETW' },
+      { ruc: '20606222222', label: 'ATR' },
+      { ruc: '20606333333', label: 'AST' },
+      { ruc: '10406444444', label: 'MMN' },
+    ];
+
+    const MODULOS = [
+      { seccion: 'RRHH', key: 'rrhh_empleados',   label: 'Empleados',            desc: 'Legajos, contratos, documentos' },
+      { seccion: null,   key: 'rrhh_asistencia',  label: 'Asistencia',           desc: 'Control diario de asistencia' },
+      { seccion: null,   key: 'rrhh_candidatos',  label: 'Candidatos',           desc: 'Postulantes y proceso de selección' },
+      { seccion: null,   key: 'rrhh_disciplinario',label: 'Disciplinario',        desc: 'Medidas disciplinarias' },
+      { seccion: null,   key: 'rrhh_planilla',    label: 'Planilla',             desc: 'Sueldos y liquidaciones' },
+      { seccion: null,   key: 'rrhh_costo',       label: 'Costo laboral',        desc: 'Reportes de costo' },
+      { seccion: null,   key: 'rrhh_pasivos',     label: 'Pasivos laborales',    desc: 'CTS, gratificaciones, vacaciones' },
+      { seccion: 'Compras', key: 'compras_pedidos', label: 'Pedidos internos (OP)', desc: 'Solicitudes de compra' },
+      { seccion: null,   key: 'compras_oc',       label: 'Órdenes de compra',    desc: 'OC y aprobaciones' },
+      { seccion: null,   key: 'compras_recepciones', label: 'Recepciones (OR)',  desc: 'Ingreso de mercadería' },
+      { seccion: null,   key: 'compras_proveedores', label: 'Proveedores',       desc: 'Maestro de proveedores' },
+      { seccion: null,   key: 'compras_productos', label: 'Catálogo de compra', desc: 'Productos y servicios' },
+    ];
+
     let perfiles = [];
-    let empresas = [];
-    let locales  = [];
-    let editingId = null;
+    let selectedPerfil = null;
+    let permisosActuales = {};
+    let empresasActuales = new Set();
 
     async function init() {
       const perfil = await requireAuth(['admin']);
       if (!perfil) return;
       renderSidebar(perfil, 'usuarios');
-      await Promise.all([loadEmpresas(), loadLocales(), loadPerfiles()]);
-    }
-
-    async function loadEmpresas() {
-      const { data } = await sbClient.from('empresas').select('ruc, razon_social, abreviatura').eq('estado','activa').order('razon_social');
-      empresas = data || [];
-      const sel = document.getElementById('f-empresa');
-      empresas.forEach(e => {
-        const opt = document.createElement('option');
-        opt.value = e.ruc; opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
-        sel.appendChild(opt);
-      });
-    }
-
-    async function loadLocales() {
-      const { data } = await sbClient.from('locales').select('id_local, nombre, ruc_empresa').eq('estado','activo').order('nombre');
-      locales = data || [];
+      await loadPerfiles();
     }
 
     async function loadPerfiles() {
-      const { data } = await sbClient.from('perfiles').select('*, empresas(razon_social, abreviatura)').order('nombre');
+      const { data } = await sbClient.from('perfiles').select('*').order('nombre');
       perfiles = data || [];
-      renderTable(perfiles);
+      renderUserList(perfiles);
       document.getElementById('count-label').textContent = `Usuarios (${perfiles.length})`;
     }
 
-    function renderTable(data) {
-      const tbody = document.getElementById('tbody');
+    function getAvatarColors(rol) {
+      const map = {
+        admin:      { bg: '#EEEDFE', color: '#3C3489' },
+        rrhh:       { bg: '#E6F1FB', color: '#0C447C' },
+        gerencia:   { bg: '#EAF3DE', color: '#27500A' },
+        compras:    { bg: '#FAEEDA', color: '#633806' },
+        supervisor: { bg: '#F1EFE8', color: '#444441' },
+      };
+      return map[rol] || { bg: '#F1EFE8', color: '#444441' };
+    }
+
+    function getInitials(nombre) {
+      return nombre.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
+    }
+
+    function renderUserList(data) {
+      const el = document.getElementById('user-list');
       if (!data.length) {
-        tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>No hay usuarios registrados</p></div></td></tr>';
+        el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">No hay usuarios</div>';
         return;
       }
-      tbody.innerHTML = data.map(p => `
-        <tr>
-          <td><strong>${p.nombre}</strong></td>
-          <td style="font-size:12px;color:var(--text-muted)">${p.email}</td>
-          <td>${getRolBadge(p.rol)}</td>
-          <td style="font-size:12px">${p.empresas?.abreviatura || '—'}</td>
-          <td>${getEstadoBadge(p.estado)}</td>
-          <td>
-            <div style="display:flex;gap:6px">
-              <button class="btn btn-sm btn-ghost" onclick="editPerfil('${p.id}')">${icons.edit} Editar</button>
-            </div>
-          </td>
-        </tr>
-      `).join('');
+      el.innerHTML = data.map(p => {
+        const colors = getAvatarColors(p.rol);
+        const active = selectedPerfil?.id === p.id ? 'active' : '';
+        return `<div class="user-item ${active}" onclick="selectUser('${p.id}')">
+          <div class="user-avatar" style="background:${colors.bg};color:${colors.color}">${getInitials(p.nombre)}</div>
+          <div style="min-width:0;flex:1">
+            <div class="user-name">${p.nombre}</div>
+            <div class="user-email">${getRolBadge(p.rol)}</div>
+          </div>
+          ${p.estado === 'inactivo' ? '<span style="font-size:10px;color:var(--text-muted)">inactivo</span>' : ''}
+        </div>`;
+      }).join('');
     }
 
-    function filterTable() {
-      const q = document.getElementById('search').value.toLowerCase();
-      renderTable(perfiles.filter(p =>
-        p.nombre.toLowerCase().includes(q) ||
-        p.email.toLowerCase().includes(q) ||
-        p.rol.toLowerCase().includes(q)
-      ));
+    function filterUsers(q) {
+      const filtered = perfiles.filter(p =>
+        p.nombre.toLowerCase().includes(q.toLowerCase()) ||
+        p.email.toLowerCase().includes(q.toLowerCase())
+      );
+      renderUserList(filtered);
     }
 
-    function openModal(id = null) {
-      editingId = id;
-      document.getElementById('modal-error').style.display = 'none';
-      if (id) {
-        const p = perfiles.find(x => x.id === id);
-        document.getElementById('modal-title').textContent = 'Editar usuario';
-        document.getElementById('f-uid').value     = p.user_id;
-        document.getElementById('f-uid').disabled  = true;
-        document.getElementById('f-nombre').value  = p.nombre;
-        document.getElementById('f-email').value   = p.email;
-        document.getElementById('f-rol').value     = p.rol;
-        document.getElementById('f-estado').value  = p.estado;
-        document.getElementById('f-empresa').value = p.ruc_empresa || '';
-        updateLocales(p.ruc_empresa);
-        document.getElementById('f-local').value   = p.id_local || '';
-      } else {
-        document.getElementById('modal-title').textContent = 'Nuevo perfil de usuario';
-        document.getElementById('f-uid').disabled = false;
-        ['uid','nombre','email'].forEach(f => document.getElementById('f-'+f).value = '');
-        document.getElementById('f-rol').value    = 'supervisor';
-        document.getElementById('f-estado').value = 'activo';
-        document.getElementById('f-empresa').value = '';
-        updateLocales(null);
-      }
-      document.getElementById('modal').classList.remove('hidden');
+    async function selectUser(id) {
+      selectedPerfil = perfiles.find(p => p.id === id);
+      renderUserList(perfiles);
+
+      const panel = document.getElementById('detail-panel');
+      panel.innerHTML = '<div class="empty-panel"><div style="color:var(--text-muted);font-size:13px">Cargando permisos...</div></div>';
+
+      const [permRes, empRes] = await Promise.all([
+        sbClient.from('usuario_permisos').select('*').eq('user_id', selectedPerfil.user_id),
+        sbClient.from('usuario_empresas').select('*').eq('user_id', selectedPerfil.user_id),
+      ]);
+
+      permisosActuales = {};
+      (permRes.data || []).forEach(p => { permisosActuales[p.modulo] = p; });
+      empresasActuales = new Set((empRes.data || []).map(e => e.ruc_empresa));
+
+      renderDetailPanel();
     }
 
-    function editPerfil(id) { openModal(id); }
-    function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+    function renderDetailPanel() {
+      const p = selectedPerfil;
+      const colors = getAvatarColors(p.rol);
+      const isAdmin = p.rol === 'admin';
 
-    document.getElementById('f-empresa')?.addEventListener('change', function() {
-      updateLocales(this.value);
-    });
+      const empresaChips = EMPRESAS.map(e => {
+        const checked = empresasActuales.has(e.ruc) ? 'on' : '';
+        return `<label class="empresa-chip ${checked}" data-ruc="${e.ruc}">
+          <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleEmpresa(this, '${e.ruc}', this.closest('label'))" />
+          ${e.label}
+        </label>`;
+      }).join('');
 
-    function updateLocales(ruc) {
-      const sel = document.getElementById('f-local');
-      sel.innerHTML = '<option value="">Sin local asignado</option>';
-      const filtered = ruc ? locales.filter(l => l.ruc_empresa === ruc) : [];
-      filtered.forEach(l => {
-        const opt = document.createElement('option');
-        opt.value = l.id_local; opt.textContent = l.nombre;
-        sel.appendChild(opt);
+      let modulosHTML = '';
+      let lastSeccion = null;
+      MODULOS.forEach(m => {
+        if (m.seccion && m.seccion !== lastSeccion) {
+          lastSeccion = m.seccion;
+          modulosHTML += `<tr class="perm-section-row"><td colspan="5">${m.seccion}</td></tr>`;
+        }
+        const pm = permisosActuales[m.key] || {};
+        const v = isAdmin || pm.puede_ver     ? 'checked' : '';
+        const c = isAdmin || pm.puede_crear   ? 'checked' : '';
+        const e = isAdmin || pm.puede_editar  ? 'checked' : '';
+        const d = isAdmin || pm.puede_eliminar? 'checked' : '';
+        const dis = isAdmin ? 'disabled title="El admin tiene acceso total"' : '';
+        modulosHTML += `<tr>
+          <td><div class="perm-modulo">${m.label}</div><div class="perm-desc">${m.desc}</div></td>
+          <td><div class="check-wrap"><input type="checkbox" class="perm-check" ${v} ${dis} data-modulo="${m.key}" data-tipo="ver" /></div></td>
+          <td><div class="check-wrap"><input type="checkbox" class="perm-check" ${c} ${dis} data-modulo="${m.key}" data-tipo="crear" /></div></td>
+          <td><div class="check-wrap"><input type="checkbox" class="perm-check" ${e} ${dis} data-modulo="${m.key}" data-tipo="editar" /></div></td>
+          <td><div class="check-wrap"><input type="checkbox" class="perm-check" ${d} ${dis} data-modulo="${m.key}" data-tipo="eliminar" /></div></td>
+        </tr>`;
       });
+
+      document.getElementById('detail-panel').innerHTML = `
+        <div class="detail-header">
+          <div class="detail-avatar" style="background:${colors.bg};color:${colors.color}">${getInitials(p.nombre)}</div>
+          <div>
+            <div style="font-size:16px;font-weight:500">${p.nombre}</div>
+            <div style="font-size:12px;color:var(--text-muted)">${p.email}</div>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+            <select class="estado-select" id="sel-estado" onchange="cambiarEstado(this.value)">
+              <option value="activo"   ${p.estado==='activo'   ?'selected':''}>Activo</option>
+              <option value="inactivo" ${p.estado==='inactivo' ?'selected':''}>Inactivo</option>
+            </select>
+          </div>
+        </div>
+
+        ${isAdmin ? '<div class="alert alert-info" style="margin-bottom:4px">El administrador tiene acceso total al sistema. Los permisos no aplican.</div>' : ''}
+
+        <div class="section-title">Empresas con acceso</div>
+        <div class="empresa-chips">${empresaChips}</div>
+
+        <div class="section-title">Permisos por módulo</div>
+        <table class="perm-table">
+          <thead>
+            <tr>
+              <th style="width:50%">Módulo</th>
+              <th>Ver</th>
+              <th>Crear</th>
+              <th>Editar</th>
+              <th>Eliminar</th>
+            </tr>
+          </thead>
+          <tbody>${modulosHTML}</tbody>
+        </table>
+
+        <div class="detail-actions">
+          <button class="btn btn-ghost" onclick="selectUser('${p.id}')">Descartar cambios</button>
+          <button class="btn btn-primary" onclick="guardarPermisos()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Guardar permisos
+          </button>
+        </div>`;
     }
 
-    async function savePerfil() {
+    function toggleEmpresa(input, ruc, label) {
+      if (input.checked) {
+        empresasActuales.add(ruc);
+        label.classList.add('on');
+      } else {
+        empresasActuales.delete(ruc);
+        label.classList.remove('on');
+      }
+    }
+
+    async function cambiarEstado(nuevoEstado) {
+      await sbClient.from('perfiles').update({ estado: nuevoEstado }).eq('id', selectedPerfil.id);
+      selectedPerfil.estado = nuevoEstado;
+      const idx = perfiles.findIndex(p => p.id === selectedPerfil.id);
+      if (idx >= 0) perfiles[idx].estado = nuevoEstado;
+    }
+
+    async function guardarPermisos() {
+      const btn = document.querySelector('.detail-actions .btn-primary');
+      btn.disabled = true; btn.textContent = 'Guardando...';
+
+      const uid = selectedPerfil.user_id;
+
+      // Guardar empresas
+      await sbClient.from('usuario_empresas').delete().eq('user_id', uid);
+      if (empresasActuales.size > 0) {
+        await sbClient.from('usuario_empresas').insert(
+          [...empresasActuales].map(ruc => ({ user_id: uid, ruc_empresa: ruc }))
+        );
+      }
+
+      // Guardar permisos de módulos
+      const checks = document.querySelectorAll('.perm-check:not([disabled])');
+      const moduloMap = {};
+      checks.forEach(ch => {
+        const mod = ch.dataset.modulo;
+        const tipo = ch.dataset.tipo;
+        if (!moduloMap[mod]) moduloMap[mod] = { puede_ver: false, puede_crear: false, puede_editar: false, puede_eliminar: false };
+        moduloMap[mod][`puede_${tipo}`] = ch.checked;
+      });
+
+      await sbClient.from('usuario_permisos').delete().eq('user_id', uid);
+      const rows = Object.entries(moduloMap).map(([modulo, perms]) => ({ user_id: uid, modulo, ...perms }));
+      if (rows.length > 0) await sbClient.from('usuario_permisos').insert(rows);
+
+      await auditar(selectedPerfil, 'EDITAR', 'usuarios', `Permisos actualizados para ${selectedPerfil.nombre}`);
+
+      btn.disabled = false;
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Guardar permisos`;
+
+      await selectUser(selectedPerfil.id);
+    }
+
+    function openNuevoModal() { document.getElementById('modal-nuevo').classList.remove('hidden'); }
+    function closeNuevoModal() { document.getElementById('modal-nuevo').classList.add('hidden'); }
+
+    async function saveNuevo() {
       const errEl = document.getElementById('modal-error');
       errEl.style.display = 'none';
       const uid    = document.getElementById('f-uid').value.trim();
@@ -240,28 +388,19 @@
         errEl.textContent = 'User ID, nombre y email son obligatorios.';
         errEl.style.display = 'block'; return;
       }
-      const payload = {
-        user_id:     uid,
-        nombre, email,
-        rol:         document.getElementById('f-rol').value,
-        estado:      document.getElementById('f-estado').value,
-        ruc_empresa: document.getElementById('f-empresa').value || null,
-        id_local:    document.getElementById('f-local').value || null,
-      };
       const btn = document.getElementById('btn-save');
-      btn.disabled = true; btn.textContent = 'Guardando...';
-      let error;
-      if (editingId) {
-        ({ error } = await sbClient.from('perfiles').update(payload).eq('id', editingId));
-      } else {
-        ({ error } = await sbClient.from('perfiles').insert([payload]));
-      }
-      btn.disabled = false; btn.textContent = 'Guardar';
+      btn.disabled = true; btn.textContent = 'Creando...';
+      const { error } = await sbClient.from('perfiles').insert([{
+        user_id: uid, nombre, email,
+        rol:    document.getElementById('f-rol').value,
+        estado: document.getElementById('f-estado').value,
+      }]);
+      btn.disabled = false; btn.textContent = 'Crear usuario';
       if (error) {
-        errEl.textContent = 'Error al guardar: ' + error.message;
+        errEl.textContent = 'Error: ' + error.message;
         errEl.style.display = 'block';
       } else {
-        closeModal();
+        closeNuevoModal();
         await loadPerfiles();
       }
     }
