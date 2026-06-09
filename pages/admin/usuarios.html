@@ -264,7 +264,17 @@
       MODULOS.forEach(m => {
         if (m.seccion && m.seccion !== lastSeccion) {
           lastSeccion = m.seccion;
-          modulosHTML += `<tr class="perm-section-row"><td colspan="5">${m.seccion}</td></tr>`;
+          const seccionKey = m.seccion.toLowerCase().replace(' ','_');
+          modulosHTML += `<tr class="perm-section-row">
+            <td colspan="5" style="padding:5px 10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" class="perm-check section-master" data-seccion="${seccionKey}"
+                  title="Marcar/desmarcar todos los permisos de ${m.seccion}"
+                  onchange="toggleSeccion('${seccionKey}',this.checked)" />
+                <span>${m.seccion}</span>
+              </div>
+            </td>
+          </tr>`;
         }
         const pm = permisosActuales[m.key] || {};
         const v = isAdmin || pm.puede_ver     ? 'checked' : '';
@@ -273,7 +283,7 @@
         const d = isAdmin || pm.puede_eliminar? 'checked' : '';
         const dis = isAdmin ? 'disabled title="El admin tiene acceso total"' : '';
         const todosChecked = v && c && e && d;
-        modulosHTML += `<tr>
+        modulosHTML += `<tr data-seccion="${lastSeccion?.toLowerCase().replace(' ','_')||''}">
           <td>
             <div style="display:flex;align-items:center;gap:8px">
               <input type="checkbox" class="perm-check row-master" ${todosChecked?'checked':''} ${dis} 
@@ -410,6 +420,18 @@
       await selectUser(selectedPerfil.id);
     }
 
+    function toggleSeccion(seccionKey, checked) {
+      document.querySelectorAll(`tr[data-seccion="${seccionKey}"] .perm-check:not([disabled]):not(.row-master)`).forEach(ch => {
+        ch.checked = checked;
+      });
+      // Actualizar row-masters de esa sección
+      document.querySelectorAll(`tr[data-seccion="${seccionKey}"] .row-master:not([disabled])`).forEach(rm => {
+        rm.checked = checked;
+        rm.indeterminate = false;
+      });
+      actualizarMaster();
+    }
+
     function toggleColumna(tipo, checked) {
       document.querySelectorAll(`.perm-check[data-tipo="${tipo}"]:not([disabled])`).forEach(ch => {
         ch.checked = checked;
@@ -425,6 +447,7 @@
     }
 
     function actualizarMaster() {
+      // Masters de columna
       ['ver','crear','editar','eliminar'].forEach(tipo => {
         const checks = document.querySelectorAll(`.perm-check[data-tipo="${tipo}"]:not([disabled])`);
         const master = document.querySelector(`.master-check[data-col="${tipo}"]`);
@@ -433,6 +456,7 @@
           master.indeterminate = !master.checked && [...checks].some(c => c.checked);
         }
       });
+      // Masters de fila
       document.querySelectorAll('.row-master:not([disabled])').forEach(rm => {
         const modulo = rm.closest('tr')?.querySelector('[data-modulo]')?.dataset?.modulo;
         if (!modulo) return;
@@ -440,6 +464,15 @@
         if (checks.length) {
           rm.checked = [...checks].every(c => c.checked);
           rm.indeterminate = !rm.checked && [...checks].some(c => c.checked);
+        }
+      });
+      // Masters de sección
+      document.querySelectorAll('.section-master:not([disabled])').forEach(sm => {
+        const seccionKey = sm.dataset.seccion;
+        const checks = document.querySelectorAll(`tr[data-seccion="${seccionKey}"] .perm-check:not([disabled]):not(.row-master):not(.section-master)`);
+        if (checks.length) {
+          sm.checked = [...checks].every(c => c.checked);
+          sm.indeterminate = !sm.checked && [...checks].some(c => c.checked);
         }
       });
     }
