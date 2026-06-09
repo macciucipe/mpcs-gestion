@@ -374,10 +374,6 @@
         <div id="modal-error" class="alert alert-error" style="display:none"></div>
         <div class="form-grid">
           <div class="field">
-            <label>Empresa <span class="req">*</span></label>
-            <select id="np-empresa"><option value="">Seleccionar...</option></select>
-          </div>
-          <div class="field">
             <label>Mes <span class="req">*</span></label>
             <select id="np-mes">
               <option value="1">Enero</option><option value="2">Febrero</option>
@@ -491,7 +487,7 @@
 
     async function loadEmpresas() {
       const { data } = await sbClient.from('empresas').select('ruc, razon_social, abreviatura').eq('estado','activa').order('razon_social');
-      const sels = [document.getElementById('filtro-empresa-plan'), document.getElementById('np-empresa')];
+      const sels = [document.getElementById('filtro-empresa-plan')];
       (data||[]).forEach(e => {
         sels.forEach(sel => {
           const o = document.createElement('option'); o.value = e.ruc;
@@ -1066,15 +1062,15 @@
     function closeModal()       { document.getElementById('modal-periodo').classList.add('hidden'); }
 
     async function crearPeriodo() {
-      const empresa = document.getElementById('np-empresa').value;
+      const empresa = getContexto().ruc;
       const mes     = parseInt(document.getElementById('np-mes').value);
       const anio    = parseInt(document.getElementById('np-anio').value);
       const errEl   = document.getElementById('modal-error');
       errEl.style.display='none';
-      if (!empresa) { errEl.textContent='Seleccioná una empresa.'; errEl.style.display='block'; return; }
+      if (!empresa) { errEl.textContent='Seleccioná una empresa en el sidebar primero.'; errEl.style.display='block'; return; }
       const session = await checkSession();
       const {error} = await sbClient.from('planilla_periodos').insert([{ruc_empresa:empresa,mes,anio,created_by:session.user.id}]);
-      if (error) { errEl.textContent=error.message.includes('unique')?'Ya existe ese período.':'Error al crear.'; errEl.style.display='block'; return; }
+      if (error) { errEl.textContent=error.message.includes('unique')?'Ya existe ese período para esta empresa.':'Error al crear.'; errEl.style.display='block'; return; }
       closeModal();
       await loadPeriodos();
     }
