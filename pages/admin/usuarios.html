@@ -266,13 +266,26 @@
           lastSeccion = m.seccion;
           const seccionKey = m.seccion.toLowerCase().replace(' ','_');
           modulosHTML += `<tr class="perm-section-row">
-            <td colspan="5" style="padding:5px 10px">
-              <div style="display:flex;align-items:center;gap:8px">
-                <input type="checkbox" class="perm-check section-master" data-seccion="${seccionKey}"
-                  title="Marcar/desmarcar todos los permisos de ${m.seccion}"
-                  onchange="toggleSeccion('${seccionKey}',this.checked)" />
-                <span>${m.seccion}</span>
-              </div>
+            <td style="padding:5px 10px">${m.seccion}</td>
+            <td style="text-align:center">
+              <input type="checkbox" class="perm-check section-master" data-seccion="${seccionKey}" data-tipo="ver"
+                title="Ver — todos los módulos de ${m.seccion}"
+                onchange="toggleSeccionTipo('${seccionKey}','ver',this.checked)" />
+            </td>
+            <td style="text-align:center">
+              <input type="checkbox" class="perm-check section-master" data-seccion="${seccionKey}" data-tipo="crear"
+                title="Crear — todos los módulos de ${m.seccion}"
+                onchange="toggleSeccionTipo('${seccionKey}','crear',this.checked)" />
+            </td>
+            <td style="text-align:center">
+              <input type="checkbox" class="perm-check section-master" data-seccion="${seccionKey}" data-tipo="editar"
+                title="Editar — todos los módulos de ${m.seccion}"
+                onchange="toggleSeccionTipo('${seccionKey}','editar',this.checked)" />
+            </td>
+            <td style="text-align:center">
+              <input type="checkbox" class="perm-check section-master" data-seccion="${seccionKey}" data-tipo="eliminar"
+                title="Eliminar — todos los módulos de ${m.seccion}"
+                onchange="toggleSeccionTipo('${seccionKey}','eliminar',this.checked)" />
             </td>
           </tr>`;
         }
@@ -420,14 +433,10 @@
       await selectUser(selectedPerfil.id);
     }
 
-    function toggleSeccion(seccionKey, checked) {
-      document.querySelectorAll(`tr[data-seccion="${seccionKey}"] .perm-check:not([disabled]):not(.row-master)`).forEach(ch => {
+    function toggleSeccionTipo(seccionKey, tipo, checked) {
+      // Marcar todos los checks de ese tipo en esa sección
+      document.querySelectorAll(`tr[data-seccion="${seccionKey}"] .perm-check[data-tipo="${tipo}"]:not([disabled])`).forEach(ch => {
         ch.checked = checked;
-      });
-      // Actualizar row-masters de esa sección
-      document.querySelectorAll(`tr[data-seccion="${seccionKey}"] .row-master:not([disabled])`).forEach(rm => {
-        rm.checked = checked;
-        rm.indeterminate = false;
       });
       actualizarMaster();
     }
@@ -466,10 +475,11 @@
           rm.indeterminate = !rm.checked && [...checks].some(c => c.checked);
         }
       });
-      // Masters de sección
+      // Masters de sección por tipo
       document.querySelectorAll('.section-master:not([disabled])').forEach(sm => {
         const seccionKey = sm.dataset.seccion;
-        const checks = document.querySelectorAll(`tr[data-seccion="${seccionKey}"] .perm-check:not([disabled]):not(.row-master):not(.section-master)`);
+        const tipo = sm.dataset.tipo;
+        const checks = document.querySelectorAll(`tr[data-seccion="${seccionKey}"] .perm-check[data-tipo="${tipo}"]:not([disabled])`);
         if (checks.length) {
           sm.checked = [...checks].every(c => c.checked);
           sm.indeterminate = !sm.checked && [...checks].some(c => c.checked);
