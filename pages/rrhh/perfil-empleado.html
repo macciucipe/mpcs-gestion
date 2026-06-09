@@ -698,13 +698,34 @@
     let empleadoId = null, empleado = null, documentos = [], isDirty = false, pendingFile = null, perfilUser = null, isNuevo = false;
 
     async function init() {
-      perfilUser = await requireAuth(['admin','rrhh','gerencia']);
+      perfilUser = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_empleados');
       if (!perfilUser) return;
       renderSidebar(perfilUser, 'empleados');
+      aplicarPermisosUI(perfilUser, 'rrhh_empleados');
+
+      // Solo lectura si no puede editar
+      const soloLectura = !puedeEditar(perfilUser, 'rrhh_empleados') && !puedeCrear(perfilUser, 'rrhh_empleados');
+      if (soloLectura) {
+        // Deshabilitar todos los inputs y selects del perfil
+        document.addEventListener('DOMContentLoaded', () => {
+          document.querySelectorAll('input, select, textarea').forEach(el => el.disabled = true);
+          document.getElementById('save-bar')?.style.setProperty('display','none','important');
+        });
+        // También interceptar markDirty para que no muestre la barra de guardado
+        window._soloLectura = true;
+      }
+
       renderFamiliares();
       const params = new URLSearchParams(window.location.search);
       empleadoId = params.get('id');
       isNuevo    = params.get('nuevo') === '1';
+
+      // Si no puede crear y es modo nuevo, redirigir
+      if (isNuevo && !puedeCrear(perfilUser, 'rrhh_empleados')) {
+        window.location.href = 'empleados.html';
+        return;
+      }
+
       await loadEmpresas();
       if (isNuevo) { modoNuevo(); }
       else {
@@ -712,6 +733,7 @@
         await loadEmpleado();
         await loadDocumentos();
         await loadHistorial();
+        if (window._soloLectura) { document.querySelectorAll('input, select, textarea').forEach(el => el.disabled = true); document.getElementById('save-bar')?.style.setProperty('display','none','important'); }
       }
     }
 
@@ -876,7 +898,7 @@
     function getVal(id) { return document.getElementById(id)?.value?.trim() || ''; }
     function getChk(id) { return document.getElementById(id)?.checked || false; }
     function toggleAFP() { const isA = getVal('e-sist-pension')==='AFP'; ['campo-afp','campo-cuspp'].forEach(id => document.getElementById(id).style.opacity = isA?'1':'0.4'); }
-    function markDirty() { isDirty = true; document.getElementById('save-bar').classList.add('visible'); }
+    function markDirty() { if (window._soloLectura) return; isDirty = true; document.getElementById('save-bar').classList.add('visible'); }
     function switchTab(name) {
       const names = ['personales','laborales','previsionales','salud','familia','formacion','documentos','historial'];
       document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', names[i]===name));
