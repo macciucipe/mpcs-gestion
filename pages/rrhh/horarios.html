@@ -61,10 +61,15 @@
         <p>Planificación semanal por local</p>
       </div>
       <div class="page-header-right">
-        <button class="btn btn-ghost" onclick="exportarHorario()">
+        <button class="btn btn-ghost" onclick="descargarPlantilla()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Exportar
+          Descargar plantilla
         </button>
+        <label class="btn btn-ghost" style="cursor:pointer">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Subir Excel
+          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importarExcel(this)" />
+        </label>
         <button class="btn btn-primary" onclick="guardarHorario()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           Guardar horario
@@ -168,6 +173,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="../../js/config.js"></script>
   <script src="../../js/auth.js"></script>
   <script>
@@ -496,38 +502,170 @@
       await loadGrilla();
     }
 
-    function exportarHorario() {
-      const idLocal = document.getElementById('sel-local').value;
-      if (!idLocal) { alert('Seleccioná un local primero.'); return; }
+    function descargarPlantilla() {
+      const ruc = document.getElementById('sel-empresa').value;
+      if (!ruc || !empleados.length) { alert('Seleccioná empresa y cargá empleados primero.'); return; }
 
-      let csv = 'Empleado,Área';
+      const wb = XLSX.utils.book_new();
+      const localNombre = document.getElementById('sel-local').options[document.getElementById('sel-local').selectedIndex]?.text || 'Todos';
+
+      // Hoja de instrucciones
+      const instrSheet = XLSX.utils.aoa_to_sheet([
+        ['INSTRUCCIONES DE CARGA DE HORARIOS'],
+        [''],
+        ['Formatos aceptados en cada celda:'],
+        ['  Turno corrido:  8:00-17:00'],
+        ['  Turno partido:  13:00-17:00/20:00-00:00'],
+        ['  Descanso:       DESCANSO'],
+        ['  Sin turno:      (dejar vacío)'],
+        [''],
+        ['Local del día (opcional): agregar | al final seguido del código de local'],
+        ['  Ejemplo con local: 8:00-17:00|SAN-ISIDRO-001'],
+        [''],
+        ['NO modificar las columnas ID ni Empleado.'],
+        ['NO agregar ni eliminar filas.'],
+      ]);
+      XLSX.utils.book_append_sheet(wb, instrSheet, 'Instrucciones');
+
+      // Hoja de horario
+      const headers = ['ID', 'Empleado', 'Área'];
       for (let i = 0; i < 7; i++) {
-        csv += `,${DIAS[i]} ${fmtLabel(addDays(semanaInicio, i))}`;
+        headers.push(`${DIAS[i]} ${fmtLabel(addDays(semanaInicio, i))}`);
       }
-      csv += ',Hs. Semana\n';
+      headers.push('SEMANA');
 
+      const rows = [headers];
       empleados.forEach(emp => {
-        let totalHs = 0;
-        let fila = `"${emp.apellidos} ${emp.nombres}","${emp.area||''}"`;
+        const fila = [emp.id_empleado, `${emp.apellidos}, ${emp.nombres}`, emp.area || ''];
         for (let i = 0; i < 7; i++) {
           const key = `${emp.id_empleado}_${fmtDate(addDays(semanaInicio, i))}`;
           const h = pendientes[key] || horarios[key];
-          if (!h) { fila += ','; continue; }
-          if (h.tipo_turno === 'descanso') { fila += ',DESCANSO'; continue; }
+          if (!h) { fila.push(''); continue; }
+          if (h.tipo_turno === 'descanso') { fila.push('DESCANSO'); continue; }
           let celda = `${h.entrada1||''}-${h.salida1||''}`;
           if (h.tipo_turno === 'partido' && h.entrada2) celda += `/${h.entrada2}-${h.salida2}`;
-          if (h.horas_planif) totalHs += parseFloat(h.horas_planif);
-          fila += `,"${celda}"`;
+          if (h.local) celda += `|${h.local}`;
+          fila.push(celda);
         }
-        fila += `,${totalHs}`;
-        csv += fila + '\n';
+        fila.push('');
+        rows.push(fila);
       });
 
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `horario_${idLocal}_${fmtDate(semanaInicio)}.csv`;
-      a.click();
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 14 }, { wch: 28 }, { wch: 12 },
+        ...Array(7).fill({ wch: 22 }),
+        { wch: 10 }
+      ];
+      // Proteger col A y B (solo lectura visual con color)
+      XLSX.utils.book_append_sheet(wb, ws, 'Horario');
+
+      const idLocal = document.getElementById('sel-local').value || 'todos';
+      XLSX.writeFile(wb, `plantilla_horario_${idLocal}_${fmtDate(semanaInicio)}.xlsx`);
+    }
+
+    function parsearTurno(celda) {
+      if (!celda || celda.toString().trim() === '') return null;
+      const txt = celda.toString().trim().toUpperCase();
+      if (txt === 'DESCANSO' || txt === 'FRANCO' || txt === 'DESC') {
+        return { tipo_turno: 'descanso', entrada1: null, salida1: null, entrada2: null, salida2: null, horas_planif: 0, local_dia: null };
+      }
+      // Separar local si viene con |
+      let horaParte = txt;
+      let local_dia = null;
+      if (txt.includes('|')) {
+        [horaParte, local_dia] = txt.split('|');
+      }
+      // Turno partido: contiene /
+      if (horaParte.includes('/')) {
+        const [tramo1, tramo2] = horaParte.split('/');
+        const [e1, s1] = tramo1.split('-').map(t => t.trim().toLowerCase());
+        const [e2, s2] = tramo2.split('-').map(t => t.trim().toLowerCase());
+        const hs = calcHoras(e1, s1, e2, s2);
+        return { tipo_turno: 'partido', entrada1: e1, salida1: s1, entrada2: e2, salida2: s2, horas_planif: hs, local_dia };
+      }
+      // Turno corrido
+      const partes = horaParte.split('-');
+      if (partes.length >= 2) {
+        const e1 = partes[0].trim().toLowerCase();
+        const s1 = partes[1].trim().toLowerCase();
+        const hs = calcHoras(e1, s1, null, null);
+        return { tipo_turno: 'corrido', entrada1: e1, salida1: s1, entrada2: null, salida2: null, horas_planif: hs, local_dia };
+      }
+      return null;
+    }
+
+    function importarExcel(input) {
+      const ruc = document.getElementById('sel-empresa').value;
+      if (!ruc) { alert('Seleccioná la empresa primero.'); input.value = ''; return; }
+      if (!input.files[0]) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets['Horario'] || wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+        if (rows.length < 2) { alert('El archivo no tiene datos.'); return; }
+
+        // Detectar fechas en la cabecera (fila 0)
+        const header = rows[0];
+        const fechasCols = []; // { colIdx, fecha }
+        for (let c = 3; c < header.length - 1; c++) {
+          const label = header[c]?.toString() || '';
+          // Buscar fecha en el label buscando semanaInicio + offset
+          for (let i = 0; i < 7; i++) {
+            const d = addDays(semanaInicio, i);
+            if (label.includes(fmtLabel(d)) || label.includes(DIAS[i])) {
+              fechasCols.push({ colIdx: c, fecha: fmtDate(d) });
+              break;
+            }
+          }
+        }
+
+        let importados = 0;
+        let errores = [];
+        const idLocal = document.getElementById('sel-local').value;
+
+        for (let r = 1; r < rows.length; r++) {
+          const row = rows[r];
+          const idEmp = row[0]?.toString().trim();
+          if (!idEmp) continue;
+
+          const empObj = empleados.find(e => e.id_empleado === idEmp);
+          if (!empObj) { errores.push(`Fila ${r+1}: empleado ${idEmp} no encontrado`); continue; }
+
+          fechasCols.forEach(({ colIdx, fecha }) => {
+            const celda = row[colIdx];
+            const turno = parsearTurno(celda);
+            if (turno === null) return;
+            const key = `${idEmp}_${fecha}`;
+            pendientes[key] = {
+              id_empleado: idEmp,
+              fecha,
+              tipo_turno:   turno.tipo_turno,
+              entrada1:     turno.entrada1,
+              salida1:      turno.salida1,
+              entrada2:     turno.entrada2,
+              salida2:      turno.salida2,
+              horas_planif: turno.horas_planif,
+              local:        turno.local_dia || idLocal || null,
+              ruc_empresa:  ruc,
+              creado_por:   perfil.user_id,
+            };
+            importados++;
+          });
+        }
+
+        input.value = '';
+        renderGrilla();
+
+        let msg = `✓ ${importados} turnos importados correctamente.`;
+        if (errores.length) msg += `\n\nAdvertencias:\n${errores.join('\n')}`;
+        msg += '\n\nRevisá la grilla y hacé click en "Guardar horario" para confirmar.';
+        alert(msg);
+      };
+      reader.readAsArrayBuffer(input.files[0]);
     }
 
     init();
