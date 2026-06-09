@@ -315,7 +315,6 @@
         .gte('fecha', desde)
         .lte('fecha', hasta);
 
-      const idLocales = getContexto().idLocales;
       if (idLocales.length === 1) queryHors = queryHors.eq('local', idLocales[0]);
       else if (idLocales.length > 1) queryHors = queryHors.in('local', idLocales);
 
