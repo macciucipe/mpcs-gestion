@@ -156,6 +156,7 @@
       { seccion: null,   key: 'rrhh_planilla',    label: 'Planilla',             desc: 'Sueldos y liquidaciones' },
       { seccion: null,   key: 'rrhh_costo',       label: 'Costo laboral',        desc: 'Reportes de costo' },
       { seccion: null,   key: 'rrhh_pasivos',     label: 'Pasivos laborales',    desc: 'CTS, gratificaciones, vacaciones' },
+      { seccion: null,   key: 'rrhh_horarios',    label: 'Horarios',             desc: 'Planificación semanal de turnos' },
       { seccion: 'Compras', key: 'compras_pedidos', label: 'Pedidos internos (OP)', desc: 'Solicitudes de compra' },
       { seccion: null,   key: 'compras_oc',       label: 'Órdenes de compra',    desc: 'OC y aprobaciones' },
       { seccion: null,   key: 'compras_recepciones', label: 'Recepciones (OR)',  desc: 'Ingreso de mercadería' },
@@ -271,12 +272,23 @@
         const e = isAdmin || pm.puede_editar  ? 'checked' : '';
         const d = isAdmin || pm.puede_eliminar? 'checked' : '';
         const dis = isAdmin ? 'disabled title="El admin tiene acceso total"' : '';
+        const todosChecked = v && c && e && d;
         modulosHTML += `<tr>
-          <td><div class="perm-modulo">${m.label}</div><div class="perm-desc">${m.desc}</div></td>
-          <td><div class="check-wrap"><input type="checkbox" class="perm-check" ${v} ${dis} data-modulo="${m.key}" data-tipo="ver" /></div></td>
-          <td><div class="check-wrap"><input type="checkbox" class="perm-check" ${c} ${dis} data-modulo="${m.key}" data-tipo="crear" /></div></td>
-          <td><div class="check-wrap"><input type="checkbox" class="perm-check" ${e} ${dis} data-modulo="${m.key}" data-tipo="editar" /></div></td>
-          <td><div class="check-wrap"><input type="checkbox" class="perm-check" ${d} ${dis} data-modulo="${m.key}" data-tipo="eliminar" /></div></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" class="perm-check row-master" ${todosChecked?'checked':''} ${dis} 
+                title="Marcar/desmarcar todos los permisos de este módulo"
+                onchange="toggleFila('${m.key}',this.checked)" />
+              <div>
+                <div class="perm-modulo">${m.label}</div>
+                <div class="perm-desc">${m.desc}</div>
+              </div>
+            </div>
+          </td>
+          <td><div class="check-wrap"><input type="checkbox" class="perm-check" ${v} ${dis} data-modulo="${m.key}" data-tipo="ver" onchange="actualizarMaster()" /></div></td>
+          <td><div class="check-wrap"><input type="checkbox" class="perm-check" ${c} ${dis} data-modulo="${m.key}" data-tipo="crear" onchange="actualizarMaster()" /></div></td>
+          <td><div class="check-wrap"><input type="checkbox" class="perm-check" ${e} ${dis} data-modulo="${m.key}" data-tipo="editar" onchange="actualizarMaster()" /></div></td>
+          <td><div class="check-wrap"><input type="checkbox" class="perm-check" ${d} ${dis} data-modulo="${m.key}" data-tipo="eliminar" onchange="actualizarMaster()" /></div></td>
         </tr>`;
       });
 
@@ -304,11 +316,33 @@
         <table class="perm-table">
           <thead>
             <tr>
-              <th style="width:50%">Módulo</th>
-              <th>Ver</th>
-              <th>Crear</th>
-              <th>Editar</th>
-              <th>Eliminar</th>
+              <th style="width:50%">
+                Módulo
+              </th>
+              <th>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                  Ver
+                  <input type="checkbox" class="perm-check master-check" data-col="ver" title="Marcar/desmarcar todos" onchange="toggleColumna('ver',this.checked)" />
+                </div>
+              </th>
+              <th>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                  Crear
+                  <input type="checkbox" class="perm-check master-check" data-col="crear" title="Marcar/desmarcar todos" onchange="toggleColumna('crear',this.checked)" />
+                </div>
+              </th>
+              <th>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                  Editar
+                  <input type="checkbox" class="perm-check master-check" data-col="editar" title="Marcar/desmarcar todos" onchange="toggleColumna('editar',this.checked)" />
+                </div>
+              </th>
+              <th>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                  Eliminar
+                  <input type="checkbox" class="perm-check master-check" data-col="eliminar" title="Marcar/desmarcar todos" onchange="toggleColumna('eliminar',this.checked)" />
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>${modulosHTML}</tbody>
@@ -374,6 +408,40 @@
       btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Guardar permisos`;
 
       await selectUser(selectedPerfil.id);
+    }
+
+    function toggleColumna(tipo, checked) {
+      document.querySelectorAll(`.perm-check[data-tipo="${tipo}"]:not([disabled])`).forEach(ch => {
+        ch.checked = checked;
+      });
+      actualizarMaster();
+    }
+
+    function toggleFila(modulo, checked) {
+      document.querySelectorAll(`.perm-check[data-modulo="${modulo}"]:not([disabled])`).forEach(ch => {
+        ch.checked = checked;
+      });
+      actualizarMaster();
+    }
+
+    function actualizarMaster() {
+      ['ver','crear','editar','eliminar'].forEach(tipo => {
+        const checks = document.querySelectorAll(`.perm-check[data-tipo="${tipo}"]:not([disabled])`);
+        const master = document.querySelector(`.master-check[data-col="${tipo}"]`);
+        if (master && checks.length) {
+          master.checked = [...checks].every(c => c.checked);
+          master.indeterminate = !master.checked && [...checks].some(c => c.checked);
+        }
+      });
+      document.querySelectorAll('.row-master:not([disabled])').forEach(rm => {
+        const modulo = rm.closest('tr')?.querySelector('[data-modulo]')?.dataset?.modulo;
+        if (!modulo) return;
+        const checks = document.querySelectorAll(`.perm-check[data-modulo="${modulo}"]:not([disabled])`);
+        if (checks.length) {
+          rm.checked = [...checks].every(c => c.checked);
+          rm.indeterminate = !rm.checked && [...checks].some(c => c.checked);
+        }
+      });
     }
 
     function openNuevoModal() { document.getElementById('modal-nuevo').classList.remove('hidden'); }
