@@ -798,7 +798,13 @@
       if (e.sistema_pensionario === 'ONP') {
         snp = baseAfp * SNP_RATE;
       } else if (e.afp) {
-        const r = AFP_RATES[e.afp] || AFP_RATES['PRIMA'];
+        // Usar tasas exactas del tipo de comisión si están en datos_extra
+        const extra = e.datos_extra ? (typeof e.datos_extra === 'string' ? JSON.parse(e.datos_extra) : e.datos_extra) : {};
+        const r = {
+          oblig:    0.10,
+          comision: extra.afp_comision !== undefined ? extra.afp_comision : (AFP_RATES[e.afp]?.comision || 0),
+          seguro:   extra.afp_seguro   !== undefined ? extra.afp_seguro   : (AFP_RATES[e.afp]?.seguro  || 0.0137),
+        };
         afpObl = baseAfp * r.oblig;
         afpCom = baseAfp * r.comision;
         afpSeg = baseAfp * r.seguro;
