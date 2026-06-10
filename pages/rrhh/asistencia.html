@@ -536,7 +536,7 @@
             diasLaborados++;
             tardanzas += (reg[key]?.minutos_tardanza || 0);
           } else if (est === 'feriado_trabajado') {
-            diasLaborados++;
+            // NO suma a diasLaborados — se cuenta aparte en diasFeriados
             diasFeriados++;
           } else if (est === 'falta') {
             faltas++;

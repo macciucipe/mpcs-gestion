@@ -785,7 +785,7 @@
         : 0;
 
       // Movilidad — días efectivos = días laborados + feriados - faltas
-      const diasEfectivos = gi('f-dias') + gi('f-dias-feriados') - gi('f-faltas');
+      const diasEfectivos = gi('f-dias') + gi('f-dias-feriados'); // normales + feriados trabajados
       const movBase = calcularMovilidad(cfg, e.id_empleado, Math.max(0, diasEfectivos));
       const movil = gchk('chk-movilidad') ? movBase : 0;
 
