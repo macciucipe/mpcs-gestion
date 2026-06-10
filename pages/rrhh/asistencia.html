@@ -529,22 +529,26 @@
         fechas.forEach(f => {
           const key = fechaStr(f);
           const est = reg[key]?.estado;
-          const esDiaLaboral = f.getDay() !== 0; // todos menos domingo
           if (!est) {
-            // Sin registro — si no es domingo cuenta como trabajado
-            if (esDiaLaboral) diasLaborados++;
+            // Sin registro — cuenta como día laborado (incluye descansos no marcados)
+            diasLaborados++;
           } else if (est === 'normal' || est === 'tardanza') {
             diasLaborados++;
             if (est === 'tardanza') tardanzas += (reg[key]?.minutos_tardanza || 0);
           } else if (est === 'feriado_trabajado') {
             diasLaborados++;
             diasFeriados++;
+          } else if (est === 'descanso') {
+            // Descanso cuenta como laborado (incluido en los 30 días del mes)
+            diasLaborados++;
           } else if (est === 'feriado') {
-            // Feriado NO trabajado — no descuenta
+            // Feriado NO trabajado — se incluye en los 30 días pero no en movilidad
+            diasLaborados++;
           } else if (est === 'falta') {
             faltas++;
+            // Falta no cuenta como laborado ni para movilidad
           }
-          // descanso, vacaciones, medico no cuentan
+          // vacaciones y descanso médico no cuentan como laborados
         });
         console.log(`[Pre-carga] ${emp.id_empleado}: ${diasLaborados} días, ${diasFeriados} feriados, ${faltas} faltas`);
 
