@@ -1245,45 +1245,46 @@
         y += NET_H;
 
         // ── 8. PIE: identidad + QR + firma ────────────────────────────────
-        const PIE_H = 22;
+        const PIE_H = 26;
         filledRect(M, y, BW, PIE_H, rgb.white, rgb.grayLine, 0.3);
 
-        // QR (esquina derecha)
-        const QR_SIZE = 18;
-        const qrX = W - M - QR_SIZE - 1;
-        const qrY = y + (PIE_H - QR_SIZE)/2;
+        // QR (esquina derecha, centrado verticalmente)
+        const QR_SIZE = 20;
+        const qrX = W - M - QR_SIZE - 2;
+        const qrY = y + 2;
         if(qrDataUrl) {
           doc.addImage(qrDataUrl, 'PNG', qrX, qrY, QR_SIZE, QR_SIZE);
         }
-        label('Validación digital', qrX + QR_SIZE/2, y+PIE_H-1.5, 5);
+        doc.setFont('helvetica','normal'); doc.setFontSize(5); setTxt(rgb.grayText);
+        doc.text('Validación digital', qrX + QR_SIZE/2, y + QR_SIZE + 4, {align:'center'});
 
-        // Columnas de identidad
-        const PC = [M+1, M+BW*0.30, M+BW*0.52];
-        const pieRows = [
-          [['APELLIDOS Y NOMBRES',`${e.apellidos||''} ${e.nombres||''}`],
-           ['N° DOCUMENTO',e.numero_documento||'—'],
-           ['CUSSP',extra.cuspp||e.cuspp||'—']],
-          [['CARGO',e.cargo||'—'],
-           ['LUGAR','LIMA'],
-           ['BANCO',e.banco||'—']],
-          [['N° CUENTA',e.numero_cuenta||'—'],
-           ['PERÍODO',`${desde} — ${hasta}`],
-           ['','']],
+        // Columnas de identidad — 3 columnas x 3 filas
+        // PC[col] = x de cada columna; cada fila baja 6.5mm
+        const PC = [M+2, M+BW*0.28, M+BW*0.52];
+        const pieData = [
+          // col 0                              col 1                          col 2
+          ['APELLIDOS Y NOMBRES', `${e.apellidos||''} ${e.nombres||''}`.trim(), 'CARGO',      e.cargo||'—',              'N° CUENTA',  e.numero_cuenta||'—'    ],
+          ['N° DOCUMENTO',        e.numero_documento||'—',                      'LUGAR',      'LIMA',                    'PERÍODO',    `${desde} — ${hasta}`   ],
+          ['CUSSP',               extra.cuspp||e.cuspp||'—',                    'BANCO',      e.banco||'—',              '',           ''                      ],
         ];
-        pieRows.forEach((row,ci)=>{
-          row.forEach(([lbl,v],ri)=>{
-            const ry2 = y + 3 + ri*6.5;
-            if(lbl){ label(lbl, PC[ci], ry2, 5.5); val(v, PC[ci], ry2+3.5, 6.5); }
-          });
+
+        pieData.forEach((row, ri) => {
+          const ry = y + 3 + ri * 7;
+          // col 0
+          if(row[0]){ label(row[0], PC[0], ry,     5.5); val(row[1], PC[0], ry+3.5, 6.5); }
+          // col 1
+          if(row[2]){ label(row[2], PC[1], ry,     5.5); val(row[3], PC[1], ry+3.5, 6.5); }
+          // col 2
+          if(row[4]){ label(row[4], PC[2], ry,     5.5); val(row[5], PC[2], ry+3.5, 6.5); }
         });
 
-        // Línea de firma
-        const firmaX = M + BW*0.44;
-        hline(firmaX, firmaX+35, y+PIE_H-4, rgb.grayLine, 0.5);
-        label('Firma del Trabajador', firmaX+17.5, y+PIE_H-1.5, 5.5);
-        // centrar la label
-        doc.setFont('helvetica','bold'); doc.setFontSize(5.5); setTxt(rgb.grayText);
-        doc.text('Firma del Trabajador', firmaX+17.5, y+PIE_H-1.5, {align:'center'});
+        // Línea de firma — centrada en el ancho disponible (entre col 2 y el QR)
+        const firmaX  = PC[2] + 2;
+        const firmaW  = qrX - firmaX - 4;
+        const firmaLY = y + PIE_H - 5;
+        hline(firmaX, firmaX + firmaW, firmaLY, rgb.grayLine, 0.5);
+        doc.setFont('helvetica','normal'); doc.setFontSize(5.5); setTxt(rgb.grayText);
+        doc.text('Firma del Trabajador', firmaX + firmaW/2, firmaLY + 3, {align:'center'});
 
         // Borde exterior boleta
         setStroke(rgb.navy); doc.setLineWidth(0.5);
