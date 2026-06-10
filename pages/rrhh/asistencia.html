@@ -529,10 +529,10 @@
         fechas.forEach(f => {
           const key = fechaStr(f);
           const est = reg[key]?.estado;
-          const esDiaHabil = f.getDay() !== 0 && f.getDay() !== 6; // lunes a viernes o según horario
+          const esDiaLaboral = f.getDay() !== 0; // todos menos domingo
           if (!est) {
-            // Sin registro — si es día hábil cuenta como trabajado
-            if (esDiaHabil) diasLaborados++;
+            // Sin registro — si no es domingo cuenta como trabajado
+            if (esDiaLaboral) diasLaborados++;
           } else if (est === 'normal' || est === 'tardanza') {
             diasLaborados++;
             if (est === 'tardanza') tardanzas += (reg[key]?.minutos_tardanza || 0);
@@ -540,12 +540,13 @@
             diasLaborados++;
             diasFeriados++;
           } else if (est === 'feriado') {
-            // Feriado NO trabajado — no cuenta como laborado ni falta
+            // Feriado NO trabajado — no descuenta
           } else if (est === 'falta') {
             faltas++;
           }
-          // descanso, vacaciones, medico no cuentan como laborados ni faltas
+          // descanso, vacaciones, medico no cuentan
         });
+        console.log(`[Pre-carga] ${emp.id_empleado}: ${diasLaborados} días, ${diasFeriados} feriados, ${faltas} faltas`);
 
         // Solo precarga, no toca bonos ni AFP — esos los completa el usuario en planilla
         payloads.push({
