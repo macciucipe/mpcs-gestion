@@ -962,7 +962,7 @@
     async function generarBoletaEmp(e, c) {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({unit:'mm',format:'a4'});
-      const W=210, M=10; 
+      const W=210, M=10;
       const det = detalleMap[e.id_empleado] || {};
 
       function ln(y,x1,x2){ doc.setDrawColor(180); doc.line(x1||M,y,x2||(W-M),y); }
@@ -1018,16 +1018,16 @@
         box(M,y,W-2*M,6,[20,20,20]);
         doc.setTextColor(255,255,255);
         t(copia,W/2,y+4.5,8,true,'center');
-        doc.setTextColor(0,0,0); y+=8;
+        doc.setTextColor(0,0,0); y+=12;
 
         // Empresa
         t(e.empresas?.razon_social||'CAMPO & CARNE S.A.C.',M,y,10,true);
-        t(`RUC Nº: ${e.ruc_empresa}`,W-M,y,8,false,'right'); y+=5;
+        t(`RUC Nº: ${e.ruc_empresa}`,W-M,y,8,false,'right'); y+=7;
 
         // Título
         doc.setDrawColor(180); doc.line(M,y,W-M,y); y+=3;
         t('BOLETA DE PAGO',W/2,y,9,true,'center');
-        y+=5; box(M,y,W-2*M,0.3,[180,180,180]); y+=2;
+        y+=5; doc.setDrawColor(180); doc.line(M,y,W-M,y); y+=2;
 
         // Fila código / mes / del / al
         const rowH = 9;
@@ -1233,15 +1233,25 @@
         t(money(c.neto),M+168,y+3,7.5,true);
         y+=6;
 
-        // Firma
-        t(`TRABAJADOR`,M,y+5,7,true);
-        t(`${e.apellidos||''} ${e.nombres||''}`,M,y+10,7);
-        return y;
+        // Código de verificación digital
+        const codigo = `${e.ruc_empresa}-${e.id_empleado}-${currentPeriodo.anio}${String(currentPeriodo.mes).padStart(2,'0')}`.toUpperCase();
+        y += 6;
+        doc.setDrawColor(180); doc.line(M,y,W-M,y); y+=3;
+        tg('Documento generado electrónicamente · Verificar en: mi.mpcs.pe/verificar · Código: ' + codigo, M, y+3, 6);
+        y+=5;
+        t(`TRABAJADOR`,M,y+3,7,true);
+        t(`${e.apellidos||''} ${e.nombres||''}`,M,y+7,7);
+        return y+10;
       };
 
-      dibujarBoleta('COPIA EMPLEADOR', 5);
-      doc.addPage();
-      dibujarBoleta('COPIA TRABAJADOR', 5);
+      // Dos copias en una sola hoja A4
+      const y1end = dibujarBoleta('COPIA EMPLEADOR', 5);
+      // Línea divisoria entre copias
+      doc.setDrawColor(150); doc.setLineDashPattern([2,2],0);
+      doc.line(M, y1end+8, W-M, y1end+8);
+      doc.setLineDashPattern([],0);
+      // Segunda copia debajo
+      dibujarBoleta('COPIA TRABAJADOR', y1end+14);
 
       // Guardar en Storage
       const fileName = `Boleta_${MESES[currentPeriodo.mes]}_${currentPeriodo.anio}_${e.numero_documento}.pdf`;
