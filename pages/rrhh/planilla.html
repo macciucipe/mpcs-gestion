@@ -10,17 +10,19 @@
     .periodo-header h2 { font-size:18px; font-weight:700; color:#fff; }
     .periodo-header p  { font-size:13px; color:rgba(255,255,255,0.6); margin-top:2px; }
 
-    .emp-tabs { display:flex; gap:8px; margin-bottom:1.5rem; }
+    .planilla-layout { display:grid; grid-template-columns:280px 1fr; gap:1.5rem; align-items:start; }
+    .emp-tabs { display:flex; flex-direction:column; gap:6px; max-height:calc(100vh - 220px); overflow-y:auto; padding-right:4px; }
     .emp-tab {
-      flex:1; padding:12px 16px; border-radius:var(--radius-lg);
-      border:2px solid var(--border-md); background:var(--white);
+      padding:10px 14px; border-radius:var(--radius-lg);
+      border:1.5px solid var(--border-md); background:var(--white);
       cursor:pointer; transition:all 0.15s; text-align:left;
+      flex-shrink:0;
     }
-    .emp-tab:hover { border-color:var(--navy); }
+    .emp-tab:hover { border-color:var(--navy); background:var(--navy-light); }
     .emp-tab.active { border-color:var(--navy); background:var(--navy-light); }
-    .emp-tab .emp-name { font-size:14px; font-weight:600; }
-    .emp-tab .emp-sub  { font-size:12px; color:var(--text-muted); margin-top:2px; }
-    .emp-tab .emp-neto { font-size:16px; font-weight:700; color:var(--success); margin-top:4px; }
+    .emp-tab .emp-name { font-size:13px; font-weight:600; }
+    .emp-tab .emp-sub  { font-size:11px; color:var(--text-muted); margin-top:2px; }
+    .emp-tab .emp-neto { font-size:14px; font-weight:700; color:var(--success); margin-top:3px; }
 
     .planilla-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
 
@@ -127,11 +129,16 @@
           </div>
         </div>
 
-        <!-- Tabs empleados -->
-        <div class="emp-tabs" id="emp-tabs"></div>
+        <!-- Layout: lista empleados + panel -->
+        <div class="planilla-layout">
+          <!-- Lista empleados (columna izquierda) -->
+          <div>
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:8px" id="emp-tabs-label">Empleados</div>
+            <div class="emp-tabs" id="emp-tabs"></div>
+          </div>
 
-        <!-- Panel planilla -->
-        <div id="panel-planilla" style="display:none">
+          <!-- Panel planilla (columna derecha) -->
+          <div id="panel-planilla" style="display:none">
           <div class="planilla-grid">
             <!-- Columna izquierda: Ingresos -->
             <div>
@@ -356,9 +363,11 @@
           </div>
         </div>
 
-        <div id="panel-vacio" class="empty-state" style="background:var(--white);border-radius:var(--radius-lg);border:1px solid var(--border);padding:3rem">
-          <p>Seleccioná un empleado para cargar su planilla</p>
-        </div>
+          <div id="panel-vacio" class="empty-state" style="background:var(--white);border-radius:var(--radius-lg);border:1px solid var(--border);padding:3rem">
+            <p>Seleccioná un empleado para cargar su planilla</p>
+          </div>
+          </div><!-- /col derecha -->
+        </div><!-- /planilla-layout -->
       </div>
     </div>
   </div>
