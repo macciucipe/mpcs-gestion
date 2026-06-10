@@ -494,19 +494,80 @@
     async function exportarPlanilla() {
       const empresa = getContexto().ruc;
       if (!empresa) { alert('Seleccioná una empresa primero.'); return; }
-      const { data: periodo } = await sbClient.from('planilla_periodos')
+
+      // Verificar o crear período
+      let { data: periodo } = await sbClient.from('planilla_periodos')
         .select('id, estado').eq('ruc_empresa', empresa)
         .eq('mes', mesActual).eq('anio', anioActual).maybeSingle();
-      if (!periodo) {
-        if (!confirm(`¿Crear período de planilla para ${MESES[mesActual]} ${anioActual}?`)) return;
-        const session = await checkSession();
-        await sbClient.from('planilla_periodos').insert([{
-          ruc_empresa: empresa, mes: mesActual, anio: anioActual, created_by: session.user.id
-        }]);
-        alert(`✅ Período ${MESES[mesActual]} ${anioActual} creado. Andá a Planilla para cargar.`);
-      } else {
-        alert(`El período ${MESES[mesActual]} ${anioActual} ya existe (estado: ${periodo.estado}). Andá a Planilla → Cargar.`);
+
+      if (periodo && periodo.estado === 'emitido') {
+        alert('Este período ya fue emitido y no se puede modificar.');
+        return;
       }
+
+      if (!confirm(`¿Pre-cargar planilla de ${MESES[mesActual]} ${anioActual} con los datos de asistencia actuales?\n\nEsto actualizará días laborados, feriados y faltas de cada empleado.`)) return;
+
+      const session = await checkSession();
+
+      // Crear período si no existe
+      if (!periodo) {
+        const { data: nuevo, error: errP } = await sbClient.from('planilla_periodos')
+          .insert([{ ruc_empresa: empresa, mes: mesActual, anio: anioActual, created_by: session.user.id }])
+          .select('id').single();
+        if (errP) { alert('Error al crear período: ' + errP.message); return; }
+        periodo = nuevo;
+      }
+
+      // Calcular días por empleado desde asistencia
+      const fechas = getFechasPeriodo(mesActual, anioActual);
+      const payloads = [];
+
+      for (const emp of empleados) {
+        const reg = asistencia[emp.id_empleado] || {};
+        let diasLaborados = 0, diasFeriados = 0, faltas = 0, tardanzas = 0;
+
+        fechas.forEach(f => {
+          const key = fechaStr(f);
+          const est = reg[key]?.estado;
+          const esDiaHabil = f.getDay() !== 0 && f.getDay() !== 6; // lunes a viernes o según horario
+          if (!est) {
+            // Sin registro — si es día hábil cuenta como trabajado
+            if (esDiaHabil) diasLaborados++;
+          } else if (est === 'normal' || est === 'tardanza') {
+            diasLaborados++;
+            if (est === 'tardanza') tardanzas += (reg[key]?.minutos_tardanza || 0);
+          } else if (est === 'feriado') {
+            diasLaborados++;
+            diasFeriados++;
+          } else if (est === 'falta') {
+            faltas++;
+          }
+          // descanso, vacaciones, medico no cuentan como laborados ni faltas
+        });
+
+        // Solo precarga, no toca bonos ni AFP — esos los completa el usuario en planilla
+        payloads.push({
+          periodo_id:    periodo.id,
+          id_empleado:   emp.id_empleado,
+          dias_laborados: diasLaborados,
+          dias_feriados:  diasFeriados,
+          faltas:         faltas,
+          tardanzas:      tardanzas,
+          // Valores por defecto — se completan en planilla
+          total_ingresos:    0,
+          total_descuentos:  0,
+          neto_pagar:        0,
+          essalud:           0,
+        });
+      }
+
+      // Upsert en planilla_detalle
+      const { error } = await sbClient.from('planilla_detalle')
+        .upsert(payloads, { onConflict: 'periodo_id,id_empleado' });
+
+      if (error) { alert('Error al pre-cargar: ' + error.message); return; }
+
+      alert(`✅ Planilla pre-cargada para ${empleados.length} empleados.\nAndá a Planilla → ${MESES[mesActual]} ${anioActual} para completar y generar boletas.`);
     }
 
     init();
