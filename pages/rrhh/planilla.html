@@ -797,10 +797,10 @@
       const bonoE = gv('f-bono-exc');
       const otrosI= gv('f-otros-ing');
 
-      // Remunerativos (base para CTS, grat, vac) vs no remunerativos
-      // Objetivo de ventas NO es remunerativo según ley peruana
-      const totalRemunerativo = remun + asigP + punt + asis + desemp + antiguedad;
-      const totalNoRemunerativo = movil + objetivo;
+      // Remunerativos = todo lo que se percibe habitualmente (base para AFP, ESSALUD, CTS, grat, vac)
+      // No remunerativo = solo movilidad y bonos extraordinarios
+      const totalRemunerativo = remun + asigP + punt + asis + desemp + antiguedad + objetivo;
+      const totalNoRemunerativo = movil;
       const totalIngresos = totalRemunerativo + totalNoRemunerativo + feria + he25 + he35 + bonoE + otrosI;
 
       // Descuentos
