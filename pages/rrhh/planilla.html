@@ -986,7 +986,14 @@
       const diasFer   = det.dias_feriados  || 0;
       const diasFalta = det.faltas         || 0;
       // Sábados y domingos del período
-      const fechas = getFechasPeriodo ? getFechasPeriodo(currentPeriodo.mes, currentPeriodo.anio) : [];
+      // Calcular fechas del período (26 mes anterior al 25 mes actual)
+      let mesAntP = currentPeriodo.mes - 1, anioAntP = currentPeriodo.anio;
+      if (mesAntP < 1) { mesAntP = 12; anioAntP--; }
+      const desdeP = new Date(anioAntP, mesAntP - 1, 26);
+      const hastaP = new Date(currentPeriodo.anio, currentPeriodo.mes - 1, 25);
+      const fechas = [];
+      let cur = new Date(desdeP);
+      while (cur <= hastaP) { fechas.push(new Date(cur)); cur.setDate(cur.getDate()+1); }
       const sabDom = fechas.filter(f => f.getDay()===0||f.getDay()===6).length;
 
       // Extras AFP
