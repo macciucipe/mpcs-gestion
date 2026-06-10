@@ -714,17 +714,19 @@
 
       // Cargar valores previos o defaults
       if (det) {
-        document.getElementById('chk-puntualidad').checked = det.bono_puntualidad > 0;
-        document.getElementById('chk-asistencia').checked  = det.bono_asistencia > 0;
-        document.getElementById('chk-desempeno').checked   = det.bono_desempeno > 0;
-        document.getElementById('chk-movilidad').checked   = det.movilidad > 0;
+        // Si el detalle viene de pre-carga (bonos en 0), activar checkboxes por defecto
+        const esPreCarga = det.total_ingresos === 0;
+        document.getElementById('chk-puntualidad').checked = esPreCarga ? true : det.bono_puntualidad > 0;
+        document.getElementById('chk-asistencia').checked  = esPreCarga ? true : det.bono_asistencia > 0;
+        document.getElementById('chk-desempeno').checked   = esPreCarga ? true : det.bono_desempeno > 0;
+        document.getElementById('chk-movilidad').checked   = esPreCarga ? (mov > 0) : det.movilidad > 0;
         document.getElementById('f-feriados').value  = det.bono_dia_trabajador || 0;
         document.getElementById('f-he25').value      = det.horas_extras_25 || 0;
         document.getElementById('f-he35').value      = det.horas_extras_35 || 0;
         document.getElementById('f-bono-exc').value  = det.bono_excepcional || 0;
         document.getElementById('f-otros-ing').value = det.otros_ingresos || 0;
-        document.getElementById('f-dias').value      = det.dias_laborados || 30;
-        document.getElementById('f-dias-feriados').value = det.dias_feriados || 0;
+        document.getElementById('f-dias').value      = Math.round(det.dias_laborados || 30);
+        document.getElementById('f-dias-feriados').value = Math.round(det.dias_feriados || 0);
         document.getElementById('f-faltas').value    = det.faltas || 0;
         document.getElementById('f-tardanzas').value = det.tardanzas || 0;
         document.getElementById('f-adelanto').value  = det.adelanto || 0;
@@ -751,6 +753,7 @@
     }
 
     function gv(id) { return parseFloat(document.getElementById(id)?.value||0)||0; }
+    function gi(id) { return parseInt(document.getElementById(id)?.value||0)||0; }  // enteros
     function gchk(id) { return document.getElementById(id)?.checked||false; }
 
     function calcular() {
@@ -759,7 +762,7 @@
       const suel = e.sueldo_basico || 0;
       const asig = e.asignacion_familiar || 0;
       const cfg  = getEmpresaConfig(e.ruc_empresa);
-      const dias = gv('f-dias');
+      const dias = gi('f-dias');
 
       // Remuneración proporcional (base 30 días)
       const remun = (suel / 30) * dias;
@@ -782,7 +785,7 @@
         : 0;
 
       // Movilidad — días efectivos = días laborados + feriados - faltas
-      const diasEfectivos = gv('f-dias') + gv('f-dias-feriados') - gv('f-faltas');
+      const diasEfectivos = gi('f-dias') + gi('f-dias-feriados') - gi('f-faltas');
       const movBase = calcularMovilidad(cfg, e.id_empleado, Math.max(0, diasEfectivos));
       const movil = gchk('chk-movilidad') ? movBase : 0;
 
@@ -801,7 +804,7 @@
       const totalIngresos = totalRemunerativo + totalNoRemunerativo + feria + he25 + he35 + bonoE + otrosI;
 
       // Descuentos
-      const montFaltas = (suel / 30) * gv('f-faltas');
+      const montFaltas = (suel / 30) * gi('f-faltas');
       const tardanzas  = gv('f-tardanzas');
       const adelanto   = gv('f-adelanto');
       const otrosDsc   = gv('f-otros-dsc');
