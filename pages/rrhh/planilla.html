@@ -688,7 +688,7 @@
       }
 
       // Labels de referencia
-      document.getElementById('lbl-basico').textContent      = `S/ ${suel.toFixed(2)} / mes`;
+      document.getElementById('lbl-basico').textContent      = `S/ ${suel.toFixed(2)} / mes (completo)`;
       document.getElementById('lbl-puntualidad').textContent = `${(cfg.bonos.puntualidad*100).toFixed(0)}% básico = S/ ${(suel*cfg.bonos.puntualidad).toFixed(2)}`;
       document.getElementById('lbl-asistencia').textContent  = `${(cfg.bonos.asistencia*100).toFixed(0)}% básico = S/ ${(suel*cfg.bonos.asistencia).toFixed(2)}`;
       document.getElementById('lbl-desempeno').textContent   = `${(cfg.bonos.desempeno*100).toFixed(0)}% básico = S/ ${(suel*cfg.bonos.desempeno).toFixed(2)}`;
@@ -764,9 +764,9 @@
       const cfg  = getEmpresaConfig(e.ruc_empresa);
       const dias = gi('f-dias');
 
-      // Remuneración proporcional (base 30 días)
-      const remun = (suel / 30) * dias;
-      const asigP = dias >= 30 ? asig : 0;
+      // Básico siempre completo — solo se descuenta por faltas injustificadas
+      const remun = suel;
+      const asigP = asig; // asignación familiar siempre completa
 
       // Bonos base siempre al 10%
       const cumpleObjetivo = cfg.tiene_objetivo && gchk('chk-objetivo');
