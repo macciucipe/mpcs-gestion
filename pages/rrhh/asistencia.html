@@ -142,11 +142,11 @@
             <div class="leyenda-item"><div class="leyenda-dot" style="background:#D1FAE5"></div>Normal</div>
             <div class="leyenda-item"><div class="leyenda-dot" style="background:#FEF3C7"></div>Tardanza</div>
             <div class="leyenda-item"><div class="leyenda-dot" style="background:#FEE2E2"></div>Falta</div>
-            <div class="leyenda-item"><div class="leyenda-dot" style="background:#DBEAFE"></div>Feriado trabajado</div>
+            <div class="leyenda-item"><div class="leyenda-dot" style="background:#DBEAFE"></div>Feriado (fue)</div>
             <div class="leyenda-item"><div class="leyenda-dot" style="background:#F3F4F6"></div>Descanso</div>
             <div class="leyenda-item"><div class="leyenda-dot" style="background:#EDE9FE"></div>Vacaciones</div>
             <div class="leyenda-item"><div class="leyenda-dot" style="background:#CFFAFE"></div>Desc. médico</div>
-            <div class="leyenda-item"><div class="leyenda-dot" style="background:#FEE2E2;border-style:dashed"></div>Feriado no trabajado</div>
+            <div class="leyenda-item"><div class="leyenda-dot" style="background:#FEE2E2;border-style:dashed"></div>Feriado (no fue)</div>
           </div>
         </div>
       </div>
@@ -165,11 +165,11 @@
           <button class="nov-btn normal"            onclick="selectEstado('normal')"            id="nb-normal">✅<span>Trabajó normal</span></button>
           <button class="nov-btn tardanza"          onclick="selectEstado('tardanza')"          id="nb-tardanza">⏰<span>Tardanza</span></button>
           <button class="nov-btn falta"             onclick="selectEstado('falta')"             id="nb-falta">❌<span>Falta injustificada</span></button>
-          <button class="nov-btn feriado_trabajado" onclick="selectEstado('feriado_trabajado')" id="nb-feriado_trabajado">🔵<span>Feriado trabajado</span></button>
+          <button class="nov-btn feriado_trabajado" onclick="selectEstado('feriado_trabajado')" id="nb-feriado_trabajado">🔵<span>Feriado (fue a trabajar)</span></button>
           <button class="nov-btn descanso"          onclick="selectEstado('descanso')"          id="nb-descanso">😴<span>Día de descanso</span></button>
           <button class="nov-btn vacaciones"        onclick="selectEstado('vacaciones')"        id="nb-vacaciones">🏖️<span>Vacaciones</span></button>
           <button class="nov-btn descanso_medico"   onclick="selectEstado('descanso_medico')"   id="nb-descanso_medico">🏥<span>Descanso médico</span></button>
-          <button class="nov-btn feriado"           onclick="selectEstado('feriado')"           id="nb-feriado">📅<span>Feriado no trabajado</span></button>
+          <button class="nov-btn feriado"           onclick="selectEstado('feriado')"           id="nb-feriado">📅<span>Feriado (no fue)</span></button>
         </div>
         <div id="extra-tardanza" style="display:none;margin-bottom:1rem">
           <div class="field" style="margin-bottom:0">
@@ -536,9 +536,11 @@
           } else if (est === 'normal' || est === 'tardanza') {
             diasLaborados++;
             if (est === 'tardanza') tardanzas += (reg[key]?.minutos_tardanza || 0);
-          } else if (est === 'feriado') {
+          } else if (est === 'feriado_trabajado') {
             diasLaborados++;
             diasFeriados++;
+          } else if (est === 'feriado') {
+            // Feriado NO trabajado — no cuenta como laborado ni falta
           } else if (est === 'falta') {
             faltas++;
           }
