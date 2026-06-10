@@ -699,7 +699,7 @@
       if (rowObjetivo) {
         rowObjetivo.style.display = cfg.tiene_objetivo ? 'flex' : 'none';
         const lblObj = document.getElementById('lbl-objetivo');
-        if (lblObj) lblObj.textContent = `15% básico = S/ ${(suel*(cfg.objetivo_pct||0.15)).toFixed(2)} (si el local cumplió)`;
+        if (lblObj) lblObj.textContent = '5% extra por cada bono obtenido';
       }
       if (rowAntiguedad) rowAntiguedad.style.display = cfg.tiene_antiguedad ? 'flex' : 'none';
 
@@ -765,16 +765,21 @@
       const remun = (suel / 30) * dias;
       const asigP = dias >= 30 ? asig : 0;
 
-      // Si el local cumplió el objetivo, cada bono obtenido sube de 10% a 15%
+      // Bonos base siempre al 10%
       const cumpleObjetivo = cfg.tiene_objetivo && gchk('chk-objetivo');
-      const tasaBono = cumpleObjetivo && cfg.bonos_con_objetivo ? cfg.bonos_con_objetivo : cfg.bonos;
 
-      const punt  = gchk('chk-puntualidad') ? suel * tasaBono.puntualidad : 0;
-      const asis  = gchk('chk-asistencia')  ? suel * tasaBono.asistencia  : 0;
-      const desemp= gchk('chk-desempeno')   ? suel * tasaBono.desempeno   : 0;
+      const punt  = gchk('chk-puntualidad') ? suel * cfg.bonos.puntualidad : 0;
+      const asis  = gchk('chk-asistencia')  ? suel * cfg.bonos.asistencia  : 0;
+      const desemp= gchk('chk-desempeno')   ? suel * cfg.bonos.desempeno   : 0;
 
-      // Objetivo de ventas — concepto SEPARADO, 15% del básico si el local cumplió
-      const objetivo = cumpleObjetivo ? suel * (cfg.objetivo_pct || 0.15) : 0;
+      // Objetivo de ventas = suma del 5% extra por cada bono obtenido
+      // Si ganó los 3 bonos: 5%+5%+5% = 15%. Si ganó 2: 10%. Etc.
+      const EXTRA_PCT = 0.05;
+      const objetivo = cumpleObjetivo
+        ? ((gchk('chk-puntualidad') ? suel * EXTRA_PCT : 0) +
+           (gchk('chk-asistencia')  ? suel * EXTRA_PCT : 0) +
+           (gchk('chk-desempeno')   ? suel * EXTRA_PCT : 0))
+        : 0;
 
       // Movilidad — días efectivos = días laborados + feriados - faltas
       const diasEfectivos = gv('f-dias') + gv('f-dias-feriados') - gv('f-faltas');
