@@ -606,7 +606,7 @@
     async function loadStats(id) {
       const { data } = await sbClient.from('planilla_detalle').select('neto_pagar').eq('periodo_id', id);
       if (!data) return;
-      document.getElementById(`ec-${id}`).textContent = data.length;
+      const ecEl = document.getElementById(`ec-${id}`); if (ecEl) ecEl.textContent = data.length;
       const total = data.reduce((s,d)=>s+(d.neto_pagar||0),0);
       document.getElementById(`nc-${id}`).textContent = `S/ ${total.toLocaleString('es-PE',{minimumFractionDigits:2})}`;
     }
@@ -1025,8 +1025,7 @@
         t(`RUC Nº: ${e.ruc_empresa}`,W-M,y,8,false,'right'); y+=5;
 
         // Título
-        box(M,y,W-2*M,0.3,[180,180,180]);
-        y+=3;
+        doc.setDrawColor(180); doc.line(M,y,W-M,y); y+=3;
         t('BOLETA DE PAGO',W/2,y,9,true,'center');
         y+=5; box(M,y,W-2*M,0.3,[180,180,180]); y+=2;
 
@@ -1187,8 +1186,7 @@
 
         // Borde exterior de la tabla
         doc.setDrawColor(180); doc.rect(M,y-maxRows*rowFH,W-2*M,maxRows*rowFH);
-        box(M,y,W-2*M,0.3,[180,180,180]);
-        y+=2;
+        doc.setDrawColor(180); doc.line(M,y,W-M,y); y+=2;
 
         // Totales
         box(M,y,W-2*M,6,[245,245,245]);
