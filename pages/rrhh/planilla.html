@@ -720,6 +720,10 @@
         document.getElementById('chk-asistencia').checked  = esPreCarga ? true : det.bono_asistencia > 0;
         document.getElementById('chk-desempeno').checked   = esPreCarga ? true : det.bono_desempeno > 0;
         document.getElementById('chk-movilidad').checked   = esPreCarga ? (mov > 0) : det.movilidad > 0;
+        const chkObj = document.getElementById('chk-objetivo');
+        if (chkObj) chkObj.checked = esPreCarga ? false : (det.bono_objetivo > 0);
+        const chkAnt = document.getElementById('chk-antiguedad');
+        if (chkAnt) chkAnt.checked = esPreCarga ? true : (det.bono_antiguedad > 0);
         document.getElementById('f-feriados').value  = det.bono_dia_trabajador || 0;
         document.getElementById('f-he25').value      = det.horas_extras_25 || 0;
         document.getElementById('f-he35').value      = det.horas_extras_35 || 0;
@@ -963,9 +967,9 @@
 
       function ln(y,x1,x2){ doc.setDrawColor(180); doc.line(x1||M,y,x2||(W-M),y); }
       function box(x,y,w,h,fill,stroke){
-        if(fill){doc.setFillColor(...fill);doc.rect(x,y,w,h,'F');}
-        if(stroke){doc.setDrawColor(...stroke);doc.rect(x,y,w,h,'S');}
-        if(!fill&&!stroke){doc.setDrawColor(180);doc.rect(x,y,w,h);}
+        if(fill && stroke){ doc.setFillColor(...fill); doc.setDrawColor(...stroke); doc.rect(x,y,w,h,'FD'); }
+        else if(fill){ doc.setFillColor(...fill); doc.rect(x,y,w,h,'F'); }
+        else { doc.setDrawColor(180); doc.rect(x,y,w,h,'S'); }
       }
       function t(text,x,y,size=8,bold=false,align='left'){
         doc.setFontSize(size);doc.setFont('helvetica',bold?'bold':'normal');
