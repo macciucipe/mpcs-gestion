@@ -466,7 +466,7 @@
       const anios = Math.floor((hoy - ingreso) / (365.25 * 24 * 3600 * 1000));
       if (anios < 1) return 0;
       const pct = Math.min(anios * 0.01, config.antiguedad_max || 0.10);
-      return suel * pct;
+      return sueldo * pct;
     }
 
     // Calcular movilidad según tipo
@@ -833,7 +833,14 @@
         const eld = document.getElementById('lbl-antiguedad');
         if (eld) eld.textContent = anios >= 1 ? `${anios} año${anios>1?'s':''} = ${(pct*100).toFixed(0)}% = S/ ${(suel*pct).toFixed(2)}` : 'Menos de 1 año — no aplica';
       }
-      document.getElementById('m-faltas').textContent      = montFaltas > 0 ? `-S/ ${montFaltas.toFixed(2)}` : 'S/ 0.00';
+      const mFaltasEl = document.getElementById('m-faltas');
+      if (montFaltas > 0) {
+        mFaltasEl.textContent = `-S/ ${montFaltas.toFixed(2)}`;
+        mFaltasEl.style.display = '';
+      } else {
+        mFaltasEl.textContent = '';
+        mFaltasEl.style.display = 'none';
+      }
       document.getElementById('r-ingresos').textContent    = `S/ ${totalIngresos.toFixed(2)}`;
       document.getElementById('r-afp').textContent         = `S/ ${totalAfp.toFixed(2)}`;
       document.getElementById('r-otros-dsc').textContent   = `S/ ${totalOtrosDsc.toFixed(2)}`;
