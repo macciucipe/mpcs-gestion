@@ -962,7 +962,7 @@
     async function generarBoletaEmp(e, c) {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({unit:'mm',format:'a4'});
-      const W=210, M=10;
+      const W=210, M=10; 
       const det = detalleMap[e.id_empleado] || {};
 
       function ln(y,x1,x2){ doc.setDrawColor(180); doc.line(x1||M,y,x2||(W-M),y); }
