@@ -958,116 +958,281 @@
     async function generarBoletaEmp(e, c) {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({unit:'mm',format:'a4'});
-      const W=210, M=14;
-      function ln(y){ doc.setDrawColor(200); doc.line(M,y,W-M,y); }
-      function box(x,y,w,h,fill){ if(fill){doc.setFillColor(...fill);doc.rect(x,y,w,h,'F');}else{doc.rect(x,y,w,h);} }
-      function t(text,x,y,size=9,bold=false,align='left'){
-        doc.setFontSize(size);doc.setFont('helvetica',bold?'bold':'normal');
-        doc.text(String(text||'—'),x,y,{align});
+      const W=210, M=10;
+      const det = detalleMap[e.id_empleado] || {};
+
+      function ln(y,x1,x2){ doc.setDrawColor(180); doc.line(x1||M,y,x2||(W-M),y); }
+      function box(x,y,w,h,fill,stroke){
+        if(fill){doc.setFillColor(...fill);doc.rect(x,y,w,h,'F');}
+        if(stroke){doc.setDrawColor(...stroke);doc.rect(x,y,w,h,'S');}
+        if(!fill&&!stroke){doc.setDrawColor(180);doc.rect(x,y,w,h);}
       }
+      function t(text,x,y,size=8,bold=false,align='left'){
+        doc.setFontSize(size);doc.setFont('helvetica',bold?'bold':'normal');
+        doc.setTextColor(0,0,0);
+        doc.text(String(text||''),x,y,{align});
+      }
+      function tg(text,x,y,size=7){
+        doc.setFontSize(size);doc.setFont('helvetica','normal');
+        doc.setTextColor(100,100,100);
+        doc.text(String(text||''),x,y);
+        doc.setTextColor(0,0,0);
+      }
+      function money(v){ return `${Number(v||0).toFixed(2)}`; }
+      function pct(v){ return `${(Number(v||0)*100).toFixed(2)}%`; }
 
-      const dibujarBoleta = (offsetY) => {
-        let y = offsetY + 10;
-        box(M,y,W-2*M,7,[27,43,94]);
+      // Calcular datos de días
+      const diasTrab  = det.dias_laborados || 0;
+      const diasFer   = det.dias_feriados  || 0;
+      const diasFalta = det.faltas         || 0;
+      // Sábados y domingos del período
+      const fechas = getFechasPeriodo ? getFechasPeriodo(currentPeriodo.mes, currentPeriodo.anio) : [];
+      const sabDom = fechas.filter(f => f.getDay()===0||f.getDay()===6).length;
+
+      // Extras AFP
+      const extra = e.datos_extra ? (typeof e.datos_extra==='string'?JSON.parse(e.datos_extra):e.datos_extra) : {};
+      const afpCom = extra.afp_comision || 0;
+      const afpSeg = extra.afp_seguro   || 0.0137;
+
+      // Período del al
+      let mesAnt = currentPeriodo.mes - 1, anioAnt = currentPeriodo.anio;
+      if (mesAnt < 1) { mesAnt = 12; anioAnt--; }
+      const desde = `26/${String(mesAnt).padStart(2,'0')}/${anioAnt}`;
+      const hasta  = `25/${String(currentPeriodo.mes).padStart(2,'0')}/${currentPeriodo.anio}`;
+
+      const dibujarBoleta = (copia, offsetY) => {
+        let y = offsetY;
+
+        // Header negro
+        box(M,y,W-2*M,6,[20,20,20]);
         doc.setTextColor(255,255,255);
-        t('COPIA EMPLEADOR',W/2,y+5,8,true,'center');
-        doc.setTextColor(0,0,0); y+=10;
+        t(copia,W/2,y+4.5,8,true,'center');
+        doc.setTextColor(0,0,0); y+=8;
 
-        t(e.empresas?.razon_social||'',M,y,11,true);
-        t(`RUC: ${e.ruc_empresa}`,W-M,y,8,false,'right'); y+=5;
-        t('BOLETA DE PAGO',W/2,y,12,true,'center');
-        t(`AÑO ${currentPeriodo.anio}`,W-M,y,8,false,'right'); y+=5; ln(y); y+=4;
+        // Empresa
+        t(e.empresas?.razon_social||'CAMPO & CARNE S.A.C.',M,y,10,true);
+        t(`RUC Nº: ${e.ruc_empresa}`,W-M,y,8,false,'right'); y+=5;
 
-        t('CÓD',M,y,7,true); t('APELLIDOS Y NOMBRES',26,y,7,true);
-        t('DOC.',100,y,7,true); t('MES',125,y,7,true); t('DEL',148,y,7,true); t('AL',165,y,7,true);
-        y+=4;
-        t(e.id_empleado,M,y,8); t(`${e.nombres} ${e.apellidos}`,26,y,8);
-        t(`${e.tipo_documento} ${e.numero_documento}`,100,y,8); t(MESES[currentPeriodo.mes],125,y,8);
-        y+=4; ln(y); y+=3;
+        // Título
+        box(M,y,W-2*M,0.3,[180,180,180]);
+        y+=3;
+        t('BOLETA DE PAGO',W/2,y,9,true,'center');
+        y+=5; box(M,y,W-2*M,0.3,[180,180,180]); y+=2;
 
-        t('REGIMEN',M,y,7,true); t('CATEGORÍA',35,y,7,true); t('CARGO',62,y,7,true);
-        t('LUGAR',105,y,7,true); t('F.INGRESO',140,y,7,true); t('AFP/SNP',168,y,7,true);
-        y+=4;
-        t(e.regimen?.toUpperCase()||'—',M,y,8); t(e.categoria?.toUpperCase()||'—',35,y,8);
-        t(e.cargo||'—',62,y,8); t(e.locales?.nombre||'—',105,y,8);
-        t(e.fecha_ingreso||'—',140,y,8); t(`${e.sistema_pensionario} ${e.afp||''}`,168,y,8);
-        y+=4; ln(y); y+=3;
+        // Fila código / mes / del / al
+        const rowH = 9;
+        // Cajas de cabecera
+        const cols = [
+          {label:'CÓDIGO',    val:e.id_empleado,           x:M,   w:22},
+          {label:'MES',       val:MESES[currentPeriodo.mes], x:M+22,w:20},
+          {label:'DEL',       val:desde,                   x:M+42,w:28},
+          {label:'AL',        val:hasta,                   x:M+70,w:28},
+          {label:'',          val:'',                      x:M+98,w:W-2*M-98},
+        ];
+        cols.forEach(col => {
+          box(col.x,y,col.w,rowH,null,null);
+          doc.setDrawColor(180); doc.rect(col.x,y,col.w,rowH);
+          tg(col.label,col.x+1,y+3.5,6);
+          t(col.val,col.x+1,y+7.5,7.5);
+        });
+        // Nombre completo en última celda
+        tg('APELLIDOS Y NOMBRES',M+99,y+3.5,6);
+        t(`${e.apellidos||''} ${e.nombres||''}`,M+99,y+7.5,7.5,true);
+        y += rowH + 1;
 
-        t('BANCO',M,y,7,true); t('CUENTA',38,y,7,true); t('HABER MENSUAL',130,y,7,true); t('HABER DIARIO',165,y,7,true);
-        y+=4;
-        t(e.banco||'—',M,y,8); t(e.numero_cuenta||'—',38,y,8);
-        t(`S/ ${Number(e.sueldo_basico||0).toFixed(2)}`,130,y,8);
-        t(`S/ ${(Number(e.sueldo_basico||0)/30).toFixed(2)}`,165,y,8);
-        y+=4; ln(y); y+=3;
+        // Fila régimen / categoría / proyecto / ingreso / cese
+        const cols2 = [
+          {label:'RÉGIMEN',   val:e.regimen?.toUpperCase()||'MYPE', x:M,    w:22},
+          {label:'CATEGORÍA', val:e.categoria||'EMPLEADO',          x:M+22, w:22},
+          {label:'PROYECTO',  val:e.locales?.nombre||'—',           x:M+44, w:40},
+          {label:'F. INGRESO',val:e.fecha_ingreso||'—',             x:M+84, w:28},
+          {label:'F. CESE',   val:e.fecha_cese||'-',                x:M+112,w:25},
+          {label:'',          val:'',                               x:M+137,w:W-2*M-137},
+        ];
+        cols2.forEach(col => {
+          doc.setDrawColor(180); doc.rect(col.x,y,col.w,rowH);
+          tg(col.label,col.x+1,y+3.5,6);
+          t(col.val,col.x+1,y+7.5,7);
+        });
+        y += rowH + 1;
 
-        // Ingresos | Descuentos | Aportes
-        const ic=M, dc=90, ac=165;
-        t('INGRESOS',ic,y,8,true); t('DESCUENTOS',dc,y,8,true); t('APORTES EMPLEADOR',ac,y,8,true); y+=5;
+        // Fila pensión / banco / normal / mensual / diario
+        const cols3 = [
+          {label:'R. PENS.',     val:`${e.sistema_pensionario||''} ${e.afp||''}`.trim(), x:M,    w:25},
+          {label:'BANCO',        val:e.banco||'—',                                        x:M+25, w:22},
+          {label:'H. NORMAL',    val:'0',                                                 x:M+47, w:20},
+          {label:'HABER MENSUAL',val:`${money(e.sueldo_basico)}`,                         x:M+67, w:38},
+          {label:'HABER DIARIO', val:`${money((e.sueldo_basico||0)/30)}`,                 x:M+105,w:30},
+          {label:'',             val:'',                                                  x:M+135,w:W-2*M-135},
+        ];
+        cols3.forEach(col => {
+          doc.setDrawColor(180); doc.rect(col.x,y,col.w,rowH);
+          tg(col.label,col.x+1,y+3.5,6);
+          t(col.val,col.x+1,y+7.5,7.5,col.label==='HABER MENSUAL');
+        });
+        y += rowH + 1;
 
+        // Resumen de días
+        const diaLabels = ['TRABAJADOS','FERIADOS','FALTAS','SÁB. Y DOM.','DESC. C/G','DESC S/G','DESC. MÉD.'];
+        const diaVals   = [diasTrab, diasFer, diasFalta, sabDom, 0, 0, 0];
+        const dW = (W-2*M)/diaLabels.length;
+        diaLabels.forEach((lb,i) => {
+          doc.setDrawColor(180); doc.rect(M+i*dW,y,dW,rowH);
+          tg(lb,M+i*dW+1,y+3.5,5.5);
+          t(String(diaVals[i]),M+i*dW+dW/2,y+7.5,8,true,'center');
+        });
+        y += rowH;
+        // Total días
+        doc.setDrawColor(180); doc.rect(M,y,W-2*M,5);
+        t(`Total dias del MES  30`,M+2,y+3.5,7);
+        y += 7;
+
+        // Tabla ingresos / descuentos / aportes
+        // Columnas: código | concepto | monto || código | concepto | porcentaje | monto || aporte
+        const C1=M, C2=M+6, C3=M+58, C4=M+74, C5=M+80, C6=M+107, C7=M+120, C8=M+147, C9=M+158, C10=M+162, C11=M+185;
+
+        // Headers
+        box(M,y,W-2*M,5,[235,235,235]);
+        doc.setDrawColor(180); doc.rect(M,y,W-2*M,5);
+        t('INGRESOS',C2,y+3.5,7,true);
+        t('DESCUENTOS',C5,y+3.5,7,true);
+        t('APORTES DEL EMPLEADOR',C9,y+3.5,7,true);
+        // separadores verticales
+        doc.setDrawColor(180);
+        doc.line(C4,y,C4,y+5);
+        doc.line(C8,y,C8,y+5);
+        y+=5;
+
+        // Filas de conceptos
         const ing = [
-          ['Haber básico',         c.remun],
-          ['Asig. familiar',       c.asigP],
-          ['HE 25%',               c.he25],
-          ['HE 35%',               c.he35],
-          ['Feriados/descanso',    c.feria],
-          ['Movilidad',            c.movil],
-          ['Antigüedad',           c.antiguedad],
-          ['Bono puntualidad',     c.punt],
-          ['Asistencia perfecta',  c.asis],
-          ['Buen desempeño',       c.desemp],
-          ['Objetivo ventas',      c.objetivo],
-          ['Bono excepcional',     c.bonoE],
-          ['Otros ingresos',       c.otrosI],
-        ].filter(([,v])=>v>0);
+          [22,'HABER BASICO',       c.remun],
+          [23,'ASIGNACIÓN FAMILIAR',c.asigP],
+          [24,'HORAS EXTRAS AL 25%',c.he25],
+          [25,'HORAS EXTRAS AL 35%',c.he35],
+          [26,'FERIADOS Y DIAS DE DESCANSO',c.feria],
+          [27,'AGUINALDO NAVIDEÑO', c.bonoE],
+          [32,'CTS TRUNCO',         c.provCts],
+          [33,'GRATIF. ORDINARIAS TRUNCAS',c.provGrat],
+          [35,'COMPENSACION CTS',   0],
+          [36,'GRATIFICACIONES',    0],
+          [38,'VACACIONES TRUNCAS', c.provVac],
+          ['','MOVILIDAD',          c.movil],
+          ['','ANTIGÜEDAD > 13 mes',c.antiguedad],
+          ['','PUNTUALIDAD',        c.punt],
+          ['','ASISTENCIA PERFECTA',c.asis],
+          ['','BUEN DESEMPEÑO',     c.desemp],
+          ['','OBJETIVO VENTAS',    c.objetivo],
+          ['','BONO EXCEPCIONAL',   c.bonoE>0?0:0],
+          [40,'BONO EXCEPCIONAL',   0],
+        ].filter(([,lb,v])=>v>0);
 
         const dsc = [
-          ['SNP (13%)',        c.snp],
-          ['AFP obligatorio',  c.afpObl],
-          ['AFP comisión',     c.afpCom],
-          ['AFP seguro',       c.afpSeg],
-          ['Faltas',           c.montFaltas],
-          ['Tardanzas',        parseFloat(document.getElementById('f-tardanzas')?.value||0)||detalleMap[e.id_empleado]?.tardanzas||0],
-          ['Adelanto',         parseFloat(document.getElementById('f-adelanto')?.value||0)||detalleMap[e.id_empleado]?.adelanto||0],
-          ['Otros descuentos', parseFloat(document.getElementById('f-otros-dsc')?.value||0)||detalleMap[e.id_empleado]?.otros_descuentos||0],
-        ].filter(([,v])=>v>0);
+          ['','SNP',      `${pct(0.13)}`,      c.snp],
+          ['','AFP OBLIGATORIO',`${pct(0.10)}`,c.afpObl],
+          ['','AFP COMISION',   `${pct(afpCom)}`,c.afpCom],
+          ['','AFP SEGURO',     `${pct(afpSeg)}`,c.afpSeg],
+          [54,'RETENCION QUINTA','',            0],
+          [30,'FALTAS',         '',             c.montFaltas],
+          [31,'TARDANZAS',      '',             det.tardanzas||0],
+          [55,'ADELANTO',       '',             det.adelanto||0],
+          [56,'PAGO CTS',       '',             0],
+          [57,'PAGO GRATIF.',   '',             0],
+          [60,'OTROS DSCTOS.',  '',             det.otros_descuentos||0],
+        ].filter(([,lb,pct,v])=>v>0);
 
-        const apo = [['EsSalud (9%)', c.essalud]];
-        const maxR = Math.max(ing.length, dsc.length, apo.length);
+        const apo = [
+          ['ESSALUD', c.essalud],
+        ];
 
-        for (let i=0;i<maxR;i++) {
-          if (ing[i]) { t(ing[i][0],ic,y,8); t(`S/${ing[i][1].toFixed(2)}`,ic+65,y,8,false,'right'); }
-          if (dsc[i]) { t(dsc[i][0],dc,y,8); t(`S/${dsc[i][1].toFixed(2)}`,dc+55,y,8,false,'right'); }
-          if (apo[i]) { t(apo[i][0],ac,y,8); t(`S/${apo[i][1].toFixed(2)}`,W-M,y,8,false,'right'); }
-          y+=5;
+        const maxRows = Math.max(ing.length, dsc.length, apo.length);
+        const rowFH = 4.5;
+
+        for(let i=0; i<maxRows; i++){
+          const rowY = y + i*rowFH;
+          // Separador horizontal
+          if(i>0) { doc.setDrawColor(230); doc.line(M,rowY,W-M,rowY); }
+          // Separadores verticales
+          doc.setDrawColor(200);
+          doc.line(C4,y,C4,y+maxRows*rowFH);
+          doc.line(C8,y,C8,y+maxRows*rowFH);
+
+          if(ing[i]){
+            t(String(ing[i][0]),C1,rowY+3.5,6.5);
+            t(ing[i][1],C2,rowY+3.5,6.5);
+            t(money(ing[i][2]),C3+6,rowY+3.5,6.5,false,'right');
+          }
+          if(dsc[i]){
+            t(String(dsc[i][0]),C5,rowY+3.5,6.5);
+            t(dsc[i][1],C5+6,rowY+3.5,6.5);
+            if(dsc[i][2]) t(dsc[i][2],C6+12,rowY+3.5,6.5,false,'right');
+            t(money(dsc[i][3]),C7+12,rowY+3.5,6.5,false,'right');
+          }
+          if(apo[i]){
+            t(apo[i][0],C9,rowY+3.5,6.5);
+            t(money(apo[i][1]),C10+22,rowY+3.5,6.5,false,'right');
+          }
         }
-        ln(y); y+=3;
+        y += maxRows*rowFH;
 
-        t('TOTAL INGRESOS',ic,y,9,true);
-        t(`S/ ${c.totalIngresos.toFixed(2)}`,ic+65,y,9,true,'right');
-        t('TOTAL DESCUENTOS',dc,y,9,true);
-        t(`S/ ${c.totalDescuentos.toFixed(2)}`,dc+55,y,9,true,'right');
-        t('ESSALUD',ac,y,9,true);
-        t(`S/ ${c.essalud.toFixed(2)}`,W-M,y,9,true,'right');
+        // Borde exterior de la tabla
+        doc.setDrawColor(180); doc.rect(M,y-maxRows*rowFH,W-2*M,maxRows*rowFH);
+        box(M,y,W-2*M,0.3,[180,180,180]);
+        y+=2;
+
+        // Totales
+        box(M,y,W-2*M,6,[245,245,245]);
+        doc.setDrawColor(180); doc.rect(M,y,W-2*M,6);
+        doc.line(C4,y,C4,y+6); doc.line(C8,y,C8,y+6);
+        t(`${money(c.totalIngresos)}`,C3+6,y+4.5,8,true,'right');
+        t(`${money(c.totalDescuentos)}`,C7+12,y+4.5,8,true,'right');
+        t('TOTAL APORTES',C9,y+4.5,7,true);
+        t(`${money(c.essalud)}`,C10+22,y+4.5,8,true,'right');
+        y+=8;
+
+        // Neto a pagar
+        box(M,y,W-2*M,8,[20,20,20]);
+        doc.setTextColor(255,255,255);
+        t(`${money(c.neto)}`,W-M-2,y+5.5,11,true,'right');
+        doc.setTextColor(0,0,0); y+=10;
+
+        // CUSPP / cuenta
+        box(M,y,W-2*M,8,[245,245,245]);
+        doc.setDrawColor(180); doc.rect(M,y,W-2*M,8);
+        tg('APELLIDOS Y NOMBRES',M+2,y+3,6);
+        tg('DOC. IDENTIDAD',M+80,y+3,6);
+        tg('CARGO',M+110,y+3,6);
+        tg('LUGAR',M+145,y+3,6);
+        y+=4;
+        t(`${e.apellidos||''} ${e.nombres||''}`,M+2,y+3,7.5,true);
+        t(e.numero_documento||'',M+80,y+3,7.5);
+        t(e.cargo||'—',M+110,y+3,7.5);
+        t('LIMA',M+145,y+3,7.5);
         y+=6;
 
-        box(M,y,W-2*M,9,[27,43,94]);
-        doc.setTextColor(255,255,255);
-        t('NETO A PAGAR',M+2,y+6,11,true);
-        t(`S/ ${c.neto.toFixed(2)}`,W-M-2,y+6,13,true,'right');
-        doc.setTextColor(0,0,0); y+=13;
+        box(M,y,W-2*M,8,[245,245,245]);
+        doc.setDrawColor(180); doc.rect(M,y,W-2*M,8);
+        tg('CUSSP',M+2,y+3,6);
+        tg('NUM. CUENTA',M+40,y+3,6);
+        tg('TOTAL INGRESOS',M+90,y+3,6);
+        tg('TOTAL DESCUENTOS',M+130,y+3,6);
+        tg('NETO A PAGAR',M+168,y+3,6);
+        y+=4;
+        t(extra.cuspp||e.cuspp||'—',M+2,y+3,7.5);
+        t(e.numero_cuenta||'—',M+40,y+3,7.5);
+        t(money(c.totalIngresos),M+90,y+3,7.5,true);
+        t(money(c.totalDescuentos),M+130,y+3,7.5,true);
+        t(money(c.neto),M+168,y+3,7.5,true);
+        y+=6;
 
-        t(`${e.nombres} ${e.apellidos}`,M,y,8);
-        t(`${e.tipo_documento}: ${e.numero_documento}`,W-M,y,8,false,'right');
+        // Firma
+        t(`TRABAJADOR`,M,y+5,7,true);
+        t(`${e.apellidos||''} ${e.nombres||''}`,M,y+10,7);
         return y;
       };
 
-      dibujarBoleta(0);
-      // Segunda copia (trabajador)
+      dibujarBoleta('COPIA EMPLEADOR', 5);
       doc.addPage();
-      const y2 = 10;
-      box(M,y2,W-2*M,7,[27,43,94]);
-      doc.setTextColor(255,255,255);
-      t('COPIA TRABAJADOR',W/2,y2+5,8,true,'center');
+      dibujarBoleta('COPIA TRABAJADOR', 5);
       doc.setTextColor(0,0,0);
       dibujarBoleta(15);
 
