@@ -529,24 +529,19 @@
         fechas.forEach(f => {
           const key = fechaStr(f);
           const est = reg[key]?.estado;
-          // diasLaborados = días que físicamente fue (para movilidad)
-          // descansos y feriados no trabajados NO cuentan para movilidad
-          if (!est) {
-            // Sin registro explícito = fue normal
-            diasLaborados++;
-          } else if (est === 'normal') {
+          // Solo contar días con registro EXPLÍCITO como asistencia
+          if (est === 'normal') {
             diasLaborados++;
           } else if (est === 'tardanza') {
             diasLaborados++;
             tardanzas += (reg[key]?.minutos_tardanza || 0);
           } else if (est === 'feriado_trabajado') {
-            diasLaborados++; // fue a trabajar en feriado → cobra movilidad
+            diasLaborados++;
             diasFeriados++;
           } else if (est === 'falta') {
             faltas++;
-            // no cobra movilidad
           }
-          // descanso, feriado no trabajado, vacaciones, medico → no cuentan para movilidad
+          // Sin registro, descanso, feriado no trabajado, vacaciones, medico → no cuentan
         });
         console.log(`[Pre-carga] ${emp.id_empleado}: ${diasLaborados} días efectivos (movilidad), ${diasFeriados} feriados, ${faltas} faltas`);
 
