@@ -529,28 +529,26 @@
         fechas.forEach(f => {
           const key = fechaStr(f);
           const est = reg[key]?.estado;
+          // diasLaborados = días que físicamente fue (para movilidad)
+          // descansos y feriados no trabajados NO cuentan para movilidad
           if (!est) {
-            // Sin registro — cuenta como día laborado (incluye descansos no marcados)
+            // Sin registro explícito = fue normal
             diasLaborados++;
-          } else if (est === 'normal' || est === 'tardanza') {
+          } else if (est === 'normal') {
             diasLaborados++;
-            if (est === 'tardanza') tardanzas += (reg[key]?.minutos_tardanza || 0);
+          } else if (est === 'tardanza') {
+            diasLaborados++;
+            tardanzas += (reg[key]?.minutos_tardanza || 0);
           } else if (est === 'feriado_trabajado') {
-            diasLaborados++;
+            diasLaborados++; // fue a trabajar en feriado → cobra movilidad
             diasFeriados++;
-          } else if (est === 'descanso') {
-            // Descanso cuenta como laborado (incluido en los 30 días del mes)
-            diasLaborados++;
-          } else if (est === 'feriado') {
-            // Feriado NO trabajado — se incluye en los 30 días pero no en movilidad
-            diasLaborados++;
           } else if (est === 'falta') {
             faltas++;
-            // Falta no cuenta como laborado ni para movilidad
+            // no cobra movilidad
           }
-          // vacaciones y descanso médico no cuentan como laborados
+          // descanso, feriado no trabajado, vacaciones, medico → no cuentan para movilidad
         });
-        console.log(`[Pre-carga] ${emp.id_empleado}: ${diasLaborados} días, ${diasFeriados} feriados, ${faltas} faltas`);
+        console.log(`[Pre-carga] ${emp.id_empleado}: ${diasLaborados} días efectivos (movilidad), ${diasFeriados} feriados, ${faltas} faltas`);
 
         // Solo precarga, no toca bonos ni AFP — esos los completa el usuario en planilla
         payloads.push({
