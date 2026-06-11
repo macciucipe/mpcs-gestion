@@ -138,16 +138,7 @@
   <script src="../../js/config.js"></script>
   <script src="../../js/auth.js"></script>
   <script>
-    const EMPRESAS = [
-      { ruc: '20605195408', label: 'CYC — Campo y Carne SAC' },
-      { ruc: '20613752979', label: 'MSJ — Mosheja SAC' },
-      { ruc: '20611965274', label: 'MPC — MPC Soluciones SAC' },
-      { ruc: '20612242209', label: 'RMA — RMA Tecnostyle SAC' },
-      { ruc: '20602716385', label: 'ETW — ETW Peru SAC' },
-      { ruc: '20615997499', label: 'ATR — ATRB Peru SAC' },
-      { ruc: '20615611230', label: 'AST — ATR Assets SAC' },
-      { ruc: '15604443722', label: 'MMN — Mauricio Macciuci' },
-    ];
+    let EMPRESAS = []; // se carga dinámicamente desde Supabase
 
     const MODULOS = [
       { seccion: 'RRHH', key: 'rrhh_empleados',   label: 'Empleados',            desc: 'Legajos, contratos, documentos' },
@@ -175,6 +166,16 @@
       const perfil = await requireAuth(['admin']);
       if (!perfil) return;
       renderSidebar(perfil, 'usuarios');
+      // Cargar empresas dinámicamente
+      const { data: empData } = await sbClient
+        .from('empresas')
+        .select('ruc, abreviatura, razon_social')
+        .eq('estado', 'activa')
+        .order('razon_social');
+      EMPRESAS = (empData || []).map(e => ({
+        ruc:   e.ruc,
+        label: `${e.abreviatura} — ${e.razon_social}`,
+      }));
       await loadPerfiles();
     }
 
