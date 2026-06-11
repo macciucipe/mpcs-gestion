@@ -179,23 +179,21 @@
       </div>
       <div class="modal-body">
 
-        <!-- Paso 1: Datos del pedido -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
-          <div class="field">
-            <label>Empresa *</label>
-            <select id="nuevo-empresa" onchange="cargarLocalesNuevo()">
-              <option value="">-- Seleccionar --</option>
-            </select>
+        <!-- Contexto del pedido (tomado del sidebar) -->
+        <div style="background:var(--navy-light,#EEF2FB);border-radius:var(--radius-md);padding:10px 16px;margin-bottom:16px;display:flex;gap:24px;align-items:center;font-size:13px">
+          <div>
+            <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:2px">Empresa</span>
+            <strong id="nuevo-ctx-empresa">—</strong>
           </div>
-          <div class="field">
-            <label>Local / Sede *</label>
-            <select id="nuevo-local" onchange="cargarCatalogoNuevo()">
-              <option value="">-- Seleccionar local --</option>
-            </select>
+          <div>
+            <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:2px">Local / Sede</span>
+            <strong id="nuevo-ctx-local">—</strong>
           </div>
-          <div class="field">
-            <label>Solicitante *</label>
-            <input type="text" id="nuevo-solicitante" placeholder="Nombre del solicitante" />
+          <div style="margin-left:auto">
+            <div class="field" style="margin:0;min-width:220px">
+              <label>Solicitante *</label>
+              <input type="text" id="nuevo-solicitante" placeholder="Nombre del solicitante" />
+            </div>
           </div>
         </div>
 
@@ -286,30 +284,15 @@
     }
 
     async function cargarEmpresas() {
-      const { data } = await sbClient.from('empresas')
+      const { data: empData } = await sbClient.from('empresas')
         .select('ruc, razon_social, abreviatura')
         .eq('estado','activa').order('razon_social');
-      empresas = data || [];
-
-      const sel = document.getElementById('filtro-empresa');
-      const selNuevo = document.getElementById('nuevo-empresa');
-      empresas.forEach(e => {
-        [sel, selNuevo].forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = e.ruc;
-          opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
-          s.appendChild(opt);
-        });
-      });
-
-      // Si no es admin, fijar empresa
-      if (!['admin','gerencia'].includes(perfil.rol) && perfil.ruc_empresa) {
-        sel.value = perfil.ruc_empresa;
-        sel.disabled = true;
-        selNuevo.value = perfil.ruc_empresa;
-        selNuevo.disabled = true;
-        await cargarLocalesNuevo();
-      }
+      empresas = empData || [];
+      // Cargar todos los locales para referencia interna
+      const { data: locsData } = await sbClient.from('locales')
+        .select('id_local, nombre, id_concepto, ruc_empresa, codigo_corto')
+        .eq('estado','activo');
+      localesGlobal = locsData || [];
     }
 
     async function cargar() {
@@ -393,56 +376,27 @@
     }
 
     // ── NUEVO PEDIDO ────────────────────────────────────────────
-    async function cargarLocalesNuevo() {
-      const ruc = document.getElementById('nuevo-empresa').value;
-      const sel = document.getElementById('nuevo-local');
-      sel.innerHTML = '<option value="">-- Seleccionar local --</option>';
-      document.getElementById('nuevo-producto').innerHTML = '<option value="">-- Seleccioná primero un local --</option>';
-      carritoItems = [];
-      renderCarrito();
-      if (!ruc) return;
-
-      const { data } = await sbClient.from('locales')
-        .select('id_local, nombre, id_concepto')
-        .eq('ruc_empresa', ruc)
-        .eq('estado','activo');
-      localesGlobal = data || [];
-      localesGlobal.forEach(l => {
-        const opt = document.createElement('option');
-        opt.value = l.id_local;
-        opt.textContent = l.nombre;
-        sel.appendChild(opt);
-      });
-    }
-
-    async function cargarCatalogoNuevo() {
-      const idLocal = document.getElementById('nuevo-local').value;
+    async function cargarCatalogoNuevoConLocal(idLocal) {
       const sel = document.getElementById('nuevo-producto');
-      sel.innerHTML = '<option value="">-- Seleccionar producto --</option>';
-      if (!idLocal) return;
-
+      sel.innerHTML = '<option value="">-- Cargando catálogo... --</option>';
       const local = localesGlobal.find(l => l.id_local === idLocal);
       if (!local?.id_concepto) {
-        sel.innerHTML = '<option value="">Sin catálogo asignado</option>';
+        sel.innerHTML = '<option value="">Sin catálogo asignado para este local</option>';
         return;
       }
-
       const { data } = await sbClient.from('catalogo_local')
         .select('id_producto_local, nombre, unidad_medida, categoria')
         .eq('id_concepto', local.id_concepto)
         .eq('activo', true)
         .order('categoria').order('nombre');
-
       catalogoActual = data || [];
-
-      // Agrupar por categoría en el select
+      sel.innerHTML = '<option value="">-- Seleccionar producto --</option>';
       const porCat = {};
       catalogoActual.forEach(i => {
         const cat = i.categoria || 'Sin categoría';
         if (!porCat[cat]) porCat[cat] = [];
         porCat[cat].push(i);
       });
-
       Object.keys(porCat).sort().forEach(cat => {
         const og = document.createElement('optgroup');
         og.label = cat;
@@ -450,9 +404,9 @@
           const opt = document.createElement('option');
           opt.value = i.id_producto_local;
           opt.textContent = `${i.nombre} (${i.unidad_medida})`;
-          opt.dataset.nombre  = i.nombre;
-          opt.dataset.unidad  = i.unidad_medida;
-          opt.dataset.cat     = i.categoria || '';
+          opt.dataset.nombre = i.nombre;
+          opt.dataset.unidad = i.unidad_medida;
+          opt.dataset.cat    = i.categoria || '';
           og.appendChild(opt);
         });
         sel.appendChild(og);
@@ -521,35 +475,31 @@
     async function enviarPedido() {
       const msg  = document.getElementById('msg-nuevo');
       const btn  = document.getElementById('btn-enviar');
-      const ruc  = document.getElementById('nuevo-empresa').value;
-      const local= document.getElementById('nuevo-local').value;
+      const ctx  = getContexto();
+      const ruc  = ctx.ruc;
+      const local= ctx.idLocal || ctx.idLocales[0];
       const soli = document.getElementById('nuevo-solicitante').value.trim();
 
-      if (!ruc)   { showMsg(msg,'alert-error','Seleccioná una empresa.'); return; }
-      if (!local) { showMsg(msg,'alert-error','Seleccioná un local.'); return; }
+      if (!ruc)   { showMsg(msg,'alert-error','Seleccioná una empresa en el sidebar.'); return; }
+      if (!local) { showMsg(msg,'alert-error','Seleccioná un local en el sidebar.'); return; }
       if (!soli)  { showMsg(msg,'alert-error','Ingresá el nombre del solicitante.'); return; }
       if (!carritoItems.length) { showMsg(msg,'alert-error','Agregá al menos un producto al pedido.'); return; }
 
       btn.disabled = true; btn.textContent = 'Enviando...'; msg.style.display = 'none';
 
       try {
-        // Generar número correlativo
         const localData = localesGlobal.find(l => l.id_local === local);
         const empresa   = empresas.find(e => e.ruc === ruc);
-        const { data: localFull } = await sbClient.from('locales')
-          .select('correlativo_op, codigo_corto').eq('id_local', local).single();
+
+        // Usar RPC para incrementar correlativo de forma segura
+        const { data: corrData, error: eCorr } = await sbClient.rpc('incrementar_correlativo_op', { p_id_local: local });
+        if (eCorr) throw new Error('Error al generar número: ' + eCorr.message);
 
         const año      = new Date().getFullYear().toString().slice(-2);
-        const corr     = localFull?.correlativo_op || 1;
-        const codLocal = localFull?.codigo_corto || local.slice(-3);
+        const corr     = corrData || 1;
+        const codLocal = localData?.codigo_corto || local.slice(-3).toUpperCase();
         const codEmp   = empresa?.abreviatura || ruc.slice(-3);
         const numero   = `OP-${codEmp}-${codLocal}-${año}-${corr.toString().padStart(5,'0')}`;
-
-        // Incrementar correlativo ANTES de insertar para evitar duplicados
-        const { error: eCorr } = await sbClient.from('locales')
-          .update({ correlativo_op: corr + 1 })
-          .eq('id_local', local);
-        if (eCorr) console.warn('Error correlativo:', eCorr.message);
 
         // Insertar cabecera
         const { data: opData, error: e1 } = await sbClient.from('pedidos').insert({
@@ -845,11 +795,34 @@
     }
 
     function abrirNuevo() {
-      carritoItems = [];
-      renderCarrito();
+      const ctx = getContexto();
+
+      // Validar que haya empresa y local seleccionado en el sidebar
+      if (!ctx.ruc) {
+        alert('Seleccioná una empresa en el sidebar antes de crear un pedido.');
+        return;
+      }
+      // Si hay múltiples locales seleccionados o ninguno, pedir que seleccione uno
+      if (!ctx.idLocal && ctx.idLocales.length !== 1) {
+        alert('Seleccioná un único local en el sidebar antes de crear un pedido.');
+        return;
+      }
+
+      const idLocal = ctx.idLocal || ctx.idLocales[0];
+      const empresa = empresas.find(e => e.ruc === ctx.ruc);
+      const local   = localesGlobal.find(l => l.id_local === idLocal);
+
+      document.getElementById('nuevo-ctx-empresa').textContent = empresa
+        ? `${empresa.abreviatura} — ${empresa.razon_social}` : ctx.ruc;
+      document.getElementById('nuevo-ctx-local').textContent = local?.nombre || idLocal;
       document.getElementById('nuevo-solicitante').value = perfil.nombre || '';
-      document.getElementById('nuevo-obs').value = '';
+      document.getElementById('nuevo-obs').value         = '';
       document.getElementById('msg-nuevo').style.display = 'none';
+      carritoItems = [];
+
+      // Cargar catálogo del local seleccionado
+      cargarCatalogoNuevoConLocal(idLocal);
+      renderCarrito();
       abrir('modal-nuevo');
     }
 
