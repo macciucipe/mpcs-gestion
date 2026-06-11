@@ -346,6 +346,7 @@
                 <div class="resumen-row ingreso"><span>Total ingresos</span><span id="r-ingresos">S/ 0.00</span></div>
                 <div class="resumen-row descuento"><span id="r-afp-label">AFP</span><span id="r-afp">S/ 0.00</span></div>
                 <div class="resumen-row descuento"><span>Otros descuentos</span><span id="r-otros-dsc">S/ 0.00</span></div>
+                <div class="resumen-row descuento" id="row-quinta" style="display:none"><span>Ret. 5ta categoría</span><span id="r-quinta">—</span></div>
                 <div class="resumen-row aporte"><span>EsSalud (empleador)</span><span id="r-essalud">S/ 0.00</span></div>
                 <div class="resumen-row total"><span>NETO A PAGAR</span><span id="r-neto">S/ 0.00</span></div>
               </div>
@@ -408,7 +409,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="../../js/config.js"></script>
   <script src="../../js/auth.js"></script>
   <script>
@@ -423,6 +423,90 @@
     };
     const SNP_RATE     = 0.13;
     const ESSALUD_RATE = 0.09;
+
+    // ── UIT vigente — actualizar cada año en módulo de ajustes (pendiente) ──
+    const UIT = 5500;
+
+    // ── Cálculo de retención de 5ta categoría ────────────────────────────────
+    // Aplica solo a régimen MYPE y General. Micro empresa: exento.
+    // Lógica: proyección anual acumulada, escala progresiva, ajuste mensual.
+    async function calcularQuintaCategoria(e, totalRemunerativoMes) {
+      const cfg = getEmpresaConfig(e.ruc_empresa);
+
+      // Micro empresa: exento
+      if (cfg.regimen === 'micro') return 0;
+
+      const mes  = currentPeriodo.mes;
+      const anio = currentPeriodo.anio;
+
+      // Obtener ingresos remunerativos de meses anteriores del mismo año
+      const { data: historial } = await sbClient
+        .from('planilla_detalle')
+        .select('remun_remunerativa, quinta_categoria, periodo_id, planilla_periodos!inner(mes, anio)')
+        .eq('id_empleado', e.id_empleado)
+        .eq('planilla_periodos.anio', anio)
+        .lt('planilla_periodos.mes', mes)
+        .order('planilla_periodos.mes', { ascending: true });
+
+      const mesesAnteriores = historial || [];
+
+      // Acumulado remunerativo enero..mes-1
+      const acumuladoAnterior = mesesAnteriores.reduce((s, r) => s + Number(r.remun_remunerativa || 0), 0);
+
+      // Ya retenido en meses anteriores
+      const yaRetenido = mesesAnteriores.reduce((s, r) => s + Number(r.quinta_categoria || 0), 0);
+
+      // Proyección anual:
+      // Meses transcurridos (incluyendo el actual) × promedio + meses restantes × sueldo básico + bonos fijos
+      // Simplificado según lógica del Excel: acumulado real + proyección futura con remunerativo estándar
+      const suel = e.sueldo_basico || 0;
+      const cfg2 = cfg;
+      const remunerativoEstandar = suel
+        + (suel * (cfg2.bonos?.puntualidad || 0))
+        + (suel * (cfg2.bonos?.asistencia  || 0))
+        + (suel * (cfg2.bonos?.desempeno   || 0))
+        + (e.asignacion_familiar || 0);
+
+      const mesesRestantes = 12 - mes;
+      const proyeccionFutura = remunerativoEstandar * mesesRestantes;
+
+      // Gratificaciones: julio (mes 7) y diciembre (mes 12)
+      // Se suma la parte proporcional si aún no se ha pagado
+      const gratBase = suel / (cfg.regimen === 'mype' ? 6 : 6); // 1 sueldo por semestre
+      const gratJulio = mes <= 7 ? gratBase : 0;
+      const gratDic   = mes <= 12 ? gratBase : 0;
+
+      const totalProyectado = acumuladoAnterior + totalRemunerativoMes + proyeccionFutura + gratJulio + gratDic;
+
+      // Renta neta imponible
+      const rentaNeta = totalProyectado - (7 * UIT);
+      if (rentaNeta <= 0) return 0;
+
+      // Escala progresiva acumulativa
+      const tramos = [
+        { hasta: 5 * UIT,       tasa: 0.08 },
+        { hasta: 20 * UIT,      tasa: 0.14 },
+        { hasta: 35 * UIT,      tasa: 0.17 },
+        { hasta: 45 * UIT,      tasa: 0.20 },
+        { hasta: Infinity,      tasa: 0.30 },
+      ];
+
+      let irAnual = 0;
+      let baseAcum = 0;
+      for (const tramo of tramos) {
+        if (rentaNeta <= baseAcum) break;
+        const enTramo = Math.min(rentaNeta - baseAcum, tramo.hasta - baseAcum);
+        irAnual += enTramo * tramo.tasa;
+        baseAcum = tramo.hasta;
+        if (baseAcum >= rentaNeta) break;
+      }
+
+      // Retención del mes = (IR anual - ya retenido) / meses restantes incl. este
+      const mesesParaDistribuir = 12 - mes + 1;
+      const retencionMes = Math.max(0, (irAnual - yaRetenido) / mesesParaDistribuir);
+
+      return Math.round(retencionMes * 100) / 100;
+    }
 
     // Configuración de bonos por empresa
     const EMPRESA_CONFIG = {
@@ -754,14 +838,14 @@
         document.getElementById('f-adelanto').value  = 0;
         document.getElementById('f-otros-dsc').value = 0;
       }
-      calcular();
+      await calcular();
     }
 
     function gv(id) { return parseFloat(document.getElementById(id)?.value||0)||0; }
     function gi(id) { return parseInt(document.getElementById(id)?.value||0)||0; }  // enteros
     function gchk(id) { return document.getElementById(id)?.checked||false; }
 
-    function calcular() {
+    async function calcular() {
       if (!currentEmpleado) return;
       const e    = currentEmpleado;
       const suel = e.sueldo_basico || 0;
@@ -833,7 +917,11 @@
       }
       const totalAfp = afpObl + afpCom + afpSeg + snp;
       const totalOtrosDsc = montFaltas + tardanzas + adelanto + otrosDsc;
-      const totalDescuentos = totalAfp + totalOtrosDsc;
+
+      // 5ta categoría — async, consulta historial del año
+      const quintaCategoria = await calcularQuintaCategoria(e, totalRemunerativo);
+
+      const totalDescuentos = totalAfp + totalOtrosDsc + quintaCategoria;
       const neto = totalIngresos - totalDescuentos;
       const essalud = totalRemunerativo * ESSALUD_RATE;
 
@@ -874,16 +962,28 @@
       document.getElementById('r-otros-dsc').textContent   = `S/ ${totalOtrosDsc.toFixed(2)}`;
       document.getElementById('r-essalud').textContent     = `S/ ${essalud.toFixed(2)}`;
       document.getElementById('r-neto').textContent        = `S/ ${neto.toFixed(2)}`;
+      // 5ta categoría — mostrar si aplica
+      const r5taEl = document.getElementById('r-quinta');
+      const row5ta = document.getElementById('row-quinta');
+      if (r5taEl && row5ta) {
+        if (quintaCategoria > 0) {
+          r5taEl.textContent = `S/ ${quintaCategoria.toFixed(2)}`;
+          row5ta.style.display = '';
+        } else {
+          r5taEl.textContent = '—';
+          row5ta.style.display = 'none';
+        }
+      }
 
       window._calc = { totalIngresos, totalDescuentos, neto, essalud, afpObl, afpCom, afpSeg, snp,
         punt, asis, desemp, movil, antiguedad, objetivo, feria, he25, he35, bonoE, otrosI,
         montFaltas, remun, asigP, totalRemunerativo, totalNoRemunerativo,
-        provCts, provGrat, provGratEssalud, provVac };
+        provCts, provGrat, provGratEssalud, provVac, quintaCategoria };
     }
 
     async function guardarDetalle() {
       if (!currentEmpleado) return;
-      calcular();
+      await calcular();
       const c = window._calc;
       const payload = {
         periodo_id:           currentPeriodo.id,
@@ -917,6 +1017,7 @@
         afp_comision:         c.afpCom,
         afp_seguro:           c.afpSeg,
         snp:                  c.snp,
+        quinta_categoria:     c.quintaCategoria || 0,
       };
       const { error } = await sbClient.from('planilla_detalle').upsert([payload], {onConflict:'periodo_id,id_empleado'});
       if (error) { alert('Error: ' + error.message); return; }
@@ -933,7 +1034,7 @@
 
     async function generarBoleta() {
       if (!currentEmpleado) return;
-      calcular();
+      await calcular();
       await generarBoletaEmp(currentEmpleado, window._calc);
     }
 
@@ -1012,301 +1113,247 @@
       const desde = `26/${String(mesAnt).padStart(2,'0')}/${anioAnt}`;
       const hasta  = `25/${String(currentPeriodo.mes).padStart(2,'0')}/${currentPeriodo.anio}`;
 
-      // ── Helpers de color para el nuevo diseño ────────────────────────────
-      const rgb = {
-        navy:      [12, 35, 64],
-        navyLight: [230, 238, 247],
-        accent:    [26, 82, 118],
-        grayLine:  [208, 211, 212],
-        grayText:  [93, 109, 126],
-        green:     [30, 132, 73],
-        red:       [192, 57, 43],
-        white:     [255, 255, 255],
-      };
-      function setFill(col)   { doc.setFillColor(...col); }
-      function setStroke(col) { doc.setDrawColor(...col); }
-      function setTxt(col)    { doc.setTextColor(...col); }
-      function hline(x1,x2,y,col=[208,211,212],lw=0.3) {
-        doc.setDrawColor(...col); doc.setLineWidth(lw); doc.line(x1,y,x2,y);
-      }
-      function vline(x,y1,y2,col=[208,211,212],lw=0.3) {
-        doc.setDrawColor(...col); doc.setLineWidth(lw); doc.line(x,y1,x,y2);
-      }
-      function filledRect(x,y,w,h,fill,strokeCol,lw=0.3) {
-        setFill(fill);
-        if(strokeCol){ setStroke(strokeCol); doc.setLineWidth(lw); doc.rect(x,y,w,h,'FD'); }
-        else { doc.rect(x,y,w,h,'F'); }
-      }
-      function label(text,x,y,sz=5.5) {
-        doc.setFont('helvetica','bold'); doc.setFontSize(sz); setTxt(rgb.grayText);
-        doc.text(String(text||''),x,y);
-      }
-      function val(text,x,y,sz=7,bold=false,align='left') {
-        doc.setFont('helvetica',bold?'bold':'normal'); doc.setFontSize(sz); setTxt([0,0,0]);
-        doc.text(String(text||''),x,y,{align});
-      }
-      function valColor(text,x,y,col,sz=6.5,align='left') {
-        doc.setFont('helvetica','normal'); doc.setFontSize(sz); setTxt(col);
-        doc.text(String(text||''),x,y,{align});
-      }
-
-      // ── QR: genera un Data URL usando qrcodejs (cargado en <head>) ────────
-      function makeQRDataUrl(text) {
-        return new Promise(resolve => {
-          try {
-            const div = document.createElement('div');
-            div.style.cssText = 'position:absolute;left:-9999px';
-            document.body.appendChild(div);
-            new QRCode(div, { text, width:80, height:80, correctLevel:QRCode.CorrectLevel.M });
-            // QRCode renderiza en un <canvas> o <img> según el browser
-            setTimeout(() => {
-              const img = div.querySelector('img');
-              const cvs = div.querySelector('canvas');
-              const dataUrl = img?.src || cvs?.toDataURL('image/png') || null;
-              document.body.removeChild(div);
-              resolve(dataUrl);
-            }, 50);
-          } catch(e) { resolve(null); }
-        });
-      }
-
-      // QR apunta directo a la URL de verificación
-      const boletaCodigoQR = `${e.ruc_empresa}-${e.id_empleado}-${currentPeriodo.anio}${String(currentPeriodo.mes).padStart(2,'0')}`.toUpperCase();
-      const qrPayload  = `https://formularios.mpcs.pe/verificar.html?cod=${boletaCodigoQR}`;
-      const qrDataUrl = await makeQRDataUrl(qrPayload);
-
       const dibujarBoleta = (copia, offsetY) => {
         let y = offsetY;
-        const BW = W - 2*M;   // ancho bloque
 
-        // ── 1. HEADER NAVY ─────────────────────────────────────────────────
-        const HDR = 13;
-        filledRect(M, y, BW, HDR, rgb.navy);
+        // Header negro
+        box(M,y,W-2*M,6,[20,20,20]);
+        doc.setTextColor(255,255,255);
+        t(copia,W/2,y+4.5,8,true,'center');
+        doc.setTextColor(0,0,0); y+=12;
 
-        // Copy label — izquierda
-        doc.setFont('helvetica','bold'); doc.setFontSize(6.5); setTxt(rgb.navyLight);
-        doc.text(copia, M+2, y+4.5);
+        // Empresa
+        t(e.empresas?.razon_social||'CAMPO & CARNE S.A.C.',M,y,10,true);
+        t(`RUC Nº: ${e.ruc_empresa}`,W-M,y,8,false,'right'); y+=7;
 
-        // Empresa — centro
-        doc.setFont('helvetica','bold'); doc.setFontSize(9.5); setTxt(rgb.white);
-        doc.text(e.empresas?.razon_social||'CAMPO & CARNE S.A.C.', W/2, y+5.5, {align:'center'});
-        doc.setFont('helvetica','normal'); doc.setFontSize(6.5); setTxt(rgb.navyLight);
-        doc.text(`RUC N°: ${e.ruc_empresa}`, W/2, y+10, {align:'center'});
+        // Título
+        doc.setDrawColor(180); doc.line(M,y,W-M,y); y+=3;
+        t('BOLETA DE PAGO',W/2,y,9,true,'center');
+        y+=5; doc.setDrawColor(180); doc.line(M,y,W-M,y); y+=2;
 
-        // Boleta + periodo — derecha
-        doc.setFont('helvetica','bold'); doc.setFontSize(8); setTxt(rgb.white);
-        doc.text('BOLETA DE PAGO', W-M-1, y+5.5, {align:'right'});
-        doc.setFont('helvetica','normal'); doc.setFontSize(6); setTxt(rgb.navyLight);
-        doc.text(`Período: ${desde}  al  ${hasta}`, W-M-1, y+10, {align:'right'});
-        y += HDR;
+        // Fila código / mes / del / al
+        const rowH = 9;
+        // Cajas de cabecera
+        const cols = [
+          {label:'CÓDIGO',    val:e.id_empleado,           x:M,   w:22},
+          {label:'MES',       val:MESES[currentPeriodo.mes], x:M+22,w:20},
+          {label:'DEL',       val:desde,                   x:M+42,w:28},
+          {label:'AL',        val:hasta,                   x:M+70,w:28},
+          {label:'',          val:'',                      x:M+98,w:W-2*M-98},
+        ];
+        cols.forEach(col => {
+          box(col.x,y,col.w,rowH,null,null);
+          doc.setDrawColor(180); doc.rect(col.x,y,col.w,rowH);
+          tg(col.label,col.x+1,y+3.5,6);
+          t(col.val,col.x+1,y+7.5,7.5);
+        });
+        // Nombre completo en última celda
+        tg('APELLIDOS Y NOMBRES',M+99,y+3.5,6);
+        t(`${e.apellidos||''} ${e.nombres||''}`,M+99,y+7.5,7.5,true);
+        y += rowH + 1;
 
-        // ── 2. FILA EMPLEADO (fondo navyLight) ─────────────────────────────
-        const EMP_H = 7;
-        filledRect(M, y, BW, EMP_H, rgb.navyLight, rgb.grayLine, 0.3);
+        // Fila régimen / categoría / proyecto / ingreso / cese
+        const cols2 = [
+          {label:'RÉGIMEN',   val:e.regimen?.toUpperCase()||'MYPE', x:M,    w:22},
+          {label:'CATEGORÍA', val:e.categoria||'EMPLEADO',          x:M+22, w:22},
+          {label:'PROYECTO',  val:e.locales?.nombre||'—',           x:M+44, w:40},
+          {label:'F. INGRESO',val:e.fecha_ingreso||'—',             x:M+84, w:28},
+          {label:'F. CESE',   val:e.fecha_cese||'-',                x:M+112,w:25},
+          {label:'',          val:'',                               x:M+137,w:W-2*M-137},
+        ];
+        cols2.forEach(col => {
+          doc.setDrawColor(180); doc.rect(col.x,y,col.w,rowH);
+          tg(col.label,col.x+1,y+3.5,6);
+          t(col.val,col.x+1,y+7.5,7);
+        });
+        y += rowH + 1;
 
-        label('APELLIDOS Y NOMBRES', M+1, y+2.5);
-        val(`${e.apellidos||''} ${e.nombres||''}`, M+1, y+6, 7.5, true);
+        // Fila pensión / banco / normal / mensual / diario
+        const cols3 = [
+          {label:'R. PENS.',     val:`${e.sistema_pensionario||''} ${e.afp||''}`.trim(), x:M,    w:25},
+          {label:'BANCO',        val:e.banco||'—',                                        x:M+25, w:22},
+          {label:'H. NORMAL',    val:'0',                                                 x:M+47, w:20},
+          {label:'HABER MENSUAL',val:`${money(e.sueldo_basico)}`,                         x:M+67, w:38},
+          {label:'HABER DIARIO', val:`${money((e.sueldo_basico||0)/30)}`,                 x:M+105,w:30},
+          {label:'',             val:'',                                                  x:M+135,w:W-2*M-135},
+        ];
+        cols3.forEach(col => {
+          doc.setDrawColor(180); doc.rect(col.x,y,col.w,rowH);
+          tg(col.label,col.x+1,y+3.5,6);
+          t(col.val,col.x+1,y+7.5,7.5,col.label==='HABER MENSUAL');
+        });
+        y += rowH + 1;
 
-        const c2x = M + BW*0.44, c3x = M + BW*0.57, c4x = M + BW*0.67, c5x = M + BW*0.78;
-        label('CÓDIGO',    c2x, y+2.5);  val(e.id_empleado,               c2x, y+6, 7);
-        label('MES',       c3x, y+2.5);  val(MESES[currentPeriodo.mes],   c3x, y+6, 7);
-        label('RÉGIMEN',   c4x, y+2.5);  val(e.regimen?.toUpperCase()||'MYPE', c4x, y+6, 7);
-        label('CATEGORÍA', c5x, y+2.5);  val(e.categoria||'EMPLEADO',     c5x, y+6, 7);
-        y += EMP_H;
+        // Resumen de días
+        const diaLabels = ['TRABAJADOS','FERIADOS','FALTAS','SÁB. Y DOM.','DESC. C/G','DESC S/G','DESC. MÉD.'];
+        const diaVals   = [diasTrab, diasFer, diasFalta, sabDom, 0, 0, 0];
+        const dW = (W-2*M)/diaLabels.length;
+        diaLabels.forEach((lb,i) => {
+          doc.setDrawColor(180); doc.rect(M+i*dW,y,dW,rowH);
+          tg(lb,M+i*dW+1,y+3.5,5.5);
+          t(String(diaVals[i]),M+i*dW+dW/2,y+7.5,8,true,'center');
+        });
+        y += rowH;
+        // Total días
+        doc.setDrawColor(180); doc.rect(M,y,W-2*M,5);
+        t(`Total dias del MES  30`,M+2,y+3.5,7);
+        y += 7;
 
-        // ── 3. FICHA TÉCNICA — 2 filas ─────────────────────────────────────
-        const FICH_H = 6;
-        const fichaRow = (campos) => {
-          filledRect(M, y, BW, FICH_H, rgb.white, rgb.grayLine, 0.3);
-          campos.forEach(([lbl, v, frac]) => {
-            const cx = M + BW*frac + 1;
-            label(lbl, cx, y+2.2, 5.5);
-            val(v, cx, y+5.5, 6.5);
-          });
-          y += FICH_H;
-        };
-        fichaRow([
-          ['PROYECTO',       e.locales?.nombre||'—',                              0.00],
-          ['F. INGRESO',     e.fecha_ingreso||'—',                                0.28],
-          ['F. CESE',        e.fecha_cese||'-',                                   0.41],
-          ['R. PENSIÓN',     `${e.sistema_pensionario||''} ${e.afp||''}`.trim(),  0.50],
-          ['BANCO',          e.banco||'—',                                         0.65],
-          ['H. NORMAL',      '0',                                                  0.79],
-          ['HABER MENSUAL',  money(e.sueldo_basico),                               0.88],
-        ]);
-        fichaRow([
-          ['HABER DIARIO',   money((e.sueldo_basico||0)/30),  0.00],
-          ['TRABAJADOS',     String(diasTrab),                0.14],
-          ['FERIADOS',       String(diasFer),                 0.24],
-          ['FALTAS',         String(diasFalta),               0.34],
-          ['SÁB. Y DOM.',    String(sabDom),                  0.44],
-          ['DESC. C/G',      '0',                             0.55],
-          ['DESC. S/G',      '0',                             0.64],
-          ['DESC. MÉD.',     '0',                             0.73],
-          ['TOTAL DÍAS MES', '30',                            0.83],
-        ]);
+        // Tabla ingresos / descuentos / aportes
+        // Columnas: código | concepto | monto || código | concepto | porcentaje | monto || aporte
+        const C1=M, C2=M+6, C3=M+58, C4=M+74, C5=M+80, C6=M+107, C7=M+120, C8=M+147, C9=M+158, C10=M+162, C11=M+185;
 
-        // ── 4. ENCABEZADO DE COLUMNAS ──────────────────────────────────────
-        const COL_H = 5.5;
-        filledRect(M, y, BW, COL_H, rgb.accent);
+        // Headers
+        box(M,y,W-2*M,5,[235,235,235]);
+        doc.setDrawColor(180); doc.rect(M,y,W-2*M,5);
+        t('INGRESOS',C2,y+3.5,7,true);
+        t('DESCUENTOS',C5,y+3.5,7,true);
+        t('APORTES DEL EMPLEADOR',C9,y+3.5,7,true);
+        // separadores verticales
+        doc.setDrawColor(180);
+        doc.line(C4,y,C4,y+5);
+        doc.line(C8,y,C8,y+5);
+        y+=5;
 
-        const xIng  = M,           xDesc = M + BW*0.415, xApor = M + BW*0.70;
-        doc.setFont('helvetica','bold'); doc.setFontSize(6.5); setTxt(rgb.white);
-        doc.text('INGRESOS',              xIng  + 1, y + 3.8);
-        doc.text('DESCUENTOS',            xDesc + 1, y + 3.8);
-        doc.text('APORTES DEL EMPLEADOR', xApor + 1, y + 3.8);
-        y += COL_H;
-
-        // ── 5. FILAS DE CONCEPTOS ─────────────────────────────────────────
+        // Filas de conceptos
         const ing = [
-          [22,'HABER BASICO',              c.remun],
-          [23,'ASIGNACIÓN FAMILIAR',       c.asigP],
-          [24,'HORAS EXTRAS 25%',          c.he25],
-          [25,'HORAS EXTRAS 35%',          c.he35],
-          [26,'FERIADOS TRAB.',            c.feria],
-          [27,'AGUINALDO NAVIDEÑO',        c.bonoE],
-          [32,'CTS TRUNCO',               c.provCts],
+          [22,'HABER BASICO',       c.remun],
+          [23,'ASIGNACIÓN FAMILIAR',c.asigP],
+          [24,'HORAS EXTRAS AL 25%',c.he25],
+          [25,'HORAS EXTRAS AL 35%',c.he35],
+          [26,'FERIADOS Y DIAS DE DESCANSO',c.feria],
+          [27,'AGUINALDO NAVIDEÑO', c.bonoE],
+          [32,'CTS TRUNCO',         c.provCts],
           [33,'GRATIF. ORDINARIAS TRUNCAS',c.provGrat],
-          [38,'VACACIONES TRUNCAS',        c.provVac],
-          ['','MOVILIDAD',                 c.movil],
-          ['','ANTIGÜEDAD > 13 mes',       c.antiguedad],
-          ['','PUNTUALIDAD',               c.punt],
-          ['','ASISTENCIA PERFECTA',       c.asis],
-          ['','BUEN DESEMPEÑO',            c.desemp],
-          ['','OBJETIVO VENTAS',           c.objetivo],
-        ].filter(([,, v])=>v>0);
+          [35,'COMPENSACION CTS',   0],
+          [36,'GRATIFICACIONES',    0],
+          [38,'VACACIONES TRUNCAS', c.provVac],
+          ['','MOVILIDAD',          c.movil],
+          ['','ANTIGÜEDAD > 13 mes',c.antiguedad],
+          ['','PUNTUALIDAD',        c.punt],
+          ['','ASISTENCIA PERFECTA',c.asis],
+          ['','BUEN DESEMPEÑO',     c.desemp],
+          ['','OBJETIVO VENTAS',    c.objetivo],
+          ['','BONO EXCEPCIONAL',   c.bonoE>0?0:0],
+          [40,'BONO EXCEPCIONAL',   0],
+        ].filter(([,lb,v])=>v>0);
 
         const dsc = [
-          ['','SNP',              `${pct(0.13)}`,    c.snp],
-          ['','AFP OBLIGATORIO',  `${pct(0.10)}`,    c.afpObl],
-          ['','AFP COMISION',     `${pct(afpCom)}`,  c.afpCom],
-          ['','AFP SEGURO',       `${pct(afpSeg)}`,  c.afpSeg],
-          [30,'FALTAS',           '',                c.montFaltas],
-          [31,'TARDANZAS',        '',                det.tardanzas||0],
-          [55,'ADELANTO',         '',                det.adelanto||0],
-          [60,'OTROS DSCTOS.',    '',                det.otros_descuentos||0],
-        ].filter(([,,,v])=>v>0);
+          ['','SNP',      `${pct(0.13)}`,      c.snp],
+          ['','AFP OBLIGATORIO',`${pct(0.10)}`,c.afpObl],
+          ['','AFP COMISION',   `${pct(afpCom)}`,c.afpCom],
+          ['','AFP SEGURO',     `${pct(afpSeg)}`,c.afpSeg],
+          [54,'RETENCION QUINTA','',            0],
+          [30,'FALTAS',         '',             c.montFaltas],
+          [31,'TARDANZAS',      '',             det.tardanzas||0],
+          [55,'ADELANTO',       '',             det.adelanto||0],
+          [56,'PAGO CTS',       '',             0],
+          [57,'PAGO GRATIF.',   '',             0],
+          [60,'OTROS DSCTOS.',  '',             det.otros_descuentos||0],
+        ].filter(([,lb,pct,v])=>v>0);
 
-        const apo = [['ESSALUD', c.essalud]];
-
-        const maxRows = Math.max(ing.length, dsc.length, apo.length);
-        const ROW_H   = 4.5;
-        const xIngMonto  = xDesc - 1;
-        const xDescMonto = xApor - 1;
-        const xAporMonto = W - M - 1;
-
-        for(let i = 0; i < maxRows; i++){
-          const ry  = y + i*ROW_H;
-          const mid = ry + ROW_H/2 + 1.2;
-          const bg  = i%2===0 ? rgb.navyLight : rgb.white;
-          filledRect(M, ry, BW, ROW_H, bg);
-
-          // Separadores verticales
-          vline(xDesc, ry, ry+ROW_H, rgb.grayLine);
-          vline(xApor, ry, ry+ROW_H, rgb.grayLine);
-
-          if(ing[i]){
-            val(String(ing[i][0]), M+1,      mid, 6, false);
-            val(ing[i][1],         M+7,      mid, 6, false);
-            valColor(money(ing[i][2]), xIngMonto, mid, [0,0,0], 6, 'right');
-          }
-          if(dsc[i]){
-            val(String(dsc[i][0]), xDesc+1,  mid, 6);
-            val(dsc[i][1],         xDesc+7,  mid, 6);
-            if(dsc[i][2]) valColor(dsc[i][2], xDesc+BW*0.19, mid, rgb.grayText, 5.5, 'right');
-            valColor(money(dsc[i][3]), xDescMonto, mid, rgb.red, 6, 'right');
-          }
-          if(apo[i]){
-            val(apo[i][0], xApor+1, mid, 6);
-            valColor(money(apo[i][1]), xAporMonto, mid, rgb.green, 6, 'right');
-          }
-          if(i>0) hline(M, M+BW, ry, rgb.grayLine, 0.2);
-        }
-        y += maxRows * ROW_H;
-        // borde exterior tabla conceptos
-        setStroke(rgb.grayLine); doc.setLineWidth(0.3);
-        doc.rect(M, y-maxRows*ROW_H, BW, maxRows*ROW_H, 'S');
-
-        // ── 6. FILA DE TOTALES ────────────────────────────────────────────
-        const TOT_H = 6;
-        filledRect(M, y, BW, TOT_H, rgb.navy);
-        doc.setFont('helvetica','bold'); doc.setFontSize(6.5); setTxt(rgb.white);
-        doc.text(`TOTAL INGRESOS   S/ ${money(c.totalIngresos)}`,   M+1,      y+4.2);
-        doc.text(`TOTAL DESCUENTOS   S/ ${money(c.totalDescuentos)}`,xDesc+1, y+4.2);
-        doc.text(`TOTAL APORTES   S/ ${money(c.essalud)}`,           xApor+1, y+4.2);
-        y += TOT_H;
-
-        // ── 7. NETO A PAGAR ───────────────────────────────────────────────
-        const NET_H = 8;
-        filledRect(M, y, BW, NET_H, rgb.green);
-        doc.setFont('helvetica','bold'); doc.setFontSize(7.5); setTxt(rgb.white);
-        doc.text('NETO A PAGAR', M+2, y+5.2);
-        doc.setFontSize(11); doc.text(`S/ ${money(c.neto)}`, W-M-1, y+5.8, {align:'right'});
-        y += NET_H;
-
-        // ── 8. PIE: identidad + QR + firma ────────────────────────────────
-        const PIE_H = 26;
-        filledRect(M, y, BW, PIE_H, rgb.white, rgb.grayLine, 0.3);
-
-        // QR (esquina derecha, centrado verticalmente)
-        const QR_SIZE = 20;
-        const qrX = W - M - QR_SIZE - 2;
-        const qrY = y + 2;
-        if(qrDataUrl) {
-          doc.addImage(qrDataUrl, 'PNG', qrX, qrY, QR_SIZE, QR_SIZE);
-        }
-        doc.setFont('helvetica','normal'); doc.setFontSize(5); setTxt(rgb.grayText);
-        doc.text('Validación digital', qrX + QR_SIZE/2, y + QR_SIZE + 4, {align:'center'});
-
-        // Columnas de identidad — 3 columnas x 3 filas
-        // PC[col] = x de cada columna; cada fila baja 6.5mm
-        const PC = [M+2, M+BW*0.28, M+BW*0.52];
-        const pieData = [
-          // col 0                              col 1                          col 2
-          ['APELLIDOS Y NOMBRES', `${e.apellidos||''} ${e.nombres||''}`.trim(), 'CARGO',      e.cargo||'—',              'N° CUENTA',  e.numero_cuenta||'—'    ],
-          ['N° DOCUMENTO',        e.numero_documento||'—',                      'LUGAR',      'LIMA',                    'PERÍODO',    `${desde} — ${hasta}`   ],
-          ['CUSSP',               extra.cuspp||e.cuspp||'—',                    'BANCO',      e.banco||'—',              '',           ''                      ],
+        const apo = [
+          ['ESSALUD', c.essalud],
         ];
 
-        pieData.forEach((row, ri) => {
-          const ry = y + 3 + ri * 7;
-          // col 0
-          if(row[0]){ label(row[0], PC[0], ry,     5.5); val(row[1], PC[0], ry+3.5, 6.5); }
-          // col 1
-          if(row[2]){ label(row[2], PC[1], ry,     5.5); val(row[3], PC[1], ry+3.5, 6.5); }
-          // col 2
-          if(row[4]){ label(row[4], PC[2], ry,     5.5); val(row[5], PC[2], ry+3.5, 6.5); }
-        });
+        const maxRows = Math.max(ing.length, dsc.length, apo.length);
+        const rowFH = 4.5;
 
-        // Línea de firma — centrada en el ancho disponible (entre col 2 y el QR)
-        const firmaX  = PC[2] + 2;
-        const firmaW  = qrX - firmaX - 4;
-        const firmaLY = y + PIE_H - 5;
-        hline(firmaX, firmaX + firmaW, firmaLY, rgb.grayLine, 0.5);
-        doc.setFont('helvetica','normal'); doc.setFontSize(5.5); setTxt(rgb.grayText);
-        doc.text('Firma del Trabajador', firmaX + firmaW/2, firmaLY + 3, {align:'center'});
+        for(let i=0; i<maxRows; i++){
+          const rowY = y + i*rowFH;
+          // Separador horizontal
+          if(i>0) { doc.setDrawColor(230); doc.line(M,rowY,W-M,rowY); }
+          // Separadores verticales
+          doc.setDrawColor(200);
+          doc.line(C4,y,C4,y+maxRows*rowFH);
+          doc.line(C8,y,C8,y+maxRows*rowFH);
 
-        // Borde exterior boleta
-        setStroke(rgb.navy); doc.setLineWidth(0.5);
-        doc.rect(M, offsetY, BW, y+PIE_H-offsetY, 'S');
+          if(ing[i]){
+            t(String(ing[i][0]),C1,rowY+3.5,6.5);
+            t(ing[i][1],C2,rowY+3.5,6.5);
+            t(money(ing[i][2]),C3+6,rowY+3.5,6.5,false,'right');
+          }
+          if(dsc[i]){
+            t(String(dsc[i][0]),C5,rowY+3.5,6.5);
+            t(dsc[i][1],C5+6,rowY+3.5,6.5);
+            if(dsc[i][2]) t(dsc[i][2],C6+12,rowY+3.5,6.5,false,'right');
+            t(money(dsc[i][3]),C7+12,rowY+3.5,6.5,false,'right');
+          }
+          if(apo[i]){
+            t(apo[i][0],C9,rowY+3.5,6.5);
+            t(money(apo[i][1]),C10+22,rowY+3.5,6.5,false,'right');
+          }
+        }
+        y += maxRows*rowFH;
 
-        return y + PIE_H;
+        // Borde exterior de la tabla
+        doc.setDrawColor(180); doc.rect(M,y-maxRows*rowFH,W-2*M,maxRows*rowFH);
+        doc.setDrawColor(180); doc.line(M,y,W-M,y); y+=2;
+
+        // Totales
+        box(M,y,W-2*M,6,[245,245,245]);
+        doc.setDrawColor(180); doc.rect(M,y,W-2*M,6);
+        doc.line(C4,y,C4,y+6); doc.line(C8,y,C8,y+6);
+        t(`${money(c.totalIngresos)}`,C3+6,y+4.5,8,true,'right');
+        t(`${money(c.totalDescuentos)}`,C7+12,y+4.5,8,true,'right');
+        t('TOTAL APORTES',C9,y+4.5,7,true);
+        t(`${money(c.essalud)}`,C10+22,y+4.5,8,true,'right');
+        y+=8;
+
+        // Neto a pagar
+        box(M,y,W-2*M,8,[20,20,20]);
+        doc.setTextColor(255,255,255);
+        t(`${money(c.neto)}`,W-M-2,y+5.5,11,true,'right');
+        doc.setTextColor(0,0,0); y+=10;
+
+        // CUSPP / cuenta
+        box(M,y,W-2*M,8,[245,245,245]);
+        doc.setDrawColor(180); doc.rect(M,y,W-2*M,8);
+        tg('APELLIDOS Y NOMBRES',M+2,y+3,6);
+        tg('DOC. IDENTIDAD',M+80,y+3,6);
+        tg('CARGO',M+110,y+3,6);
+        tg('LUGAR',M+145,y+3,6);
+        y+=4;
+        t(`${e.apellidos||''} ${e.nombres||''}`,M+2,y+3,7.5,true);
+        t(e.numero_documento||'',M+80,y+3,7.5);
+        t(e.cargo||'—',M+110,y+3,7.5);
+        t('LIMA',M+145,y+3,7.5);
+        y+=6;
+
+        box(M,y,W-2*M,8,[245,245,245]);
+        doc.setDrawColor(180); doc.rect(M,y,W-2*M,8);
+        tg('CUSSP',M+2,y+3,6);
+        tg('NUM. CUENTA',M+40,y+3,6);
+        tg('TOTAL INGRESOS',M+90,y+3,6);
+        tg('TOTAL DESCUENTOS',M+130,y+3,6);
+        tg('NETO A PAGAR',M+168,y+3,6);
+        y+=4;
+        t(extra.cuspp||e.cuspp||'—',M+2,y+3,7.5);
+        t(e.numero_cuenta||'—',M+40,y+3,7.5);
+        t(money(c.totalIngresos),M+90,y+3,7.5,true);
+        t(money(c.totalDescuentos),M+130,y+3,7.5,true);
+        t(money(c.neto),M+168,y+3,7.5,true);
+        y+=6;
+
+        // Código de verificación digital
+        const codigo = `${e.ruc_empresa}-${e.id_empleado}-${currentPeriodo.anio}${String(currentPeriodo.mes).padStart(2,'0')}`.toUpperCase();
+        y += 6;
+        doc.setDrawColor(180); doc.line(M,y,W-M,y); y+=3;
+        tg('Documento generado electrónicamente · Verificar en: mi.mpcs.pe/verificar · Código: ' + codigo, M, y+3, 6);
+        y+=5;
+        t(`TRABAJADOR`,M,y+3,7,true);
+        t(`${e.apellidos||''} ${e.nombres||''}`,M,y+7,7);
+        return y+10;
       };
 
-      // ── Dos copias en una sola hoja A4 ─────────────────────────────────
+      // Dos copias en una sola hoja A4
       const y1end = dibujarBoleta('COPIA EMPLEADOR', 5);
-
-      // Línea de corte
-      doc.setDrawColor(...rgb.grayLine); doc.setLineWidth(0.4);
-      doc.setLineDashPattern([3,2], 0);
-      const sepY = y1end + 4;
-      doc.line(M, sepY, W-M, sepY);
-      doc.setLineDashPattern([], 0);
-      doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(...rgb.grayText);
-      doc.text('✂  Separar por esta línea', W/2, sepY+2, {align:'center'});
-
-      // Segunda copia
-      dibujarBoleta('COPIA TRABAJADOR', sepY + 5);
+      // Línea divisoria entre copias
+      doc.setDrawColor(150); doc.setLineDashPattern([2,2],0);
+      doc.line(M, y1end+8, W-M, y1end+8);
+      doc.setLineDashPattern([],0);
+      // Segunda copia debajo
+      dibujarBoleta('COPIA TRABAJADOR', y1end+14);
 
       // Guardar en Storage
       const fileName = `Boleta_${MESES[currentPeriodo.mes]}_${currentPeriodo.anio}_${e.numero_documento}.pdf`;
@@ -1315,37 +1362,12 @@
       const blob = new Blob([pdfBytes],{type:'application/pdf'});
       const {error:sErr} = await sbClient.storage.from('Legajos').upload(path, blob, {upsert:true, contentType:'application/pdf'});
       if (!sErr) {
-        // Legajo del empleado (existente)
         await sbClient.from('legajo_documentos').upsert([{
           id_empleado: e.id_empleado, ruc_empresa: e.ruc_empresa,
           categoria:'boleta', nombre_archivo: fileName,
           storage_path: path, tamanio_kb: Math.round(blob.size/1024),
           notas: `${MESES[currentPeriodo.mes]} ${currentPeriodo.anio}`
         }],{onConflict:'storage_path'});
-
-        // Registro de verificación pública
-        const boletaCodigo = boletaCodigoQR;
-        const boletaHash   = await crypto.subtle.digest(
-          'SHA-256',
-          new TextEncoder().encode(`${e.apellidos} ${e.nombres}|${e.numero_documento}|${money(c.neto)}|${MESES[currentPeriodo.mes]}`)
-        ).then(buf => Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,16).toUpperCase());
-
-        await sbClient.from('boletas_emitidas').upsert([{
-          codigo:           boletaCodigo,
-          hash:             boletaHash,
-          ruc_empresa:      e.ruc_empresa,
-          nombre_empresa:   e.empresas?.razon_social || '',
-          id_empleado:      e.id_empleado,
-          nombre_empleado:  `${e.apellidos||''} ${e.nombres||''}`.trim(),
-          numero_documento: e.numero_documento,
-          anio:             currentPeriodo.anio,
-          mes:              currentPeriodo.mes,
-          periodo_desde:    desde,
-          periodo_hasta:    hasta,
-          neto:             c.neto,
-          storage_path:     path,
-          estado:           'emitida',
-        }], { onConflict: 'codigo' });
       }
       doc.save(fileName);
     }
