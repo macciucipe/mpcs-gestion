@@ -6,12 +6,17 @@
   <title>Recepciones (OR) · MPC Gestión</title>
   <link rel="stylesheet" href="../../css/style.css" />
   <style>
-    .or-badge-completa      { background:#D1FAE5;color:#065F46; }
-    .or-badge-parcial       { background:#FEF3C7;color:#92400E; }
+    .or-badge-conforme        { background:#D1FAE5;color:#065F46; }
+    .or-badge-parcial         { background:#FEF3C7;color:#92400E; }
     .or-badge-parcial_cerrada { background:#F3F4F6;color:#374151; }
-    .or-badge-pendiente     { background:#DBEAFE;color:#1E40AF; }
-    .or-badge-rechazada     { background:#FEE2E2;color:#991B1B; }
-    .exceso-row             { background:#FEF2F2 !important; }
+    .or-badge-pendiente       { background:#DBEAFE;color:#1E40AF; }
+    .or-badge-observada       { background:#FEF3C7;color:#92400E; }
+    .or-badge-declinada       { background:#FEE2E2;color:#991B1B; }
+    .exceso-row               { background:#FEF2F2 !important; }
+    .obs-row                  { background:#FFFBEB !important; }
+    .tab-btn { padding:8px 18px;border:none;border-radius:var(--radius-md);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s; }
+    .tab-btn.active { background:var(--navy);color:#fff; }
+    .tab-btn:not(.active) { background:var(--bg);color:var(--text-muted); }
     .auth-btn {
       background:#D97706;color:#fff;border:none;border-radius:var(--radius-md);
       padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;
@@ -29,13 +34,27 @@
     </div>
 
     <div class="page-body">
+      <!-- Tabs por vista -->
+      <div style="display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap">
+        <button class="tab-btn active" id="tab-compras" onclick="setVista('compras')">
+          ⚠ Para Compras
+          <span id="badge-compras" style="background:#D97706;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">0</span>
+        </button>
+        <button class="tab-btn" id="tab-admin" onclick="setVista('admin')">
+          ✓ Para Administración
+          <span id="badge-admin" style="background:var(--success);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">0</span>
+        </button>
+        <button class="tab-btn" id="tab-todas" onclick="setVista('todas')">Todas</button>
+      </div>
+
       <!-- Stats -->
-      <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:1.5rem">
+      <div class="stats-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:1.5rem">
         <div class="stat-card"><div class="stat-value" id="stat-total">—</div><div class="stat-label">Total OR</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-completas" style="color:var(--success)">—</div><div class="stat-label">Completas</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-conforme" style="color:var(--success)">—</div><div class="stat-label">Conformes</div></div>
         <div class="stat-card"><div class="stat-value" id="stat-parciales" style="color:var(--warning)">—</div><div class="stat-label">Parciales</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-observada" style="color:#D97706">—</div><div class="stat-label">Observadas</div></div>
         <div class="stat-card"><div class="stat-value" id="stat-autorizacion" style="color:#D97706">—</div><div class="stat-label">Req. autorización</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-cerradas" style="color:var(--text-muted)">—</div><div class="stat-label">Cerradas</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-declinada" style="color:var(--error)">—</div><div class="stat-label">Declinadas</div></div>
       </div>
 
       <div class="card">
@@ -44,10 +63,12 @@
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <select id="filtro-estado" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
               <option value="">Todos los estados</option>
-              <option value="completa">Completa</option>
+              <option value="conforme">Conforme</option>
               <option value="parcial">Parcial</option>
               <option value="parcial_cerrada">Parcial cerrada</option>
               <option value="pendiente">Pendiente</option>
+              <option value="observada">Observada</option>
+              <option value="declinada">Declinada</option>
             </select>
             <select id="filtro-autorizacion" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
               <option value="">Todos</option>
@@ -114,6 +135,16 @@
       else await cargar(); // OR se carga siempre
     }
 
+    let vistaActual = 'compras';
+
+    function setVista(vista) {
+      vistaActual = vista;
+      ['compras','admin','todas'].forEach(v => {
+        document.getElementById(`tab-${v}`).classList.toggle('active', v === vista);
+      });
+      filtrar();
+    }
+
     async function cargar() {
       document.getElementById('tbody').innerHTML =
         '<tr><td colspan="9"><div class="loading">Cargando...</div></td></tr>';
@@ -133,25 +164,50 @@
       ordenes = data || [];
 
       document.getElementById('stat-total').textContent       = ordenes.length;
-      document.getElementById('stat-completas').textContent   = ordenes.filter(o => o.estado === 'completa').length;
+      document.getElementById('stat-conforme').textContent    = ordenes.filter(o => o.estado === 'conforme').length;
       document.getElementById('stat-parciales').textContent   = ordenes.filter(o => o.estado === 'parcial').length;
+      document.getElementById('stat-observada').textContent   = ordenes.filter(o => o.estado === 'observada').length;
       document.getElementById('stat-autorizacion').textContent= ordenes.filter(o => o.requiere_autorizacion && !o.autorizado_por).length;
-      document.getElementById('stat-cerradas').textContent    = ordenes.filter(o => o.estado === 'parcial_cerrada').length;
+      document.getElementById('stat-declinada').textContent   = ordenes.filter(o => o.estado === 'declinada').length;
+
+      // Badges de tabs
+      const paraCompras = ordenes.filter(o =>
+        o.estado === 'observada' || (o.requiere_autorizacion && !o.autorizado_por)
+      ).length;
+      const paraAdmin = ordenes.filter(o =>
+        (o.estado === 'conforme' || o.estado === 'parcial_cerrada') &&
+        (!o.requiere_autorizacion || o.autorizado_por)
+      ).length;
+      document.getElementById('badge-compras').textContent = paraCompras;
+      document.getElementById('badge-admin').textContent   = paraAdmin;
+
       filtrar();
     }
 
     function filtrar() {
-      const q     = document.getElementById('search').value.toLowerCase();
-      const estado= document.getElementById('filtro-estado').value;
-      const auth  = document.getElementById('filtro-autorizacion').value;
+      const q      = document.getElementById('search').value.toLowerCase();
+      const estado = document.getElementById('filtro-estado').value;
+      const auth   = document.getElementById('filtro-autorizacion').value;
 
-      const lista = ordenes.filter(o =>
-        (!q     || (o.numero||'').toLowerCase().includes(q) ||
-                   (o.nombre_proveedor||'').toLowerCase().includes(q) ||
-                   (o.locales?.nombre||'').toLowerCase().includes(q)) &&
+      let lista = ordenes.filter(o =>
+        (!q      || (o.numero||'').toLowerCase().includes(q) ||
+                    (o.nombre_proveedor||'').toLowerCase().includes(q) ||
+                    (o.locales?.nombre||'').toLowerCase().includes(q)) &&
         (!estado || o.estado === estado) &&
         (!auth   || (o.requiere_autorizacion && !o.autorizado_por))
       );
+
+      // Filtrar por vista
+      if (vistaActual === 'compras') {
+        lista = lista.filter(o =>
+          o.estado === 'observada' || (o.requiere_autorizacion && !o.autorizado_por)
+        );
+      } else if (vistaActual === 'admin') {
+        lista = lista.filter(o =>
+          (o.estado === 'conforme' || o.estado === 'parcial_cerrada') &&
+          (!o.requiere_autorizacion || o.autorizado_por)
+        );
+      }
 
       document.getElementById('count-label').textContent = `Recepciones (${lista.length})`;
       renderTabla(lista);
@@ -170,14 +226,16 @@
         const fecha    = or.created_at ? new Date(or.created_at).toLocaleDateString('es-PE') : '—';
         const ocs      = (or.or_oc_vinculo || []).map(v => `<span style="font-family:monospace;font-size:11px">${v.id_oc}</span>`).join('<br>');
         const guias    = (or.guias || []).join(', ') || '—';
-        const estadoBadge = `<span class="badge or-badge-${or.estado}" style="font-size:11px">${or.estado.replace('_',' ')}</span>`;
+        const estadoLabel = { conforme:'conforme', parcial:'parcial', parcial_cerrada:'parcial cerrada', pendiente:'pendiente', observada:'observada', declinada:'declinada' };
+        const estadoBadge = `<span class="badge or-badge-${or.estado}" style="font-size:11px">${estadoLabel[or.estado]||or.estado}</span>`;
         const authCell = or.requiere_autorizacion
           ? or.autorizado_por
             ? `<span class="badge badge-green" style="font-size:11px">✓ Autorizado</span>`
             : `<button class="auth-btn" onclick="autorizarOR('${or.id_or}')">Autorizar</button>`
           : '—';
 
-        return `<tr ${or.requiere_autorizacion && !or.autorizado_por ? 'class="exceso-row"' : ''}>
+        const rowClass = or.estado === 'observada' ? 'obs-row' : (or.requiere_autorizacion && !or.autorizado_por ? 'exceso-row' : '');
+        return `<tr ${rowClass ? `class="${rowClass}"` : ''}>
           <td><strong style="font-family:monospace;font-size:12px">${or.numero || or.id_or}</strong></td>
           <td style="font-size:12px;color:var(--text-muted)">${fecha}</td>
           <td style="font-size:13px">${or.locales?.nombre || or.id_local}</td>
@@ -263,8 +321,17 @@
           ${df('Fecha recepción', fecha)}
           ${df('Guías', (or.guias||[]).join(', ')||'—')}
           ${df('Autorización', or.requiere_autorizacion ? (or.autorizado_por ? '✓ Autorizado' : '⚠ Pendiente') : 'No requerida')}
+          ${or.observacion_local ? df('Observación del local', `<span style="color:var(--warning)">${or.observacion_local}</span>`) : ''}
           ${cerradoAt ? df('Cerrado', cerradoAt) : ''}
         </div>
+        ${or.estado === 'observada' ? `
+          <div class="alert alert-warning" style="margin-bottom:1rem">
+            <strong>⚠ OR Observada</strong> — ${or.observacion_local||'Sin detalle'}
+            <div style="margin-top:8px;display:flex;gap:8px">
+              <button class="btn btn-sm btn-primary" onclick="aprobarObservada('${or.id_or}')">✓ Aprobar y enviar a Administración</button>
+              <button class="btn btn-sm btn-ghost" style="color:var(--error)" onclick="rechazarObservada('${or.id_or}')">✗ Rechazar — devolver a local</button>
+            </div>
+          </div>` : ''}
         ${ocsHtml}
         ${itemsHtml}
       `;
@@ -313,6 +380,32 @@
         <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">${label}</div>
         <div style="font-size:13px;font-weight:500">${val||'—'}</div>
       </div>`;
+    }
+
+    async function aprobarObservada(idOR) {
+      if (!confirm('¿Confirmás que la OR observada puede pasar a Administración?')) return;
+      const { error } = await sbClient.from('or_cabecera').update({
+        estado:          'conforme',
+        enviada_admin:   true,
+        enviada_admin_at: new Date().toISOString(),
+      }).eq('id_or', idOR);
+      if (error) { alert('Error: ' + error.message); return; }
+      await auditar(perfil, 'EDITAR', 'or_cabecera', `Aprobó OR observada ${idOR} → envió a Administración`);
+      cerrarDetalle();
+      await cargar();
+    }
+
+    async function rechazarObservada(idOR) {
+      const motivo = prompt('Motivo del rechazo (se notificará al local):');
+      if (motivo === null) return;
+      const { error } = await sbClient.from('or_cabecera').update({
+        estado:           'declinada',
+        observacion_local: motivo,
+      }).eq('id_or', idOR);
+      if (error) { alert('Error: ' + error.message); return; }
+      await auditar(perfil, 'EDITAR', 'or_cabecera', `Rechazó OR observada ${idOR}`);
+      cerrarDetalle();
+      await cargar();
     }
 
     function cerrarDetalle() { document.getElementById('modal-detalle').classList.add('hidden'); }
