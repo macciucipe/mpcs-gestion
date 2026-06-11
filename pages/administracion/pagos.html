@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pagos · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .estado-badge { display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600; }
+    .estado-borrador          { background:#F3F4F6;color:#374151; }
+    .estado-aprobado_admin    { background:#EDE9FE;color:#5B21B6; }
+    .estado-aprobado_gerencia { background:#DBEAFE;color:#1E40AF; }
+    .estado-aprobado_firma    { background:#D1FAE5;color:#065F46; }
+    .estado-ejecutado         { background:#F3F4F6;color:#374151; }
+    .estado-rechazado         { background:#FEE2E2;color:#991B1B; }
+    .aprobacion-step {
+      display:flex;align-items:center;gap:8px;padding:8px 12px;
+      border-radius:var(--radius-md);font-size:13px;margin-bottom:6px;
+    }
+    .step-done    { background:#D1FAE5;color:#065F46; }
+    .step-pending { background:#F3F4F6;color:#374151; }
+    .step-current { background:#EDE9FE;color:#5B21B6;font-weight:600; }
+  </style>
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Programación de pagos</h1>
+        <p>Flujo de aprobación y ejecución de pagos a proveedores</p>
+      </div>
+      <div class="page-header-right">
+        <button class="btn btn-primary" onclick="abrirNuevoPago()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nuevo pago
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:1.5rem">
+        <div class="stat-card"><div class="stat-value" id="stat-borrador" style="color:var(--text-muted)">—</div><div class="stat-label">Borradores</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-admin" style="color:#7C3AED">—</div><div class="stat-label">En aprobación admin</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-gerencia" style="color:var(--accent)">—</div><div class="stat-label">En aprobación gerencia</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-firma" style="color:var(--success)">—</div><div class="stat-label">Pendientes de firma</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-total-pen" style="color:var(--navy)">—</div><div class="stat-label">Total pendiente (S/)</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 id="count-label">Pagos</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="filtro-estado" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
+              <option value="">Todos los estados</option>
+              <option value="borrador">Borrador</option>
+              <option value="aprobado_admin">Aprobado admin</option>
+              <option value="aprobado_gerencia">Aprobado gerencia</option>
+              <option value="aprobado_firma">Listo para ejecutar</option>
+              <option value="ejecutado">Ejecutado</option>
+              <option value="rechazado">Rechazado</option>
+            </select>
+            <div class="search-bar">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="search" placeholder="Buscar proveedor..." oninput="filtrar()" />
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Proveedor</th>
+                <th>Empresa</th>
+                <th>Factura</th>
+                <th>Vencimiento</th>
+                <th>F. programada</th>
+                <th>Moneda</th>
+                <th>Monto</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="9"><div class="loading">Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL NUEVO PAGO ── -->
+  <div class="modal-overlay hidden" id="modal-nuevo">
+    <div class="modal" style="max-width:680px">
+      <div class="modal-header">
+        <h3 id="nuevo-titulo">Programar pago</h3>
+        <button class="modal-close" onclick="cerrar('modal-nuevo')">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Factura vinculada</label>
+            <select id="pago-factura" onchange="cargarDatosFactura(this.value)">
+              <option value="">-- Sin vincular (pago libre) --</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0">
+            <label>Empresa *</label>
+            <select id="pago-empresa"></select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Proveedor *</label>
+            <input type="text" id="pago-proveedor-nombre" placeholder="Nombre del proveedor" />
+            <input type="hidden" id="pago-proveedor-ruc" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>RUC proveedor</label>
+            <input type="text" id="pago-ruc-display" placeholder="20XXXXXXXXX" maxlength="11"
+              oninput="this.value=this.value.replace(/\D/g,'');document.getElementById('pago-proveedor-ruc').value=this.value;buscarDatosProveedor(this.value)" />
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Moneda *</label>
+            <select id="pago-moneda" onchange="togglePagoTipoCambio()">
+              <option value="PEN">Soles (PEN)</option>
+              <option value="USD">Dólares (USD)</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0">
+            <label>Monto *</label>
+            <input type="number" id="pago-monto" step="0.01" min="0" style="font-weight:700" />
+          </div>
+          <div class="field" id="sec-tc-pago" style="margin:0;display:none">
+            <label>Tipo de cambio</label>
+            <input type="number" id="pago-tc" step="0.001" placeholder="3.750" />
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Vencimiento factura</label>
+            <input type="date" id="pago-vencimiento" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>Fecha programada de pago *</label>
+            <input type="date" id="pago-fecha" />
+          </div>
+        </div>
+
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px">Cuenta destino del proveedor</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Banco</label>
+            <input type="text" id="pago-banco" placeholder="BBVA, BCP..." />
+          </div>
+          <div class="field" style="margin:0">
+            <label>Número de cuenta</label>
+            <input type="text" id="pago-cuenta" placeholder="Número de cuenta" style="font-family:monospace" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>CCI</label>
+            <input type="text" id="pago-cci" placeholder="20 dígitos" style="font-family:monospace" maxlength="20"
+              oninput="this.value=this.value.replace(/\D/g,'')" />
+          </div>
+        </div>
+        <div id="msg-nuevo-pago" class="alert" style="display:none"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="cerrar('modal-nuevo')">Cancelar</button>
+        <button class="btn btn-primary" id="btn-guardar-pago" onclick="guardarPago()">Guardar borrador</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL DETALLE PAGO ── -->
+  <div class="modal-overlay hidden" id="modal-detalle">
+    <div class="modal" style="max-width:700px">
+      <div class="modal-header">
+        <h3 id="det-titulo">Detalle de pago</h3>
+        <button class="modal-close" onclick="cerrar('modal-detalle')">×</button>
+      </div>
+      <div class="modal-body" id="det-body"></div>
+      <div class="modal-footer" id="det-footer">
+        <button class="btn btn-ghost" onclick="cerrar('modal-detalle')">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL EJECUTAR PAGO ── -->
+  <div class="modal-overlay hidden" id="modal-ejecutar">
+    <div class="modal" style="max-width:560px">
+      <div class="modal-header">
+        <h3>Registrar pago ejecutado</h3>
+        <button class="modal-close" onclick="cerrar('modal-ejecutar')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning" style="margin-bottom:1rem">
+          Registrá los datos del pago ya realizado. Esta acción no puede deshacerse.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Fecha de pago *</label>
+            <input type="date" id="ejec-fecha" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>Número de operación *</label>
+            <input type="text" id="ejec-operacion" placeholder="Ej: 123456789" style="font-family:monospace" />
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Banco origen</label>
+            <input type="text" id="ejec-banco-origen" placeholder="Banco desde donde se pagó" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>Cuenta origen</label>
+            <input type="text" id="ejec-cuenta-origen" placeholder="Cuenta utilizada" style="font-family:monospace" />
+          </div>
+        </div>
+        <div id="msg-ejecutar" class="alert" style="display:none"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="cerrar('modal-ejecutar')">Cancelar</button>
+        <button class="btn btn-primary" id="btn-ejecutar" onclick="confirmarEjecucion()" style="background:var(--success)">✓ Confirmar pago ejecutado</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let perfil  = null;
+    let pagos   = [];
+    let empresas= [];
+    let pagoActual = null;
+
+    async function init() {
+      perfil = await requireAuth(['admin','compras','gerencia'], 'admin_pagos');
+      if (!perfil) return;
+      renderSidebar(perfil, 'pagos');
+      aplicarPermisosUI(perfil, 'admin_pagos');
+      onContextoChange(async () => await cargar());
+      await Promise.all([cargar(), cargarEmpresas()]);
+
+      // Si viene con ?factura=xxx desde facturas.html
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('factura')) {
+        await abrirNuevoPago(params.get('factura'));
+        history.replaceState(null, '', 'pagos.html');
+      }
+    }
+
+    async function cargarEmpresas() {
+      const { data } = await sbClient.from('empresas').select('ruc, razon_social, abreviatura').eq('estado','activa');
+      empresas = data || [];
+      const sel = document.getElementById('pago-empresa');
+      sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+      empresas.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.ruc; opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function cargar() {
+      document.getElementById('tbody').innerHTML =
+        '<tr><td colspan="9"><div class="loading">Cargando...</div></td></tr>';
+      const { ruc } = getContexto();
+      let q = sbClient.from('programacion_pagos').select('*').order('fecha_vencimiento', { ascending: true });
+      if (ruc) q = q.eq('ruc_empresa', ruc);
+      const { data, error } = await q;
+      if (error) { console.error(error); return; }
+      pagos = data || [];
+
+      document.getElementById('stat-borrador').textContent = pagos.filter(p => p.estado === 'borrador').length;
+      document.getElementById('stat-admin').textContent    = pagos.filter(p => p.estado === 'aprobado_admin').length;
+      document.getElementById('stat-gerencia').textContent = pagos.filter(p => p.estado === 'aprobado_gerencia').length;
+      document.getElementById('stat-firma').textContent    = pagos.filter(p => p.estado === 'aprobado_firma').length;
+      const pendTotal = pagos.filter(p => !['ejecutado','rechazado'].includes(p.estado))
+        .reduce((s,p) => s + parseFloat(p.monto_pen || p.monto || 0), 0);
+      document.getElementById('stat-total-pen').textContent = 'S/ ' + pendTotal.toLocaleString('es-PE',{minimumFractionDigits:2});
+      filtrar();
+    }
+
+    function filtrar() {
+      const q      = document.getElementById('search').value.toLowerCase();
+      const estado = document.getElementById('filtro-estado').value;
+      const lista  = pagos.filter(p =>
+        (!q      || (p.nombre_proveedor||'').toLowerCase().includes(q) || (p.ruc_proveedor||'').includes(q)) &&
+        (!estado || p.estado === estado)
+      );
+      document.getElementById('count-label').textContent = `Pagos (${lista.length})`;
+      const tbody = document.getElementById('tbody');
+      if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><h3>Sin pagos</h3></div></td></tr>`;
+        return;
+      }
+      tbody.innerHTML = lista.map(p => {
+        const venc      = p.fecha_vencimiento ? new Date(p.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-PE') : '—';
+        const prog      = p.fecha_programada  ? new Date(p.fecha_programada+'T12:00:00').toLocaleDateString('es-PE')  : '—';
+        const vencido   = p.fecha_vencimiento && new Date(p.fecha_vencimiento) < new Date() && p.estado !== 'ejecutado';
+        const emp       = empresas.find(e => e.ruc === p.ruc_empresa);
+        const monto     = `${p.moneda === 'USD' ? 'US$ ' : 'S/ '}${parseFloat(p.monto).toLocaleString('es-PE',{minimumFractionDigits:2})}`;
+        const acciones  = getAcciones(p);
+        return `<tr ${vencido ? 'style="background:#FFF7ED"' : ''}>
+          <td><strong>${p.nombre_proveedor||'—'}</strong><br><span style="font-size:11px;font-family:monospace;color:var(--text-muted)">${p.ruc_proveedor}</span></td>
+          <td style="font-size:12px">${emp?.abreviatura||p.ruc_empresa}</td>
+          <td style="font-size:11px;font-family:monospace;color:var(--text-muted)">${p.id_factura ? `#${p.id_factura}` : '—'}</td>
+          <td style="font-size:12px;${vencido?'color:var(--error);font-weight:600':''}">${venc}${vencido?' ⚠':''}</td>
+          <td style="font-size:12px">${prog}</td>
+          <td><span class="badge badge-gray" style="font-size:11px">${p.moneda}</span></td>
+          <td style="font-weight:700;font-size:13px">${monto}</td>
+          <td><span class="estado-badge estado-${p.estado}">${p.estado.replace(/_/g,' ')}</span></td>
+          <td><div style="display:flex;gap:4px;flex-wrap:wrap">${acciones}</div></td>
+        </tr>`;
+      }).join('');
+    }
+
+    function getAcciones(p) {
+      const btns = [`<button class="btn btn-sm btn-ghost" onclick="verDetalle(${p.id})">${icons.eye} Ver</button>`];
+      const rol  = perfil.rol;
+
+      if (p.estado === 'borrador' && ['admin','compras'].includes(rol))
+        btns.push(`<button class="btn btn-sm btn-ghost" style="color:var(--accent)" onclick="aprobar(${p.id},'aprobado_admin')">✓ Aprobar</button>`);
+      if (p.estado === 'aprobado_admin' && ['gerencia','admin'].includes(rol))
+        btns.push(`<button class="btn btn-sm btn-ghost" style="color:var(--success)" onclick="aprobar(${p.id},'aprobado_gerencia')">✓ Gerencia</button>`);
+      if (p.estado === 'aprobado_gerencia' && ['admin'].includes(rol))
+        btns.push(`<button class="btn btn-sm btn-ghost" style="color:var(--navy)" onclick="aprobar(${p.id},'aprobado_firma')">✍ Firmar</button>`);
+      if (p.estado === 'aprobado_firma' && ['admin'].includes(rol))
+        btns.push(`<button class="btn btn-sm btn-ghost" style="color:var(--success);font-weight:600" onclick="abrirEjecucion(${p.id})">💳 Ejecutar</button>`);
+      if (!['ejecutado','rechazado'].includes(p.estado) && ['admin','compras','gerencia'].includes(rol))
+        btns.push(`<button class="btn btn-sm btn-ghost" style="color:var(--error)" onclick="rechazar(${p.id})">✗</button>`);
+      return btns.join('');
+    }
+
+    async function aprobar(id, nuevoEstado) {
+      const etiquetas = { aprobado_admin:'aprobación de administración', aprobado_gerencia:'aprobación de gerencia', aprobado_firma:'firma' };
+      if (!confirm(`¿Confirmás la ${etiquetas[nuevoEstado]} de este pago?`)) return;
+      const update = { estado: nuevoEstado };
+      if (nuevoEstado === 'aprobado_admin')    { update.aprobado_admin_por    = perfil.user_id; update.aprobado_admin_at    = new Date().toISOString(); }
+      if (nuevoEstado === 'aprobado_gerencia') { update.aprobado_gerencia_por = perfil.user_id; update.aprobado_gerencia_at = new Date().toISOString(); }
+      if (nuevoEstado === 'aprobado_firma')    { update.aprobado_firma_por    = perfil.user_id; update.aprobado_firma_at    = new Date().toISOString(); }
+      const { error } = await sbClient.from('programacion_pagos').update(update).eq('id', id);
+      if (error) { alert('Error: ' + error.message); return; }
+      await auditar(perfil, 'EDITAR', 'programacion_pagos', `${nuevoEstado} pago ID ${id}`);
+      await cargar();
+    }
+
+    async function rechazar(id) {
+      const motivo = prompt('Motivo del rechazo:');
+      if (motivo === null) return;
+      await sbClient.from('programacion_pagos').update({
+        estado: 'rechazado', rechazado_por: perfil.user_id, motivo_rechazo: motivo
+      }).eq('id', id);
+      await cargar();
+    }
+
+    function abrirEjecucion(id) {
+      pagoActual = pagos.find(p => p.id === id);
+      document.getElementById('ejec-fecha').value          = new Date().toISOString().split('T')[0];
+      document.getElementById('ejec-operacion').value      = '';
+      document.getElementById('ejec-banco-origen').value   = '';
+      document.getElementById('ejec-cuenta-origen').value  = '';
+      document.getElementById('msg-ejecutar').style.display= 'none';
+      abrir('modal-ejecutar');
+    }
+
+    async function confirmarEjecucion() {
+      const msg   = document.getElementById('msg-ejecutar');
+      const btn   = document.getElementById('btn-ejecutar');
+      const fecha = document.getElementById('ejec-fecha').value;
+      const oper  = document.getElementById('ejec-operacion').value.trim();
+      if (!fecha) { showMsg(msg,'alert-error','Ingresá la fecha de pago.'); return; }
+      if (!oper)  { showMsg(msg,'alert-error','Ingresá el número de operación.'); return; }
+      btn.disabled = true; btn.textContent = 'Registrando...';
+      try {
+        const tc     = parseFloat(pagoActual.tipo_cambio) || 1;
+        const monto  = parseFloat(pagoActual.monto);
+        await sbClient.from('pagos_ejecutados').insert({
+          id_programacion: pagoActual.id,
+          ruc_proveedor:   pagoActual.ruc_proveedor,
+          nombre_proveedor:pagoActual.nombre_proveedor,
+          ruc_empresa:     pagoActual.ruc_empresa,
+          fecha_pago:      fecha,
+          moneda:          pagoActual.moneda,
+          monto,
+          tipo_cambio:     tc,
+          monto_pen:       pagoActual.moneda === 'USD' ? monto * tc : monto,
+          banco_origen:    document.getElementById('ejec-banco-origen').value.trim() || null,
+          cuenta_origen:   document.getElementById('ejec-cuenta-origen').value.trim() || null,
+          banco_destino:   pagoActual.banco_destino,
+          cuenta_destino:  pagoActual.cuenta_destino,
+          numero_operacion: oper,
+          registrado_por:  perfil.user_id,
+        });
+        await sbClient.from('programacion_pagos').update({ estado: 'ejecutado' }).eq('id', pagoActual.id);
+        if (pagoActual.id_factura) {
+          await sbClient.from('facturas_proveedor').update({ estado: 'pagada' }).eq('id', pagoActual.id_factura);
+        }
+        await auditar(perfil, 'CREAR', 'pagos_ejecutados', `Pago ejecutado a ${pagoActual.nombre_proveedor} — ${pagoActual.moneda} ${monto} — Op: ${oper}`);
+        cerrar('modal-ejecutar');
+        await cargar();
+      } catch(e) {
+        showMsg(msg, 'alert-error', 'Error: ' + e.message);
+      }
+      btn.disabled = false; btn.textContent = '✓ Confirmar pago ejecutado';
+    }
+
+    async function abrirNuevoPago(idFactura = null) {
+      ['pago-proveedor-nombre','pago-ruc-display','pago-monto','pago-tc',
+       'pago-banco','pago-cuenta','pago-cci'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+      document.getElementById('pago-moneda').value  = 'PEN';
+      document.getElementById('pago-proveedor-ruc').value = '';
+      document.getElementById('pago-fecha').value   = '';
+      document.getElementById('pago-vencimiento').value = '';
+      document.getElementById('msg-nuevo-pago').style.display = 'none';
+      togglePagoTipoCambio();
+
+      // Cargar facturas validadas en el select
+      const { data: facs } = await sbClient.from('facturas_proveedor')
+        .select('id, numero_completo, nombre_emisor, total, moneda')
+        .in('estado', ['validada']).order('fecha_vencimiento');
+      const sel = document.getElementById('pago-factura');
+      sel.innerHTML = '<option value="">-- Sin vincular (pago libre) --</option>';
+      (facs||[]).forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.id;
+        opt.textContent = `${f.numero_completo} — ${f.nombre_emisor} — ${f.moneda} ${parseFloat(f.total).toFixed(2)}`;
+        sel.appendChild(opt);
+      });
+
+      if (idFactura) { sel.value = idFactura; await cargarDatosFactura(idFactura); }
+      abrir('modal-nuevo');
+    }
+
+    async function cargarDatosFactura(idFactura) {
+      if (!idFactura) return;
+      const { data: f } = await sbClient.from('facturas_proveedor')
+        .select('*').eq('id', idFactura).single();
+      if (!f) return;
+      document.getElementById('pago-ruc-display').value      = f.ruc_emisor;
+      document.getElementById('pago-proveedor-ruc').value    = f.ruc_emisor;
+      document.getElementById('pago-proveedor-nombre').value = f.nombre_emisor || '';
+      document.getElementById('pago-moneda').value           = f.moneda;
+      document.getElementById('pago-monto').value            = f.total;
+      document.getElementById('pago-vencimiento').value      = f.fecha_vencimiento || '';
+      if (f.tipo_cambio && f.moneda === 'USD') document.getElementById('pago-tc').value = f.tipo_cambio;
+      togglePagoTipoCambio();
+      // Buscar cuenta bancaria del proveedor
+      await buscarDatosProveedor(f.ruc_emisor);
+    }
+
+    async function buscarDatosProveedor(ruc) {
+      if (ruc.length !== 11) return;
+      const { data: prov } = await sbClient.from('proveedores').select('razon_social').eq('documento', ruc).maybeSingle();
+      if (prov) document.getElementById('pago-proveedor-nombre').value = prov.razon_social;
+      document.getElementById('pago-proveedor-ruc').value = ruc;
+      const { data: banco } = await sbClient.from('proveedores_bancos')
+        .select('banco, num_cuenta, cci').eq('documento_prov', ruc).eq('es_principal', true).maybeSingle();
+      if (banco) {
+        document.getElementById('pago-banco').value  = banco.banco || '';
+        document.getElementById('pago-cuenta').value = banco.num_cuenta || banco.numero_cuenta || '';
+        document.getElementById('pago-cci').value    = banco.cci || '';
+      }
+    }
+
+    function togglePagoTipoCambio() {
+      document.getElementById('sec-tc-pago').style.display =
+        document.getElementById('pago-moneda').value === 'USD' ? '' : 'none';
+    }
+
+    async function guardarPago() {
+      const msg  = document.getElementById('msg-nuevo-pago');
+      const btn  = document.getElementById('btn-guardar-pago');
+      const ruc  = document.getElementById('pago-proveedor-ruc').value.trim();
+      const nom  = document.getElementById('pago-proveedor-nombre').value.trim();
+      const emp  = document.getElementById('pago-empresa').value;
+      const mont = parseFloat(document.getElementById('pago-monto').value);
+      const fecha= document.getElementById('pago-fecha').value;
+      if (!ruc || !emp || !mont || !fecha) {
+        showMsg(msg,'alert-error','Completá los campos obligatorios.'); return;
+      }
+      btn.disabled = true; btn.textContent = 'Guardando...'; msg.style.display = 'none';
+      try {
+        const moneda = document.getElementById('pago-moneda').value;
+        const tc     = parseFloat(document.getElementById('pago-tc').value) || 1;
+        const idFac  = document.getElementById('pago-factura').value || null;
+        const { error } = await sbClient.from('programacion_pagos').insert({
+          id_factura:       idFac ? parseInt(idFac) : null,
+          ruc_proveedor:    ruc,
+          nombre_proveedor: nom || null,
+          ruc_empresa:      emp,
+          moneda,
+          monto:            mont,
+          tipo_cambio:      moneda === 'USD' ? tc : 1,
+          monto_pen:        moneda === 'USD' ? mont * tc : mont,
+          fecha_vencimiento: document.getElementById('pago-vencimiento').value || null,
+          fecha_programada:  fecha,
+          banco_destino:    document.getElementById('pago-banco').value.trim() || null,
+          cuenta_destino:   document.getElementById('pago-cuenta').value.trim() || null,
+          cci_destino:      document.getElementById('pago-cci').value.trim() || null,
+          estado:           'borrador',
+          creado_por:       perfil.user_id,
+        });
+        if (error) throw new Error(error.message);
+        await auditar(perfil, 'CREAR', 'programacion_pagos', `Creó pago a ${nom||ruc} — ${moneda} ${mont}`);
+        cerrar('modal-nuevo');
+        await cargar();
+      } catch(e) {
+        showMsg(msg,'alert-error','Error: '+e.message);
+      }
+      btn.disabled = false; btn.textContent = 'Guardar borrador';
+    }
+
+    async function verDetalle(id) {
+      const p = pagos.find(x => x.id === id);
+      if (!p) return;
+      const emp = empresas.find(e => e.ruc === p.ruc_empresa);
+      document.getElementById('det-titulo').textContent = `Pago a ${p.nombre_proveedor||p.ruc_proveedor}`;
+
+      const steps = [
+        { label:'Borrador creado',            done: true,                             by: '' },
+        { label:'Aprobado por administración', done: !!p.aprobado_admin_at,           by: p.aprobado_admin_at    ? new Date(p.aprobado_admin_at).toLocaleDateString('es-PE')    : '' },
+        { label:'Aprobado por gerencia',       done: !!p.aprobado_gerencia_at,        by: p.aprobado_gerencia_at ? new Date(p.aprobado_gerencia_at).toLocaleDateString('es-PE') : '' },
+        { label:'Firmado',                     done: !!p.aprobado_firma_at,           by: p.aprobado_firma_at    ? new Date(p.aprobado_firma_at).toLocaleDateString('es-PE')    : '' },
+        { label:'Ejecutado',                   done: p.estado === 'ejecutado',        by: '' },
+      ];
+      const estadosOrden = ['borrador','aprobado_admin','aprobado_gerencia','aprobado_firma','ejecutado'];
+      const stepActual   = estadosOrden.indexOf(p.estado);
+
+      document.getElementById('det-body').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;background:var(--bg);border-radius:var(--radius-md);padding:1rem;margin-bottom:1rem">
+          ${df('Proveedor', `<strong>${p.nombre_proveedor||'—'}</strong><br><span style="font-family:monospace;font-size:11px">${p.ruc_proveedor}</span>`)}
+          ${df('Empresa', emp?.razon_social||p.ruc_empresa)}
+          ${df('Estado', `<span class="estado-badge estado-${p.estado}">${p.estado.replace(/_/g,' ')}</span>`)}
+          ${df('Monto', `<strong style="font-size:16px">${p.moneda==='USD'?'US$ ':'S/ '}${parseFloat(p.monto).toLocaleString('es-PE',{minimumFractionDigits:2})}</strong>`)}
+          ${df('Vencimiento', p.fecha_vencimiento ? new Date(p.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-PE') : '—')}
+          ${df('Fecha programada', p.fecha_programada ? new Date(p.fecha_programada+'T12:00:00').toLocaleDateString('es-PE') : '—')}
+          ${df('Banco destino', p.banco_destino||'—')}
+          ${df('Cuenta', `<span style="font-family:monospace">${p.cuenta_destino||'—'}</span>`)}
+          ${df('CCI', `<span style="font-family:monospace">${p.cci_destino||'—'}</span>`)}
+        </div>
+        <div style="margin-bottom:1rem">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:10px">Flujo de aprobación</div>
+          ${steps.map((s, i) => {
+            const cls = s.done ? 'step-done' : i === stepActual+1 ? 'step-current' : 'step-pending';
+            return `<div class="aprobacion-step ${cls}">
+              <span>${s.done ? '✓' : i === stepActual+1 ? '→' : '○'}</span>
+              <span style="flex:1">${s.label}</span>
+              ${s.by ? `<span style="font-size:12px">${s.by}</span>` : ''}
+            </div>`;
+          }).join('')}
+          ${p.estado === 'rechazado' ? `<div class="aprobacion-step" style="background:#FEE2E2;color:#991B1B">✗ Rechazado — ${p.motivo_rechazo||''}</div>` : ''}
+        </div>
+      `;
+
+      document.getElementById('det-footer').innerHTML = `
+        <button class="btn btn-ghost" onclick="cerrar('modal-detalle')">Cerrar</button>
+        ${getAcciones(p)}
+      `;
+      abrir('modal-detalle');
+    }
+
+    function df(label, val) {
+      return `<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">${label}</div><div style="font-size:13px;font-weight:500">${val||'—'}</div></div>`;
+    }
+    function showMsg(el,cls,txt){ el.className=`alert ${cls}`;el.textContent=txt;el.style.display='block'; }
+    function abrir(id){ document.getElementById(id).classList.remove('hidden'); }
+    function cerrar(id){ document.getElementById(id).classList.add('hidden'); }
+
+    ['modal-nuevo','modal-detalle','modal-ejecutar'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', function(e){ if(e.target===this) cerrar(id); });
+    });
+    document.addEventListener('keydown', e => { if(e.key==='Escape'){ cerrar('modal-nuevo'); cerrar('modal-detalle'); cerrar('modal-ejecutar'); } });
+
+    init();
+  </script>
+</body>
+</html>

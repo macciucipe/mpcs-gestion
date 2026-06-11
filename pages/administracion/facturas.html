@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Facturas · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .estado-badge { display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600; }
+    .estado-pendiente_validacion { background:#EDE9FE;color:#5B21B6; }
+    .estado-validada    { background:#D1FAE5;color:#065F46; }
+    .estado-observada   { background:#FEF3C7;color:#92400E; }
+    .estado-programada  { background:#DBEAFE;color:#1E40AF; }
+    .estado-pagada      { background:#F3F4F6;color:#374151; }
+    .estado-rechazada   { background:#FEE2E2;color:#991B1B; }
+    .match-ok  { color:var(--success);font-weight:700; }
+    .match-err { color:var(--error);font-weight:700; }
+    .match-warn{ color:var(--warning);font-weight:700; }
+    .diff-row  { background:#FFF7ED; }
+  </style>
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Facturas de proveedores</h1>
+        <p>Recepción, validación 3-way match y seguimiento</p>
+      </div>
+      <div class="page-header-right">
+        <button class="btn btn-primary" onclick="abrirNuevaFactura()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Cargar factura
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="stats-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:1.5rem">
+        <div class="stat-card"><div class="stat-value" id="stat-total">—</div><div class="stat-label">Total</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-pendiente" style="color:#7C3AED">—</div><div class="stat-label">Pendientes</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-validada" style="color:var(--success)">—</div><div class="stat-label">Validadas</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-observada" style="color:var(--warning)">—</div><div class="stat-label">Observadas</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-programada" style="color:var(--accent)">—</div><div class="stat-label">Programadas</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-pagada" style="color:var(--text-muted)">—</div><div class="stat-label">Pagadas</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 id="count-label">Facturas</h2>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="filtro-estado" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
+              <option value="">Todos los estados</option>
+              <option value="pendiente_validacion">Pendiente validación</option>
+              <option value="validada">Validada</option>
+              <option value="observada">Observada</option>
+              <option value="programada">Programada</option>
+              <option value="pagada">Pagada</option>
+              <option value="rechazada">Rechazada</option>
+            </select>
+            <div class="search-bar">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="search" placeholder="Buscar por número, proveedor..." oninput="filtrar()" />
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Número</th>
+                <th>Proveedor</th>
+                <th>Empresa</th>
+                <th>Emisión</th>
+                <th>Vencimiento</th>
+                <th>Moneda</th>
+                <th>Total</th>
+                <th>3-way</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="10"><div class="loading">Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL NUEVA FACTURA ── -->
+  <div class="modal-overlay hidden" id="modal-nueva">
+    <div class="modal" style="max-width:700px">
+      <div class="modal-header">
+        <h3>Cargar factura</h3>
+        <button class="modal-close" onclick="cerrar('modal-nueva')">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:var(--navy-light,#EEF2FB);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:1rem;font-size:13px">
+          Podés cargar el XML de SUNAT para autocompletar los datos, o completarlos manualmente.
+        </div>
+
+        <!-- Upload XML -->
+        <div style="border:2px dashed var(--border-md);border-radius:var(--radius-lg);padding:1.5rem;text-align:center;margin-bottom:1.25rem;cursor:pointer" onclick="document.getElementById('xml-file').click()">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:8px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          <div style="font-size:14px;font-weight:600;color:var(--text-muted)">Subir XML de SUNAT</div>
+          <div style="font-size:12px;color:var(--text-muted)">o completar manualmente abajo</div>
+          <input type="file" id="xml-file" accept=".xml" style="display:none" onchange="procesarXML(this)" />
+        </div>
+        <div id="xml-status" style="display:none;margin-bottom:1rem"></div>
+
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:12px">Datos de la factura</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Serie *</label>
+            <input type="text" id="fac-serie" placeholder="F001" maxlength="4" style="font-family:monospace;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>Correlativo *</label>
+            <input type="text" id="fac-correlativo" placeholder="00001234" maxlength="8" style="font-family:monospace" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>Tipo</label>
+            <select id="fac-tipo">
+              <option value="factura">Factura</option>
+              <option value="boleta">Boleta</option>
+              <option value="nota_credito">Nota de crédito</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>RUC del proveedor *</label>
+            <input type="text" id="fac-ruc-emisor" placeholder="20XXXXXXXXX" maxlength="11"
+              oninput="this.value=this.value.replace(/\D/g,'');buscarNombreProveedor(this.value)" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>Nombre del proveedor</label>
+            <input type="text" id="fac-nombre-emisor" placeholder="Se completa automático" />
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Empresa receptora *</label>
+            <select id="fac-ruc-receptor"></select>
+          </div>
+          <div class="field" style="margin:0">
+            <label>Moneda</label>
+            <select id="fac-moneda" onchange="toggleTipoCambio()">
+              <option value="PEN">Soles (PEN)</option>
+              <option value="USD">Dólares (USD)</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Fecha emisión *</label>
+            <input type="date" id="fac-fecha-emision" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>Fecha vencimiento</label>
+            <input type="date" id="fac-fecha-vencimiento" />
+          </div>
+          <div class="field" id="sec-tipo-cambio" style="margin:0;display:none">
+            <label>Tipo de cambio</label>
+            <input type="number" id="fac-tipo-cambio" step="0.001" placeholder="3.750" />
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Subtotal (sin IGV) *</label>
+            <input type="number" id="fac-subtotal" step="0.01" min="0" onchange="calcularTotal()" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>IGV</label>
+            <input type="number" id="fac-igv" step="0.01" min="0" onchange="calcularTotal()" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>Total *</label>
+            <input type="number" id="fac-total" step="0.01" min="0" style="font-weight:700" />
+          </div>
+        </div>
+
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:12px;margin-top:4px">Vincular a OR / OC</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px">
+          <div>
+            <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">OR vinculadas</label>
+            <div id="or-checkboxes" style="max-height:140px;overflow-y:auto;border:1px solid var(--border-md);border-radius:var(--radius-md);padding:8px">
+              <div style="color:var(--text-muted);font-size:12px;font-style:italic">Ingresá el RUC del proveedor para cargar OR</div>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">OC vinculadas</label>
+            <div id="oc-checkboxes" style="max-height:140px;overflow-y:auto;border:1px solid var(--border-md);border-radius:var(--radius-md);padding:8px">
+              <div style="color:var(--text-muted);font-size:12px;font-style:italic">Ingresá el RUC del proveedor para cargar OC</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="msg-nueva" class="alert" style="display:none;margin-top:12px"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="cerrar('modal-nueva')">Cancelar</button>
+        <button class="btn btn-primary" id="btn-guardar-fac" onclick="guardarFactura()">Guardar y validar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL DETALLE FACTURA ── -->
+  <div class="modal-overlay hidden" id="modal-detalle">
+    <div class="modal" style="max-width:820px">
+      <div class="modal-header">
+        <h3 id="det-titulo">Factura</h3>
+        <button class="modal-close" onclick="cerrar('modal-detalle')">×</button>
+      </div>
+      <div class="modal-body" id="det-body"></div>
+      <div class="modal-footer" id="det-footer">
+        <button class="btn btn-ghost" onclick="cerrar('modal-detalle')">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let perfil   = null;
+    let facturas = [];
+    let empresas = [];
+
+    async function init() {
+      perfil = await requireAuth(['admin','compras','gerencia'], 'admin_facturas');
+      if (!perfil) return;
+      renderSidebar(perfil, 'facturas');
+      aplicarPermisosUI(perfil, 'admin_facturas');
+      onContextoChange(async () => { await cargar(); });
+      await Promise.all([cargar(), cargarEmpresas()]);
+    }
+
+    async function cargarEmpresas() {
+      const { data } = await sbClient.from('empresas')
+        .select('ruc, razon_social, abreviatura').eq('estado','activa');
+      empresas = data || [];
+      const sel = document.getElementById('fac-ruc-receptor');
+      sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+      empresas.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.ruc;
+        opt.textContent = `${e.abreviatura} — ${e.razon_social}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function cargar() {
+      document.getElementById('tbody').innerHTML =
+        '<tr><td colspan="10"><div class="loading">Cargando...</div></td></tr>';
+      const { ruc } = getContexto();
+      let q = sbClient.from('facturas_proveedor')
+        .select('*, validacion_3way(resultado, match_precio, match_cantidad)')
+        .order('created_at', { ascending: false });
+      if (ruc) q = q.eq('ruc_receptor', ruc);
+      const { data, error } = await q;
+      if (error) {
+        document.getElementById('tbody').innerHTML =
+          `<tr><td colspan="10"><div class="empty-state"><p>Error: ${error.message}</p></div></td></tr>`;
+        return;
+      }
+      facturas = data || [];
+      document.getElementById('stat-total').textContent     = facturas.length;
+      document.getElementById('stat-pendiente').textContent = facturas.filter(f => f.estado === 'pendiente_validacion').length;
+      document.getElementById('stat-validada').textContent  = facturas.filter(f => f.estado === 'validada').length;
+      document.getElementById('stat-observada').textContent = facturas.filter(f => f.estado === 'observada').length;
+      document.getElementById('stat-programada').textContent= facturas.filter(f => f.estado === 'programada').length;
+      document.getElementById('stat-pagada').textContent    = facturas.filter(f => f.estado === 'pagada').length;
+      filtrar();
+    }
+
+    function filtrar() {
+      const q      = document.getElementById('search').value.toLowerCase();
+      const estado = document.getElementById('filtro-estado').value;
+      const lista  = facturas.filter(f =>
+        (!q      || (f.numero_completo||'').toLowerCase().includes(q) ||
+                    (f.nombre_emisor||'').toLowerCase().includes(q) ||
+                    (f.ruc_emisor||'').includes(q)) &&
+        (!estado || f.estado === estado)
+      );
+      document.getElementById('count-label').textContent = `Facturas (${lista.length})`;
+      const tbody = document.getElementById('tbody');
+      if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><h3>Sin facturas</h3></div></td></tr>`;
+        return;
+      }
+      tbody.innerHTML = lista.map(f => {
+        const emision   = f.fecha_emision ? new Date(f.fecha_emision+'T12:00:00').toLocaleDateString('es-PE') : '—';
+        const venc      = f.fecha_vencimiento ? new Date(f.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-PE') : '—';
+        const vencido   = f.fecha_vencimiento && new Date(f.fecha_vencimiento) < new Date() && f.estado !== 'pagada';
+        const val       = f.validacion_3way?.[0];
+        const matchIcon = !val ? '<span style="color:var(--text-muted);font-size:12px">—</span>'
+          : val.resultado === 'aprobado'   ? '<span class="match-ok">✓ OK</span>'
+          : val.resultado === 'rechazado'  ? '<span class="match-err">✗ Error</span>'
+          : '<span class="match-warn">⚠ Dif.</span>';
+        const emp = empresas.find(e => e.ruc === f.ruc_receptor);
+        return `<tr ${vencido ? 'style="background:#FFF7ED"' : ''}>
+          <td><strong style="font-family:monospace;font-size:12px">${f.numero_completo||'—'}</strong></td>
+          <td><strong style="font-size:13px">${f.nombre_emisor||f.ruc_emisor}</strong><br>
+            <span style="font-size:11px;color:var(--text-muted)">${f.ruc_emisor}</span></td>
+          <td style="font-size:12px">${emp?.abreviatura||f.ruc_receptor}</td>
+          <td style="font-size:12px;color:var(--text-muted)">${emision}</td>
+          <td style="font-size:12px;${vencido?'color:var(--error);font-weight:600':''}">${venc}${vencido?' ⚠':''}</td>
+          <td><span class="badge badge-gray" style="font-size:11px">${f.moneda}</span></td>
+          <td style="font-weight:700;font-size:13px">${f.moneda === 'USD' ? 'US$ ' : 'S/ '}${parseFloat(f.total).toLocaleString('es-PE',{minimumFractionDigits:2})}</td>
+          <td style="text-align:center">${matchIcon}</td>
+          <td><span class="estado-badge estado-${f.estado}">${f.estado.replace(/_/g,' ')}</span></td>
+          <td>
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-sm btn-ghost" onclick="verDetalle(${f.id})">${icons.eye} Ver</button>
+              ${f.estado === 'pendiente_validacion' ? `<button class="btn btn-sm btn-ghost" style="color:var(--accent)" onclick="ejecutarMatch(${f.id})">▶ Validar</button>` : ''}
+              ${f.estado === 'validada' ? `<button class="btn btn-sm btn-ghost" style="color:var(--success)" onclick="programarPago(${f.id})">💳 Programar</button>` : ''}
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    // ── NUEVA FACTURA ────────────────────────────────────────────
+    function abrirNuevaFactura() {
+      ['fac-serie','fac-correlativo','fac-ruc-emisor','fac-nombre-emisor',
+       'fac-subtotal','fac-igv','fac-total','fac-tipo-cambio'].forEach(id => {
+        const el = document.getElementById(id); if(el) el.value = '';
+      });
+      document.getElementById('fac-tipo').value    = 'factura';
+      document.getElementById('fac-moneda').value  = 'PEN';
+      document.getElementById('fac-fecha-emision').value     = new Date().toISOString().split('T')[0];
+      document.getElementById('fac-fecha-vencimiento').value = '';
+      document.getElementById('msg-nueva').style.display     = 'none';
+      document.getElementById('xml-status').style.display    = 'none';
+      document.getElementById('or-checkboxes').innerHTML = '<div style="color:var(--text-muted);font-size:12px;font-style:italic">Ingresá el RUC del proveedor para cargar OR</div>';
+      document.getElementById('oc-checkboxes').innerHTML = '<div style="color:var(--text-muted);font-size:12px;font-style:italic">Ingresá el RUC del proveedor para cargar OC</div>';
+      toggleTipoCambio();
+      abrir('modal-nueva');
+    }
+
+    function toggleTipoCambio() {
+      const usd = document.getElementById('fac-moneda').value === 'USD';
+      document.getElementById('sec-tipo-cambio').style.display = usd ? '' : 'none';
+    }
+
+    function calcularTotal() {
+      const sub = parseFloat(document.getElementById('fac-subtotal').value) || 0;
+      const igv = parseFloat(document.getElementById('fac-igv').value) || 0;
+      document.getElementById('fac-total').value = (sub + igv).toFixed(2);
+    }
+
+    async function buscarNombreProveedor(ruc) {
+      if (ruc.length !== 11) return;
+      const { data } = await sbClient.from('proveedores')
+        .select('razon_social').eq('documento', ruc).maybeSingle();
+      if (data) {
+        document.getElementById('fac-nombre-emisor').value = data.razon_social;
+        await cargarORyOC(ruc);
+      }
+    }
+
+    async function cargarORyOC(ruc) {
+      const [{ data: ors }, { data: ocs }] = await Promise.all([
+        sbClient.from('or_cabecera')
+          .select('id_or, numero, estado, created_at')
+          .eq('proveedor', ruc)
+          .in('estado', ['completa','parcial','parcial_cerrada'])
+          .order('created_at', { ascending: false })
+          .limit(20),
+        sbClient.from('ordenes_compra')
+          .select('id_oc, numero, total, estado')
+          .eq('proveedor', ruc)
+          .in('estado', ['pendiente','recepcionada','recepcion_parcial'])
+          .order('created_at', { ascending: false })
+          .limit(20),
+      ]);
+
+      const orDiv = document.getElementById('or-checkboxes');
+      orDiv.innerHTML = (ors||[]).length
+        ? (ors||[]).map(or => `
+            <label style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;cursor:pointer">
+              <input type="checkbox" value="${or.id_or}" class="or-check" />
+              <span style="font-family:monospace">${or.numero||or.id_or}</span>
+              <span style="color:var(--text-muted)">${new Date(or.created_at).toLocaleDateString('es-PE')}</span>
+            </label>`).join('')
+        : '<div style="color:var(--text-muted);font-size:12px;font-style:italic">Sin OR disponibles</div>';
+
+      const ocDiv = document.getElementById('oc-checkboxes');
+      ocDiv.innerHTML = (ocs||[]).length
+        ? (ocs||[]).map(oc => `
+            <label style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;cursor:pointer">
+              <input type="checkbox" value="${oc.id_oc}" class="oc-check" />
+              <span style="font-family:monospace">${oc.numero||oc.id_oc}</span>
+              <span style="color:var(--text-muted)">S/ ${parseFloat(oc.total||0).toFixed(2)}</span>
+            </label>`).join('')
+        : '<div style="color:var(--text-muted);font-size:12px;font-style:italic">Sin OC disponibles</div>';
+    }
+
+    async function procesarXML(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const status = document.getElementById('xml-status');
+      status.className = 'alert alert-warning';
+      status.textContent = 'Procesando XML...';
+      status.style.display = 'block';
+      try {
+        const text = await file.text();
+        const parser = new DOMParser();
+        const xml    = parser.parseFromString(text, 'text/xml');
+        const get    = (tag) => xml.querySelector(tag)?.textContent?.trim() || '';
+        const getAttr= (tag, attr) => xml.querySelector(tag)?.getAttribute(attr) || '';
+
+        // Parsear campos estándar UBL 2.1 SUNAT
+        const serie    = get('ID')?.split('-')[0] || '';
+        const corr     = get('ID')?.split('-')[1] || '';
+        const fechaEm  = get('IssueDate') || '';
+        const fechaVen = get('PaymentMeans DuePaymentDate') || get('DueDate') || '';
+        const moneda   = getAttr('LegalMonetaryTotal', 'currencyID') || get('DocumentCurrencyCode') || 'PEN';
+        const rucEmisor= get('AccountingSupplierParty RegistrationName')
+          ? get('AccountingSupplierParty CompanyID') : get('SenderParty ID') || '';
+        const nomEmisor= get('AccountingSupplierParty RegistrationName') || get('SenderParty RegistrationName') || '';
+        const rucRecp  = get('AccountingCustomerParty CompanyID') || '';
+        const subtotal = get('TaxExclusiveAmount') || get('LineExtensionAmount') || '';
+        const igv      = get('TaxAmount') || '';
+        const total    = get('PayableAmount') || '';
+
+        if (serie) document.getElementById('fac-serie').value            = serie.toUpperCase();
+        if (corr)  document.getElementById('fac-correlativo').value      = corr;
+        if (fechaEm)  document.getElementById('fac-fecha-emision').value  = fechaEm;
+        if (fechaVen) document.getElementById('fac-fecha-vencimiento').value = fechaVen;
+        if (moneda !== 'PEN') document.getElementById('fac-moneda').value = moneda;
+        if (rucEmisor) { document.getElementById('fac-ruc-emisor').value = rucEmisor; await buscarNombreProveedor(rucEmisor); }
+        if (nomEmisor) document.getElementById('fac-nombre-emisor').value = nomEmisor;
+        if (rucRecp) {
+          const sel = document.getElementById('fac-ruc-receptor');
+          if ([...sel.options].find(o => o.value === rucRecp)) sel.value = rucRecp;
+        }
+        if (subtotal) document.getElementById('fac-subtotal').value = parseFloat(subtotal).toFixed(2);
+        if (igv)      document.getElementById('fac-igv').value      = parseFloat(igv).toFixed(2);
+        if (total)    document.getElementById('fac-total').value    = parseFloat(total).toFixed(2);
+        toggleTipoCambio();
+
+        status.className = 'alert alert-success';
+        status.textContent = '✓ XML procesado correctamente. Revisá los datos antes de guardar.';
+      } catch(e) {
+        status.className = 'alert alert-error';
+        status.textContent = 'No se pudo parsear el XML. Completá los datos manualmente.';
+      }
+    }
+
+    async function guardarFactura() {
+      const msg  = document.getElementById('msg-nueva');
+      const btn  = document.getElementById('btn-guardar-fac');
+      const serie = document.getElementById('fac-serie').value.trim().toUpperCase();
+      const corr  = document.getElementById('fac-correlativo').value.trim();
+      const rucE  = document.getElementById('fac-ruc-emisor').value.trim();
+      const rucR  = document.getElementById('fac-ruc-receptor').value;
+      const total = parseFloat(document.getElementById('fac-total').value);
+      const fechaEm = document.getElementById('fac-fecha-emision').value;
+
+      if (!serie || !corr) { showMsg(msg,'alert-error','Ingresá serie y correlativo.'); return; }
+      if (!rucE)  { showMsg(msg,'alert-error','Ingresá el RUC del proveedor.'); return; }
+      if (!rucR)  { showMsg(msg,'alert-error','Seleccioná la empresa receptora.'); return; }
+      if (!total || !fechaEm) { showMsg(msg,'alert-error','Total y fecha de emisión son obligatorios.'); return; }
+
+      btn.disabled = true; btn.textContent = 'Guardando...'; msg.style.display = 'none';
+
+      try {
+        const moneda = document.getElementById('fac-moneda').value;
+        const tc     = parseFloat(document.getElementById('fac-tipo-cambio').value) || 1;
+        const { data: fac, error: e1 } = await sbClient.from('facturas_proveedor').insert({
+          serie, correlativo: corr,
+          tipo_comprobante: document.getElementById('fac-tipo').value,
+          ruc_emisor:   rucE,
+          nombre_emisor: document.getElementById('fac-nombre-emisor').value.trim() || null,
+          ruc_receptor: rucR,
+          fecha_emision: fechaEm,
+          fecha_vencimiento: document.getElementById('fac-fecha-vencimiento').value || null,
+          moneda,
+          subtotal:  parseFloat(document.getElementById('fac-subtotal').value) || 0,
+          igv:       parseFloat(document.getElementById('fac-igv').value) || 0,
+          total,
+          tipo_cambio: moneda === 'USD' ? tc : 1,
+          total_pen:   moneda === 'USD' ? total * tc : total,
+          subida_por: perfil.user_id,
+        }).select().single();
+        if (e1) throw new Error(e1.message);
+
+        // Vincular OR seleccionadas
+        const orsSelec = [...document.querySelectorAll('.or-check:checked')].map(c => c.value);
+        if (orsSelec.length) {
+          await sbClient.from('factura_or_vinculo').insert(
+            orsSelec.map(id_or => ({ id_factura: fac.id, id_or }))
+          );
+        }
+        // Vincular OC seleccionadas
+        const ocsSelec = [...document.querySelectorAll('.oc-check:checked')].map(c => c.value);
+        if (ocsSelec.length) {
+          await sbClient.from('factura_oc_vinculo').insert(
+            ocsSelec.map(id_oc => ({ id_factura: fac.id, id_oc }))
+          );
+        }
+
+        // Ejecutar 3-way match automático
+        const { data: matchResult } = await sbClient.rpc('ejecutar_3way_match', { p_id_factura: fac.id });
+
+        await auditar(perfil, 'CREAR', 'facturas_proveedor',
+          `Cargó factura ${serie}-${corr} de ${rucE} — S/ ${total}`);
+
+        cerrar('modal-nueva');
+        await cargar();
+
+        const msgs = { aprobado: '✓ Factura validada automáticamente — pasó el 3-way match.', con_diferencias: '⚠ Factura con diferencias — requiere revisión manual.', rechazado: '✗ Factura rechazada — diferencias significativas detectadas.' };
+        setTimeout(() => alert(msgs[matchResult] || '✓ Factura guardada.'), 300);
+
+      } catch(e) {
+        showMsg(msg, 'alert-error', 'Error: ' + e.message);
+      }
+      btn.disabled = false; btn.textContent = 'Guardar y validar';
+    }
+
+    async function ejecutarMatch(idFactura) {
+      const { data } = await sbClient.rpc('ejecutar_3way_match', { p_id_factura: idFactura });
+      await cargar();
+      const msgs = { aprobado:'✓ Validada', con_diferencias:'⚠ Con diferencias — revisá el detalle', rechazado:'✗ Rechazada' };
+      alert(msgs[data] || 'Validación completada: ' + data);
+    }
+
+    async function verDetalle(idFactura) {
+      const f = facturas.find(x => x.id === idFactura);
+      if (!f) return;
+
+      const [{ data: ors }, { data: ocs }, { data: val }] = await Promise.all([
+        sbClient.from('factura_or_vinculo').select('id_or, or_cabecera(numero,estado,nombre_proveedor)').eq('id_factura', idFactura),
+        sbClient.from('factura_oc_vinculo').select('id_oc, ordenes_compra(numero,total,estado)').eq('id_factura', idFactura),
+        sbClient.from('validacion_3way').select('*').eq('id_factura', idFactura).maybeSingle(),
+      ]);
+
+      const emp = empresas.find(e => e.ruc === f.ruc_receptor);
+      document.getElementById('det-titulo').textContent = `Factura ${f.numero_completo}`;
+
+      const matchHtml = val ? `
+        <div style="border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem;margin-bottom:1rem">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:10px">Resultado 3-way match</div>
+          <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:10px">
+            <div><div style="font-size:11px;color:var(--text-muted)">Precio OC</div><span class="${val.match_precio?'match-ok':'match-err'}">${val.match_precio?'✓ Coincide':'✗ Difiere'}</span></div>
+            <div><div style="font-size:11px;color:var(--text-muted)">Cantidad OR</div><span class="${val.match_cantidad?'match-ok':'match-err'}">${val.match_cantidad?'✓ Coincide':'✗ Difiere'}</span></div>
+            <div><div style="font-size:11px;color:var(--text-muted)">Proveedor</div><span class="${val.match_proveedor?'match-ok':'match-err'}">${val.match_proveedor?'✓ OK':'✗ No encontrado'}</span></div>
+            <div><div style="font-size:11px;color:var(--text-muted)">Resultado</div>
+              <span class="${val.resultado==='aprobado'?'match-ok':val.resultado==='rechazado'?'match-err':'match-warn'}">${val.resultado}</span>
+            </div>
+          </div>
+          ${val.detalle ? `<div style="font-size:12px;color:var(--text-muted)">
+            Total OC: S/ ${parseFloat(val.detalle.total_oc||0).toFixed(2)} ·
+            Total OR: S/ ${parseFloat(val.detalle.total_or||0).toFixed(2)} ·
+            Factura: S/ ${parseFloat(val.detalle.total_factura||0).toFixed(2)}
+          </div>` : ''}
+          ${val.resultado === 'con_diferencias' && !val.revisado_por ? `
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+              <div style="font-size:12px;font-weight:600;margin-bottom:6px">Resolución manual</div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <select id="resolucion-select" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px">
+                  <option value="aceptar_diferencia">Aceptar diferencia</option>
+                  <option value="ajustar">Ajustar montos</option>
+                  <option value="rechazar">Rechazar factura</option>
+                </select>
+                <input type="text" id="notas-revision" placeholder="Notas..." style="flex:1;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px" />
+                <button class="btn btn-sm btn-primary" onclick="resolverDiferencia(${idFactura}, ${val.id})">Resolver</button>
+              </div>
+            </div>` : val.resolucion ? `<div style="margin-top:8px;font-size:12px;color:var(--success)">✓ Resuelto: ${val.resolucion} — ${val.notas_revision||''}</div>` : ''}
+        </div>` : '';
+
+      document.getElementById('det-body').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;background:var(--bg);border-radius:var(--radius-md);padding:1rem;margin-bottom:1rem">
+          ${df('Proveedor', `<strong>${f.nombre_emisor||'—'}</strong><br><span style="font-size:11px;font-family:monospace">${f.ruc_emisor}</span>`)}
+          ${df('Empresa', emp?.razon_social||f.ruc_receptor)}
+          ${df('Estado', `<span class="estado-badge estado-${f.estado}">${f.estado.replace(/_/g,' ')}</span>`)}
+          ${df('Emisión', f.fecha_emision ? new Date(f.fecha_emision+'T12:00:00').toLocaleDateString('es-PE') : '—')}
+          ${df('Vencimiento', f.fecha_vencimiento ? new Date(f.fecha_vencimiento+'T12:00:00').toLocaleDateString('es-PE') : '—')}
+          ${df('Total', `<strong style="font-size:15px">${f.moneda==='USD'?'US$ ':'S/ '}${parseFloat(f.total).toLocaleString('es-PE',{minimumFractionDigits:2})}</strong>${f.moneda==='USD'?`<br><span style="font-size:11px;color:var(--text-muted)">S/ ${parseFloat(f.total_pen||0).toFixed(2)}</span>`:''}`)}
+        </div>
+        ${matchHtml}
+        ${(ors||[]).length ? `
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:8px">OR vinculadas</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem">
+            ${(ors||[]).map(v=>`<span style="background:var(--success-bg);color:var(--success);padding:4px 10px;border-radius:8px;font-size:12px;font-family:monospace">${v.or_cabecera?.numero||v.id_or}</span>`).join('')}
+          </div>` : ''}
+        ${(ocs||[]).length ? `
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:8px">OC vinculadas</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem">
+            ${(ocs||[]).map(v=>`<span style="background:var(--navy-light,#EEF2FB);color:var(--navy);padding:4px 10px;border-radius:8px;font-size:12px;font-family:monospace">${v.ordenes_compra?.numero||v.id_oc} — S/ ${parseFloat(v.ordenes_compra?.total||0).toFixed(2)}</span>`).join('')}
+          </div>` : ''}
+        ${f.observaciones ? `<div class="alert alert-warning">${f.observaciones}</div>` : ''}
+      `;
+
+      const footer = document.getElementById('det-footer');
+      const btns = ['<button class="btn btn-ghost" onclick="cerrar(\'modal-detalle\')">Cerrar</button>'];
+      if (f.estado === 'pendiente_validacion')
+        btns.push(`<button class="btn btn-primary" onclick="ejecutarMatch(${f.id});cerrar('modal-detalle')">▶ Ejecutar validación</button>`);
+      if (f.estado === 'validada')
+        btns.push(`<button class="btn btn-primary" style="background:var(--success)" onclick="programarPago(${f.id});cerrar('modal-detalle')">💳 Programar pago</button>`);
+      footer.innerHTML = btns.join('');
+
+      abrir('modal-detalle');
+    }
+
+    async function resolverDiferencia(idFactura, idVal) {
+      const resolucion = document.getElementById('resolucion-select').value;
+      const notas      = document.getElementById('notas-revision').value.trim();
+      await sbClient.from('validacion_3way').update({
+        resolucion, notas_revision: notas, revisado_por: perfil.user_id
+      }).eq('id', idVal);
+      if (resolucion !== 'rechazar') {
+        await sbClient.from('facturas_proveedor').update({ estado: 'validada' }).eq('id', idFactura);
+      } else {
+        await sbClient.from('facturas_proveedor').update({ estado: 'rechazada', observaciones: notas }).eq('id', idFactura);
+      }
+      cerrar('modal-detalle');
+      await cargar();
+    }
+
+    async function programarPago(idFactura) {
+      window.location.href = `/pages/admin/pagos.html?factura=${idFactura}`;
+    }
+
+    function df(label, val) {
+      return `<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">${label}</div><div style="font-size:13px;font-weight:500">${val||'—'}</div></div>`;
+    }
+    function showMsg(el,cls,txt){ el.className=`alert ${cls}`;el.textContent=txt;el.style.display='block'; }
+    function abrir(id) { document.getElementById(id).classList.remove('hidden'); }
+    function cerrar(id){ document.getElementById(id).classList.add('hidden'); }
+
+    ['modal-nueva','modal-detalle'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', function(e){ if(e.target===this) cerrar(id); });
+    });
+    document.addEventListener('keydown', e => { if(e.key==='Escape'){ cerrar('modal-nueva'); cerrar('modal-detalle'); } });
+
+    init();
+  </script>
+</body>
+</html>
