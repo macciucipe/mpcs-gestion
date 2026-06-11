@@ -379,6 +379,10 @@ function renderSidebar(perfil, activePage) {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
             Pagos a proveedores
           </a>
+          <a href="/pages/administracion/estado-cuenta.html" class="nav-item ${activePage==='estado-cuenta'?'active':''}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Estado de cuenta
+          </a>
         </div>` : ''}
 
         ${isAdmin ? `

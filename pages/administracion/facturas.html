@@ -366,7 +366,8 @@
         sbClient.from('or_cabecera')
           .select('id_or, numero, estado, created_at')
           .eq('proveedor', ruc)
-          .in('estado', ['completa','parcial','parcial_cerrada'])
+          .in('estado', ['conforme', 'parcial_cerrada'])
+          .or('requiere_autorizacion.is.false,autorizado_por.not.is.null')
           .order('created_at', { ascending: false })
           .limit(20),
         sbClient.from('ordenes_compra')
@@ -379,12 +380,16 @@
 
       const orDiv = document.getElementById('or-checkboxes');
       orDiv.innerHTML = (ors||[]).length
-        ? (ors||[]).map(or => `
+        ? (ors||[]).map(or => {
+            const estadoLabel = or.estado === 'conforme' ? '✓' : '≈';
+            const estadoColor = or.estado === 'conforme' ? 'var(--success)' : 'var(--text-muted)';
+            return `
             <label style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;cursor:pointer">
               <input type="checkbox" value="${or.id_or}" class="or-check" />
               <span style="font-family:monospace">${or.numero||or.id_or}</span>
+              <span style="color:${estadoColor};font-weight:600">${estadoLabel}</span>
               <span style="color:var(--text-muted)">${new Date(or.created_at).toLocaleDateString('es-PE')}</span>
-            </label>`).join('')
+            </label>`}).join('')
         : '<div style="color:var(--text-muted);font-size:12px;font-style:italic">Sin OR disponibles</div>';
 
       const ocDiv = document.getElementById('oc-checkboxes');
