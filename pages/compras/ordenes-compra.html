@@ -970,12 +970,16 @@
       }
 
       // ── NÚMERO OC (arriba derecha) ───────────────────────────────
-      doc.setFont('helvetica','bold').setFontSize(8).setTextColor(...azul);
-      doc.text(d.tipo === 'OS' ? 'ORDEN DE SERVICIO N°:' : 'ORDEN DE COMPRA N°:', mR, 12, { align:'right' });
-      doc.setFontSize(11).setTextColor(...azul);
+      const tipoLabel = d.tipo === 'OS' ? 'ORDEN DE SERVICIO N°:' : 'ORDEN DE COMPRA N°:';
+      // Label pequeño
+      doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...gris);
+      doc.text(tipoLabel, mR, 11, { align:'right' });
+      // Número grande bold en azul
+      doc.setFont('helvetica','bold').setFontSize(12).setTextColor(...azul);
       doc.text(numero, mR, 18, { align:'right' });
-      doc.setFontSize(8).setFont('helvetica','normal').setTextColor(...gris);
-      doc.text(`Fecha de Emisión: ${fecha}`, mR, 23, { align:'right' });
+      // Fecha
+      doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...gris);
+      doc.text(`Fecha de Emisión: ${fecha}`, mR, 24, { align:'right' });
 
       // ── EMPRESA Y LOCAL (centrado) ───────────────────────────────
       let y = 35;
@@ -1099,30 +1103,39 @@
       if (y > 240) { doc.addPage(); y = 15; }
       y += 3;
       doc.setFont('helvetica','bold').setFontSize(8).setTextColor(...azul);
-      doc.text('CONDICIONES:', mL, y); y += 5;
+      doc.text('CONDICIONES:', mL, y); y += 6;
       doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...negro);
       const conds = [
-        `Emitir la factura electrónica a nombre de ${d.empresa}.`,
+        `Emitir la factura electronica a nombre de ${d.empresa}.`,
         'Los bienes/servicios deben ser entregados en el lugar indicado.',
-        'Cualquier variación en precio o cantidad debe ser informada previamente.',
+        'Cualquier variacion en precio o cantidad debe ser informada previamente.',
       ];
       conds.forEach(c => {
-        doc.text('●  ' + c, mL + 3, y); y += 4.5;
+        // Dibujar bullet como círculo relleno en lugar de carácter unicode
+        doc.setFillColor(...azul);
+        doc.circle(mL + 2, y - 1.2, 0.8, 'F');
+        doc.text(c, mL + 5, y);
+        y += 5;
       });
 
-      // ── QR (pie derecho) ─────────────────────────────────────────
+      // ── PIE ──────────────────────────────────────────────────────
+      const pieY = 282;
+      doc.setDrawColor(...grisCla).setLineWidth(0.3);
+      doc.line(mL, pieY, mR, pieY);
+
+      // QR — abajo derecha sobre la línea
       try {
         const qrCanvas = document.createElement('canvas');
         qrCanvas.width = 80; qrCanvas.height = 80;
         new QRCode(qrCanvas, { text: numero, width:80, height:80 });
         const qrData = qrCanvas.toDataURL('image/png');
-        doc.addImage(qrData, 'PNG', mR-20, 272, 18, 18);
+        doc.addImage(qrData, 'PNG', mR - 18, pieY + 2, 16, 16);
       } catch(e) {}
 
-      // ── PIE ──────────────────────────────────────────────────────
-      doc.setDrawColor(...grisCla).line(mL, 287, mR-22, 287);
+      // Texto pie — izquierda
       doc.setFont('helvetica','normal').setFontSize(7).setTextColor(...gris);
-      doc.text(`Generado por MPCS · ${fecha}`, mL, 291);
+      doc.text(`Generado por MPCS · ${fecha}`, mL, pieY + 5);
+      doc.text('Sistema de gestion MPC Soluciones — gestion.mpcs.pe', mL, pieY + 9);
 
       return doc.output('datauristring').split(',')[1];
     }
