@@ -263,8 +263,9 @@
       renderSidebar(perfil, 'proveedores');
       aplicarPermisosUI(perfil, 'compras_proveedores');
       if (!puedeCrear(perfil,'compras_proveedores')) document.querySelector('.btn-primary')?.style.setProperty('display','none');
-      onContextoChange(async () => { await cargar(); aplicarPermisosUI(perfil, 'compras_proveedores'); });
-      if (getContexto().ruc) { await cargar(); aplicarPermisosUI(perfil, 'compras_proveedores'); }
+      onContextoChange(async () => { aplicarPermisosUI(perfil, 'compras_proveedores'); });
+      // Proveedores es maestro global — carga siempre sin depender del contexto
+      await cargar();
     }
 
     async function cargar() {
