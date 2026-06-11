@@ -149,84 +149,123 @@
     </div>
   </div>
 
-  <!-- MODAL NUEVO PEDIDO -->
-  <div class="modal-overlay hidden" id="modal-nuevo">
-    <div class="modal" style="max-width:800px">
-      <div class="modal-header">
-        <h3>Nuevo pedido interno</h3>
-        <button class="modal-close" onclick="cerrar('modal-nuevo')">×</button>
+  <!-- FORMULARIO NUEVO PEDIDO (página completa, oculta por defecto) -->
+  <div id="vista-nuevo-pedido" style="display:none">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Nuevo pedido interno</h1>
+        <p>Completá el pedido y envialo a Compras</p>
       </div>
-      <div class="modal-body">
+      <div class="page-header-right">
+        <button class="btn btn-ghost" onclick="cerrarNuevo()">← Volver</button>
+      </div>
+    </div>
+    <div class="page-body">
 
-        <!-- Contexto del pedido (tomado del sidebar) -->
-        <div style="background:var(--navy-light,#EEF2FB);border-radius:var(--radius-md);padding:10px 16px;margin-bottom:16px;display:flex;gap:24px;align-items:center;font-size:13px">
-          <div>
-            <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:2px">Empresa</span>
-            <strong id="nuevo-ctx-empresa">—</strong>
-          </div>
-          <div>
-            <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:2px">Local / Sede</span>
-            <strong id="nuevo-ctx-local">—</strong>
-          </div>
-          <div style="margin-left:auto">
-            <div class="field" style="margin:0;min-width:220px">
-              <label>Solicitante *</label>
-              <input type="text" id="nuevo-solicitante" placeholder="Nombre del solicitante" />
-            </div>
-          </div>
+      <!-- Contexto -->
+      <div style="background:var(--navy-light,#EEF2FB);border-radius:var(--radius-lg);padding:14px 20px;margin-bottom:1.5rem;display:flex;gap:32px;align-items:center;flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Empresa</div>
+          <strong id="nuevo-ctx-empresa" style="font-size:15px">—</strong>
         </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Local / Sede</div>
+          <strong id="nuevo-ctx-local" style="font-size:15px">—</strong>
+        </div>
+        <div style="margin-left:auto;min-width:260px">
+          <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px">Solicitante *</label>
+          <input type="text" id="nuevo-solicitante" placeholder="Nombre del solicitante"
+            style="width:100%;padding:9px 12px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:14px" />
+        </div>
+      </div>
 
-        <!-- Paso 2: Agregar items -->
-        <div style="background:var(--bg);border-radius:var(--radius-md);padding:14px;margin-bottom:16px">
-          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:10px">
-            Agregar items al pedido
-          </div>
-          <div style="display:grid;grid-template-columns:80px 1fr auto;gap:8px;align-items:end">
-            <div class="field" style="margin:0">
-              <label>Cantidad</label>
-              <input type="number" id="nuevo-cantidad" min="0.01" step="0.01" placeholder="0" />
+      <!-- Agregar item -->
+      <div class="card" style="margin-bottom:1.5rem">
+        <div class="card-header">
+          <h2>Agregar productos</h2>
+        </div>
+        <div style="padding:1rem 1.25rem">
+          <div style="display:grid;grid-template-columns:120px 1fr 100px;gap:12px;align-items:end;margin-bottom:1rem">
+            <div>
+              <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px">Cantidad</label>
+              <input type="number" id="nuevo-cantidad" min="0.01" step="0.01" placeholder="0"
+                style="width:100%;padding:10px 12px;border:1.5px solid var(--border-md);border-radius:var(--radius-md);font-size:16px;font-weight:600;text-align:center"
+                onkeydown="if(event.key==='Tab'){event.preventDefault();document.getElementById('nuevo-buscar').focus()}" />
             </div>
-            <div class="field" style="margin:0">
-              <label>Producto del catálogo</label>
-              <select id="nuevo-producto">
-                <option value="">-- Seleccioná primero un local --</option>
-              </select>
+            <div style="position:relative">
+              <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px">Producto del catálogo</label>
+              <input type="text" id="nuevo-buscar" placeholder="Escribí para buscar..."
+                style="width:100%;padding:10px 12px;border:1.5px solid var(--navy);border-radius:var(--radius-md);font-size:14px"
+                autocomplete="off"
+                oninput="filtrarCatalogo(this.value)"
+                onkeydown="handleBuscarKeydown(event)" />
+              <input type="hidden" id="nuevo-producto-id" />
+              <input type="hidden" id="nuevo-producto-nombre" />
+              <input type="hidden" id="nuevo-producto-unidad" />
+              <input type="hidden" id="nuevo-producto-cat" />
+              <div id="nuevo-catalogo-lista" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--white);border:1px solid var(--border-md);border-radius:var(--radius-md);box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:500;max-height:280px;overflow-y:auto"></div>
             </div>
-            <button class="btn btn-primary" onclick="agregarItem()" style="margin-bottom:0">
-              + Agregar
-            </button>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px">Unidad</label>
+              <input type="text" id="nuevo-unidad-display" readonly
+                style="width:100%;padding:10px 12px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:14px;background:var(--bg);text-align:center;font-weight:600;color:var(--text-muted)" />
+            </div>
           </div>
+          <button class="btn btn-primary" id="btn-agregar-item" onclick="agregarItem()"
+            style="padding:10px 28px;font-size:14px">
+            + Agregar al pedido
+          </button>
         </div>
 
         <!-- Tabla de items -->
-        <div class="table-wrap" style="margin-bottom:16px">
-          <table id="tabla-items">
+        <div style="border-top:1px solid var(--border)">
+          <table id="tabla-items" style="width:100%;border-collapse:collapse">
             <thead>
-              <tr>
-                <th>Cant.</th>
-                <th>Unidad</th>
-                <th>Descripción</th>
-                <th>Categoría</th>
-                <th></th>
+              <tr style="background:var(--bg)">
+                <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);width:120px">Cantidad</th>
+                <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);width:90px">Unidad</th>
+                <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)">Descripción</th>
+                <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);width:160px">Categoría</th>
+                <th style="width:48px"></th>
               </tr>
             </thead>
             <tbody id="tbody-items">
-              <tr id="fila-vacia"><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;font-style:italic">El carrito está vacío</td></tr>
+              <tr id="fila-vacia"><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;font-style:italic">El pedido está vacío</td></tr>
             </tbody>
           </table>
         </div>
-
-        <div class="field">
-          <label>Observaciones</label>
-          <textarea id="nuevo-obs" rows="2" placeholder="Ej: Urgente para el evento del sábado..."></textarea>
-        </div>
-
-        <div id="msg-nuevo" class="alert" style="display:none"></div>
       </div>
+
+      <!-- Observaciones -->
+      <div class="card" style="margin-bottom:1.5rem;padding:1.25rem">
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px">Observaciones</label>
+        <textarea id="nuevo-obs" rows="3" placeholder="Ej: Urgente para el evento del sábado..."
+          style="width:100%;padding:10px 12px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:14px;resize:vertical"></textarea>
+      </div>
+
+      <div id="msg-nuevo" class="alert" style="display:none;margin-bottom:1rem"></div>
+
+      <div style="display:flex;justify-content:flex-end;gap:12px">
+        <button class="btn btn-ghost btn-lg" onclick="cerrarNuevo()">Cancelar</button>
+        <button class="btn btn-primary btn-lg" id="btn-enviar" onclick="previewPedido()" style="padding:12px 32px;font-size:15px">
+          Ver resumen y confirmar →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PREVIEW / CONFIRMAR PEDIDO -->
+  <div class="modal-overlay hidden" id="modal-preview">
+    <div class="modal" style="max-width:620px">
+      <div class="modal-header">
+        <h3>Confirmá tu pedido</h3>
+        <button class="modal-close" onclick="cerrar('modal-preview')">×</button>
+      </div>
+      <div class="modal-body" id="preview-body"></div>
       <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="cerrar('modal-nuevo')">Cancelar</button>
-        <button class="btn btn-primary" id="btn-enviar" onclick="enviarPedido()">
-          Enviar pedido a Compras
+        <button class="btn btn-ghost" onclick="cerrar('modal-preview')">Editar</button>
+        <button class="btn btn-primary" id="btn-confirmar" onclick="enviarPedido()">
+          ✓ Confirmar y enviar a Compras
         </button>
       </div>
     </div>
@@ -392,49 +431,128 @@
       });
     }
 
+    function filtrarCatalogo(q) {
+      const lista = document.getElementById('nuevo-catalogo-lista');
+      if (!q || q.length < 2) { lista.style.display = 'none'; return; }
+      // Búsqueda en cualquier parte del nombre (no solo inicio)
+      const matches = catalogoActual
+        .filter(i => (i.nombre||'').toLowerCase().includes(q.toLowerCase()))
+        .slice(0, 12);
+      if (!matches.length) { lista.style.display = 'none'; return; }
+      lista.innerHTML = matches.map((i, idx) => `
+        <div class="nuevo-cat-item" data-idx="${idx}"
+          style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:14px"
+          onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''"
+          onclick="seleccionarProductoCatalogo('${i.id_producto_local}','${i.nombre.replace(/'/g,"\'")}','${i.unidad_medida||'NIU'}','${i.categoria||''}')">
+          <span><strong>${i.nombre}</strong></span>
+          <span style="font-size:12px;color:var(--text-muted)">${i.unidad_medida||'NIU'} · ${i.categoria||''}</span>
+        </div>`).join('');
+      lista.style.display = 'block';
+      _catalogoFiltrado = matches;
+      _catalogoSelIdx   = -1;
+    }
+
+    let _catalogoFiltrado = [];
+    let _catalogoSelIdx   = -1;
+
+    function handleBuscarKeydown(e) {
+      const lista = document.getElementById('nuevo-catalogo-lista');
+      const items = lista.querySelectorAll('.nuevo-cat-item');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        _catalogoSelIdx = Math.min(_catalogoSelIdx + 1, items.length - 1);
+        items.forEach((el,i) => el.style.background = i === _catalogoSelIdx ? 'var(--bg)' : '');
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        _catalogoSelIdx = Math.max(_catalogoSelIdx - 1, 0);
+        items.forEach((el,i) => el.style.background = i === _catalogoSelIdx ? 'var(--bg)' : '');
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (_catalogoSelIdx >= 0 && _catalogoFiltrado[_catalogoSelIdx]) {
+          const i = _catalogoFiltrado[_catalogoSelIdx];
+          seleccionarProductoCatalogo(i.id_producto_local, i.nombre, i.unidad_medida||'NIU', i.categoria||'');
+        } else if (_catalogoFiltrado.length === 1) {
+          const i = _catalogoFiltrado[0];
+          seleccionarProductoCatalogo(i.id_producto_local, i.nombre, i.unidad_medida||'NIU', i.categoria||'');
+        }
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        if (_catalogoFiltrado.length >= 1) {
+          const idx = _catalogoSelIdx >= 0 ? _catalogoSelIdx : 0;
+          const i = _catalogoFiltrado[idx];
+          seleccionarProductoCatalogo(i.id_producto_local, i.nombre, i.unidad_medida||'NIU', i.categoria||'');
+        }
+        document.getElementById('btn-agregar-item').focus();
+      }
+    }
+
+    function seleccionarProductoCatalogo(id, nombre, unidad, cat) {
+      document.getElementById('nuevo-buscar').value          = nombre;
+      document.getElementById('nuevo-producto-id').value     = id;
+      document.getElementById('nuevo-producto-nombre').value = nombre;
+      document.getElementById('nuevo-producto-unidad').value = unidad;
+      document.getElementById('nuevo-producto-cat').value    = cat;
+      document.getElementById('nuevo-unidad-display').value  = unidad;
+      document.getElementById('nuevo-catalogo-lista').style.display = 'none';
+      _catalogoFiltrado = []; _catalogoSelIdx = -1;
+    }
+
     function agregarItem() {
-      const cant    = parseFloat(document.getElementById('nuevo-cantidad').value);
-      const sel     = document.getElementById('nuevo-producto');
-      const opt     = sel.options[sel.selectedIndex];
+      const cant   = parseFloat(document.getElementById('nuevo-cantidad').value);
+      const id     = document.getElementById('nuevo-producto-id').value;
+      const nombre = document.getElementById('nuevo-producto-nombre').value;
+      const unidad = document.getElementById('nuevo-producto-unidad').value;
+      const cat    = document.getElementById('nuevo-producto-cat').value;
 
-      if (!cant || cant <= 0) { alert('Ingresá una cantidad válida.'); return; }
-      if (!sel.value)         { alert('Seleccioná un producto.'); return; }
-
-      // Verificar duplicado
-      if (carritoItems.find(i => i.id_producto_local === sel.value)) {
+      if (!cant || cant <= 0) {
+        document.getElementById('nuevo-cantidad').focus();
+        document.getElementById('nuevo-cantidad').style.borderColor = 'var(--error)';
+        setTimeout(() => document.getElementById('nuevo-cantidad').style.borderColor = '', 1500);
+        return;
+      }
+      if (!id) {
+        document.getElementById('nuevo-buscar').focus();
+        document.getElementById('nuevo-buscar').style.borderColor = 'var(--error)';
+        setTimeout(() => document.getElementById('nuevo-buscar').style.borderColor = 'var(--navy)', 1500);
+        return;
+      }
+      if (carritoItems.find(i => i.id_producto_local === id)) {
         alert('Este producto ya está en el pedido. Modificá la cantidad existente.'); return;
       }
 
-      carritoItems.push({
-        id_producto_local: sel.value,
-        nombre:    opt.dataset.nombre,
-        unidad:    opt.dataset.unidad,
-        categoria: opt.dataset.cat,
-        cantidad:  cant,
-      });
+      carritoItems.push({ id_producto_local: id, nombre, unidad, categoria: cat, cantidad: cant });
 
+      // Limpiar y volver el foco a cantidad para el próximo item
       document.getElementById('nuevo-cantidad').value = '';
-      document.getElementById('nuevo-producto').value = '';
+      document.getElementById('nuevo-buscar').value   = '';
+      document.getElementById('nuevo-producto-id').value     = '';
+      document.getElementById('nuevo-producto-nombre').value = '';
+      document.getElementById('nuevo-producto-unidad').value = '';
+      document.getElementById('nuevo-producto-cat').value    = '';
+      document.getElementById('nuevo-unidad-display').value  = '';
       renderCarrito();
+      document.getElementById('nuevo-cantidad').focus();
     }
 
     function renderCarrito() {
       const tbody = document.getElementById('tbody-items');
       if (!carritoItems.length) {
-        tbody.innerHTML = '<tr id="fila-vacia"><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;font-style:italic">El carrito está vacío</td></tr>';
+        tbody.innerHTML = '<tr id="fila-vacia"><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;font-style:italic">El pedido está vacío</td></tr>';
         return;
       }
       tbody.innerHTML = carritoItems.map((item, i) => `
-        <tr>
-          <td style="width:80px">
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 16px;width:120px">
             <input type="number" value="${item.cantidad}" min="0.01" step="0.01"
-              style="width:70px;padding:4px 6px;border:1px solid var(--border-md);border-radius:4px;font-size:13px"
+              style="width:100%;padding:8px 10px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:15px;font-weight:600;text-align:center"
               onchange="actualizarCantidad(${i}, this.value)" />
           </td>
-          <td><span class="badge badge-gray">${item.unidad}</span></td>
-          <td><strong>${item.nombre}</strong></td>
-          <td style="font-size:12px;color:var(--text-muted)">${item.categoria}</td>
-          <td>
+          <td style="padding:10px 16px;width:90px">
+            <span style="font-size:14px;font-weight:600;color:var(--text-muted)">${item.unidad}</span>
+          </td>
+          <td style="padding:10px 16px"><strong style="font-size:14px">${item.nombre}</strong></td>
+          <td style="padding:10px 16px;font-size:13px;color:var(--text-muted)">${item.categoria}</td>
+          <td style="padding:10px 16px;text-align:center">
             <button class="btn btn-sm btn-ghost" onclick="quitarItem(${i})" style="color:var(--error)">
               ${icons.trash}
             </button>
@@ -451,9 +569,62 @@
       renderCarrito();
     }
 
+    function previewPedido() {
+      const soli = document.getElementById('nuevo-solicitante').value.trim();
+      const msg  = document.getElementById('msg-nuevo');
+
+      if (!soli) {
+        msg.className = 'alert alert-error';
+        msg.textContent = 'Ingresá el nombre del solicitante.';
+        msg.style.display = 'block';
+        document.getElementById('nuevo-solicitante').focus();
+        return;
+      }
+      if (!carritoItems.length) {
+        msg.className = 'alert alert-error';
+        msg.textContent = 'Agregá al menos un producto al pedido.';
+        msg.style.display = 'block';
+        return;
+      }
+      msg.style.display = 'none';
+
+      const ctx     = getContexto();
+      const empresa = empresas.find(e => e.ruc === ctx.ruc);
+      const idLocal = ctx.idLocal || ctx.idLocales[0];
+      const local   = localesGlobal.find(l => l.id_local === idLocal);
+
+      document.getElementById('preview-body').innerHTML = `
+        <div style="background:var(--navy-light,#EEF2FB);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:1rem;font-size:13px">
+          <div style="display:flex;gap:24px;flex-wrap:wrap">
+            <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Empresa</div><strong>${empresa?.razon_social || ctx.ruc}</strong></div>
+            <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Local</div><strong>${local?.nombre || idLocal}</strong></div>
+            <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Solicitante</div><strong>${soli}</strong></div>
+          </div>
+        </div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:8px">${carritoItems.length} producto${carritoItems.length > 1 ? 's' : ''}</div>
+        <div style="border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;margin-bottom:1rem">
+          <table style="width:100%;border-collapse:collapse">
+            ${carritoItems.map(item => `
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:10px 14px;font-weight:700;font-size:15px;width:80px">${item.cantidad}</td>
+                <td style="padding:10px 6px;color:var(--text-muted);font-size:13px;width:60px">${item.unidad}</td>
+                <td style="padding:10px 14px;font-size:14px"><strong>${item.nombre}</strong></td>
+                <td style="padding:10px 14px;font-size:12px;color:var(--text-muted)">${item.categoria}</td>
+              </tr>`).join('')}
+          </table>
+        </div>
+        ${document.getElementById('nuevo-obs').value.trim() ? `
+          <div style="background:var(--bg);border-radius:var(--radius-md);padding:10px 14px;font-size:13px;color:var(--text-muted)">
+            <strong>Observaciones:</strong> ${document.getElementById('nuevo-obs').value.trim()}
+          </div>` : ''}
+        <p style="font-size:13px;color:var(--text-muted);margin-top:1rem">¿Este pedido está correcto? Una vez enviado no podrás modificarlo.</p>
+      `;
+      abrir('modal-preview');
+    }
+
     async function enviarPedido() {
       const msg  = document.getElementById('msg-nuevo');
-      const btn  = document.getElementById('btn-enviar');
+      const btn  = document.getElementById('btn-confirmar');
       const ctx  = getContexto();
       const ruc  = ctx.ruc;
       const local= ctx.idLocal || ctx.idLocales[0];
@@ -507,14 +678,15 @@
 
         await auditar(perfil, 'CREAR', 'pedidos', `Creó pedido ${numero} — ${local} — ${carritoItems.length} items`);
 
-        cerrar('modal-nuevo');
+        cerrar('modal-preview');
+        cerrarNuevo();
         carritoItems = [];
         await cargar();
 
       } catch(e) {
         showMsg(msg,'alert-error','Error: ' + e.message);
       }
-      btn.disabled = false; btn.textContent = 'Enviar pedido a Compras';
+      btn.disabled = false; btn.textContent = '✓ Confirmar y enviar a Compras';
     }
 
     // ── VER DETALLE ─────────────────────────────────────────────
@@ -697,13 +869,10 @@
 
     function abrirNuevo() {
       const ctx = getContexto();
-
-      // Validar que haya empresa y local seleccionado en el sidebar
       if (!ctx.ruc) {
         alert('Seleccioná una empresa en el sidebar antes de crear un pedido.');
         return;
       }
-      // Si hay múltiples locales seleccionados o ninguno, pedir que seleccione uno
       if (!ctx.idLocal && ctx.idLocales.length !== 1) {
         alert('Seleccioná un único local en el sidebar antes de crear un pedido.');
         return;
@@ -716,25 +885,52 @@
       document.getElementById('nuevo-ctx-empresa').textContent = empresa
         ? `${empresa.abreviatura} — ${empresa.razon_social}` : ctx.ruc;
       document.getElementById('nuevo-ctx-local').textContent = local?.nombre || idLocal;
-      document.getElementById('nuevo-solicitante').value = perfil.nombre || '';
-      document.getElementById('nuevo-obs').value         = '';
-      document.getElementById('msg-nuevo').style.display = 'none';
+      document.getElementById('nuevo-solicitante').value     = perfil.nombre || '';
+      document.getElementById('nuevo-obs').value             = '';
+      document.getElementById('msg-nuevo').style.display     = 'none';
+      document.getElementById('nuevo-buscar').value          = '';
+      document.getElementById('nuevo-unidad-display').value  = '';
+      document.getElementById('nuevo-catalogo-lista').style.display = 'none';
       carritoItems = [];
 
-      // Cargar catálogo del local seleccionado
       cargarCatalogoNuevoConLocal(idLocal);
       renderCarrito();
-      abrir('modal-nuevo');
+
+      // Mostrar página completa, ocultar lista
+      document.querySelector('.main-content > .page-header')?.style && 
+        (document.querySelector('.main-content > .page-header').style.display = 'none');
+      document.querySelector('.page-body > .stats-grid') &&
+        (document.querySelector('.page-body > .stats-grid').style.display = 'none');
+      document.querySelector('.page-body > .card') &&
+        (document.querySelector('.page-body > .card').style.display = 'none');
+      document.getElementById('vista-nuevo-pedido').style.display = 'block';
+      setTimeout(() => document.getElementById('nuevo-cantidad').focus(), 50);
+    }
+
+    function cerrarNuevo() {
+      document.getElementById('vista-nuevo-pedido').style.display = 'none';
+      document.querySelector('.main-content > .page-header') &&
+        (document.querySelector('.main-content > .page-header').style.display = '');
+      document.querySelector('.page-body > .stats-grid') &&
+        (document.querySelector('.page-body > .stats-grid').style.display = '');
+      document.querySelector('.page-body > .card') &&
+        (document.querySelector('.page-body > .card').style.display = '');
     }
 
     function showMsg(el, cls, txt) { el.className = `alert ${cls}`; el.textContent = txt; el.style.display = 'block'; }
     function abrir(id) { document.getElementById(id).classList.remove('hidden'); }
     function cerrar(id){ document.getElementById(id).classList.add('hidden'); }
 
-    ['modal-detalle','modal-nuevo','modal-generar-oc'].forEach(id => {
+    ['modal-detalle','modal-preview','modal-generar-oc'].forEach(id => {
       document.getElementById(id)?.addEventListener('click', function(e) { if (e.target === this) cerrar(id); });
     });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') { cerrar('modal-detalle'); cerrar('modal-nuevo'); cerrar('modal-generar-oc'); } });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { cerrar('modal-detalle'); cerrar('modal-preview'); cerrar('modal-generar-oc'); }
+    });
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#nuevo-buscar') && !e.target.closest('#nuevo-catalogo-lista'))
+        document.getElementById('nuevo-catalogo-lista').style.display = 'none';
+    });
 
     init();
   </script>
