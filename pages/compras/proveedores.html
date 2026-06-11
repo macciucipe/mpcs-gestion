@@ -344,9 +344,9 @@
                 <button class="btn btn-sm btn-ghost" onclick="verDetalle('${p.documento}')">
                   ${icons.eye} Ver
                 </button>
-                ${puedeEditar(perfil,'compras_proveedores') ? '<button class="btn btn-sm btn-ghost" onclick="editar('${p.documento}')>
+                ${puedeEditar(perfil,'compras_proveedores') ? `<button class="btn btn-sm btn-ghost" onclick="editar('${p.documento}')">
                   ${icons.edit} Editar
-                </button>' : ''}
+                </button>` : ''}
               </div>
             </td>
           </tr>`;
