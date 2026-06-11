@@ -981,32 +981,35 @@
       doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...gris);
       doc.text(`Fecha de Emisión: ${fecha}`, mR, 24, { align:'right' });
 
-      // ── EMPRESA Y LOCAL (centrado) ───────────────────────────────
-      let y = 35;
+      // ── EMPRESA Y LOCAL (centrado en la mitad derecha, junto al logo) ──
+      // Logo ocupa mL..mL+45 (~x=60). Centramos el texto en el espacio x=65..mR
+      const xMidRight = (65 + mR) / 2; // ~130
+      let y = 14;
       doc.setFont('helvetica','bold').setFontSize(11).setTextColor(...azul);
-      doc.text(`${d.rucEmpresa}  ${d.empresa}`, 105, y, { align:'center' });
+      doc.text(`${d.rucEmpresa}  ${d.empresa}`, xMidRight, y, { align:'center' });
       y += 6;
       doc.setFontSize(10).setTextColor(...negro);
-      doc.text(d.local, 105, y, { align:'center' });
+      doc.text(d.local, xMidRight, y, { align:'center' });
       y += 5;
 
       // Dirección, teléfono, horario
       if (localData?.direccion) {
         doc.setFont('helvetica','bold').setFontSize(9).setTextColor(...azul);
-        doc.text(localData.direccion, 105, y, { align:'center' });
+        doc.text(localData.direccion, xMidRight, y, { align:'center' });
         y += 5;
       }
       if (localData?.telefono) {
         doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...negro);
-        doc.text(localData.telefono, 105, y, { align:'center' });
+        doc.text(localData.telefono, xMidRight, y, { align:'center' });
         y += 4;
       }
       if (localData?.horario) {
         doc.setFontSize(8).setTextColor(...gris);
-        doc.text(localData.horario, 105, y, { align:'center' });
+        doc.text(localData.horario, xMidRight, y, { align:'center' });
         y += 4;
       }
 
+      y = Math.max(y, 34); // asegurar que la línea no tape el logo
       y += 3;
       doc.setDrawColor(...azul).setLineWidth(0.5);
       doc.line(mL, y, mR, y);
