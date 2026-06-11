@@ -655,6 +655,7 @@
 
     async function precargarDesdeOP(op) {
       document.getElementById('gen-op-origen').value = op.numero || op.id_pedido;
+
       // Seleccionar empresa
       const ruc = op.locales?.ruc_empresa || op.ruc_empresa;
       const emp = empresas.find(e => e.ruc === ruc);
@@ -662,19 +663,34 @@
         const btn = [...document.querySelectorAll('.btn-empresa')].find(b => b.textContent === emp.razon_social);
         if (btn) await seleccionarEmpresa(emp, btn);
         setTimeout(() => {
-          const btnL = [...document.querySelectorAll('.btn-local')].find(b => b.textContent === op.locales?.nombre);
+          const localNombre = op.local_nombre || op.locales?.nombre;
+          const btnL = [...document.querySelectorAll('.btn-local')].find(b => b.textContent === localNombre);
           if (btnL) {
-            const local = localesGlobal.find(l => l.nombre === op.locales?.nombre);
+            const local = localesGlobal.find(l => l.nombre === localNombre);
             if (local) seleccionarLocal(local, btnL);
           }
         }, 400);
       }
-      // Precargar items
+
+      // Usar ítems seleccionados desde pedidos.html si existen, si no, todos los ítems
+      const itemsParaCargar = op.items_seleccionados?.length
+        ? op.items_seleccionados
+        : (op.pedidos_items || []).map(i => ({
+            nombre: i.nombre_producto || i.detalle || '',
+            cantidad: i.cantidad,
+            unidad_medida: i.unidad_medida || 'NIU',
+          }));
+
       document.getElementById('tbody-oc').innerHTML = '';
-      (op.pedidos_items || []).forEach(item => {
-        agregarFila(item.nombre_producto || item.detalle, item.cantidad, item.unidad_medida, '', '');
+      itemsParaCargar.forEach(item => {
+        agregarFila(item.nombre || item.nombre_producto || item.detalle, item.cantidad, item.unidad_medida || 'NIU', '', '');
       });
-      alert(`OP ${op.numero || op.id_pedido} importada con ${(op.pedidos_items||[]).length} item(s). Completá proveedor y precios.`);
+
+      const count = itemsParaCargar.length;
+      // No mostrar alert molesto — el usuario ya sabe lo que seleccionó
+      document.getElementById('msg-gen').className = 'alert alert-success';
+      document.getElementById('msg-gen').textContent = `✓ ${count} ítem(s) cargados desde ${op.numero}. Completá proveedor y precios.`;
+      document.getElementById('msg-gen').style.display = 'block';
     }
 
     // ── BORRADORES ────────────────────────────────────────────────
@@ -804,22 +820,26 @@
       btn.disabled = true; btn.textContent = 'Generando...'; msg.style.display = 'none';
 
       try {
-        // Obtener correlativo
+        // Obtener datos del local
         const { data: localData } = await sbClient.from('locales')
-          .select('correlativo_oc, correlativo_os, codigo_corto, direccion, telefono, horario')
+          .select('codigo_corto, direccion, telefono, horario')
           .eq('id_local', d.idLocal).single();
 
         const año    = new Date().getFullYear().toString().slice(-2);
         const emp    = empresas.find(e => e.ruc === d.rucEmpresa);
         const codEmp = emp?.abreviatura || d.rucEmpresa.slice(-3);
-        const codLoc = localData?.codigo_corto || d.idLocal.slice(-3);
+        const codLoc = localData?.codigo_corto || d.idLocal.slice(-3).toUpperCase();
 
-        let corr, numero;
+        // Usar RPC para obtener e incrementar el correlativo de forma segura
+        const rpcFn = d.tipo === 'OS' ? 'incrementar_correlativo_os' : 'incrementar_correlativo_oc';
+        const { data: corrData, error: eCorr } = await sbClient.rpc(rpcFn, { p_id_local: d.idLocal });
+        if (eCorr) throw new Error('Error al generar número: ' + eCorr.message);
+        const corr = corrData || 1;
+
+        let numero;
         if (d.tipo === 'OS') {
-          corr   = localData?.correlativo_os || 1;
           numero = `OS-${codEmp}-${codLoc}-${año}-${corr.toString().padStart(5,'0')}`;
         } else {
-          corr   = localData?.correlativo_oc || 1;
           numero = `OC-${codEmp}-${codLoc}-${año}-${corr.toString().padStart(5,'0')}`;
         }
 
@@ -862,9 +882,9 @@
         }));
         await sbClient.from('oc_items').insert(itemsRows);
 
-        // Incrementar correlativo
-        const campo = d.tipo === 'OS' ? { correlativo_os: corr + 1 } : { correlativo_oc: corr + 1 };
-        await sbClient.from('locales').update(campo).eq('id_local', d.idLocal);
+        // Incrementar correlativo via RPC (evita error de permisos)
+        const rpcFn = d.tipo === 'OS' ? 'incrementar_correlativo_os' : 'incrementar_correlativo_oc';
+        await sbClient.rpc(rpcFn, { p_id_local: d.idLocal });
 
         // Marcar OP como atendida
         if (d.opOrigen) {

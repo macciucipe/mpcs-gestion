@@ -84,28 +84,31 @@
     </div>
   </div>
 
-  <!-- MODAL GENERAR OC desde pedido -->
+  <!-- MODAL SELECCIONAR ÍTEMS PARA OC -->
   <div class="modal-overlay hidden" id="modal-generar-oc">
-    <div class="modal" style="max-width:860px">
+    <div class="modal" style="max-width:780px">
       <div class="modal-header">
-        <h3 id="goc-titulo">Generar OC desde pedido</h3>
+        <h3 id="goc-titulo">Seleccionar ítems para OC</h3>
         <button class="modal-close" onclick="cerrar('modal-generar-oc')">×</button>
       </div>
       <div class="modal-body">
 
         <!-- Info del pedido -->
-        <div style="background:var(--navy-light,#EEF2FB);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:16px;font-size:13px;display:flex;gap:24px;align-items:center">
+        <div style="background:var(--navy-light,#EEF2FB);border-radius:var(--radius-md);padding:10px 16px;margin-bottom:16px;font-size:13px;display:flex;gap:24px;align-items:center;flex-wrap:wrap">
           <div><span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block">Pedido</span><strong id="goc-numero">—</strong></div>
           <div><span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block">Local</span><span id="goc-local">—</span></div>
-          <div><span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block">Items sin asignar</span><span id="goc-pendientes" style="font-weight:600;color:var(--warning)">—</span></div>
-          <div><span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block">Items asignados</span><span id="goc-asignados" style="font-weight:600;color:var(--success)">—</span></div>
+          <div><span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block">Sin asignar</span><span id="goc-pendientes" style="font-weight:600;color:var(--warning)">—</span></div>
+          <div><span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block">Asignados</span><span id="goc-asignados" style="font-weight:600;color:var(--success)">—</span></div>
+          <!-- Filtro por categoría -->
+          <div style="margin-left:auto">
+            <select id="goc-filtro-cat" onchange="filtrarItemsGOC()" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px">
+              <option value="">Todas las categorías</option>
+            </select>
+          </div>
         </div>
 
-        <!-- Selección de ítems -->
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:8px">
-          Seleccioná los ítems para esta OC
-        </div>
-        <div class="table-wrap" style="margin-bottom:16px;max-height:260px;overflow-y:auto">
+        <!-- Tabla de ítems -->
+        <div class="table-wrap" style="margin-bottom:16px;max-height:320px;overflow-y:auto">
           <table>
             <thead>
               <tr>
@@ -121,38 +124,14 @@
           </table>
         </div>
 
-        <!-- Datos de la OC -->
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:8px">
-          Datos de la orden de compra
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
-          <div class="field" style="margin:0">
-            <label>Proveedor *</label>
-            <input type="text" id="goc-proveedor" placeholder="Nombre del proveedor" />
-          </div>
-          <div class="field" style="margin:0">
-            <label>Tipo</label>
-            <select id="goc-tipo">
-              <option value="OC">OC — Orden de Compra</option>
-              <option value="OS">OS — Orden de Servicio</option>
-            </select>
-          </div>
-          <div class="field" style="margin:0">
-            <label>Fecha de entrega</label>
-            <input type="date" id="goc-fecha-entrega" />
-          </div>
-        </div>
-        <div class="field" style="margin:0 0 8px">
-          <label>Notas</label>
-          <textarea id="goc-notas" rows="2" placeholder="Indicaciones para el proveedor..."></textarea>
-        </div>
-
-        <div id="msg-goc" class="alert" style="display:none"></div>
+        <p style="font-size:13px;color:var(--text-muted)">
+          Seleccioná los ítems que van en esta OC. Podrás completar proveedor, precios y demás en el generador completo.
+        </p>
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="cerrar('modal-generar-oc')">Cancelar</button>
-        <button class="btn btn-primary" id="btn-crear-oc" onclick="crearOCdesdePedido()">
-          ${icons?.cart || '🛒'} Crear OC
+        <button class="btn btn-primary" id="btn-crear-oc" onclick="irAGeneradorOC()">
+          Continuar en generador de OC →
         </button>
       </div>
     </div>
@@ -610,7 +589,7 @@
       }
     }
 
-    // ── GENERAR OC DESDE PEDIDO ─────────────────────────────────
+    // ── SELECCIONAR ÍTEMS PARA OC ────────────────────────────────
     let _pedidoParaOC = null;
     let _itemsPedido  = [];
 
@@ -619,7 +598,6 @@
       if (!p) return;
       _pedidoParaOC = p;
 
-      // Cargar ítems del pedido
       const { data: items } = await sbClient
         .from('pedidos_items')
         .select('*')
@@ -630,168 +608,91 @@
       const pendientes = _itemsPedido.filter(i => !i.asignado_a_oc).length;
       const asignados  = _itemsPedido.filter(i =>  i.asignado_a_oc).length;
 
-      document.getElementById('goc-titulo').textContent  = `Generar OC — ${p.numero || p.id_pedido}`;
+      document.getElementById('goc-titulo').textContent  = `Seleccionar ítems — ${p.numero || p.id_pedido}`;
       document.getElementById('goc-numero').textContent  = p.numero || p.id_pedido;
       document.getElementById('goc-local').textContent   = p.locales?.nombre || p.id_local;
       document.getElementById('goc-pendientes').textContent = pendientes;
       document.getElementById('goc-asignados').textContent  = asignados;
+      document.getElementById('goc-chk-all').checked = false;
 
-      // Limpiar campos
-      document.getElementById('goc-proveedor').value     = '';
-      document.getElementById('goc-notas').value         = '';
-      document.getElementById('goc-fecha-entrega').value = '';
-      document.getElementById('msg-goc').style.display   = 'none';
-      document.getElementById('goc-chk-all').checked     = false;
+      // Cargar categorías únicas para el filtro
+      const cats = [...new Set(_itemsPedido.filter(i => !i.asignado_a_oc && i.categoria).map(i => i.categoria))].sort();
+      const selCat = document.getElementById('goc-filtro-cat');
+      selCat.innerHTML = '<option value="">Todas las categorías</option>';
+      cats.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat; opt.textContent = cat;
+        selCat.appendChild(opt);
+      });
 
       renderItemsGOC();
       cerrar('modal-detalle');
       abrir('modal-generar-oc');
     }
 
+    function filtrarItemsGOC() {
+      renderItemsGOC();
+    }
+
     function renderItemsGOC() {
+      const catFiltro = document.getElementById('goc-filtro-cat')?.value || '';
       const tbody = document.getElementById('goc-tbody');
-      if (!_itemsPedido.length) {
+      const lista = catFiltro
+        ? _itemsPedido.filter(i => (i.categoria || '') === catFiltro)
+        : _itemsPedido;
+
+      if (!lista.length) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:16px">Sin ítems</td></tr>';
         return;
       }
-      tbody.innerHTML = _itemsPedido.map(item => {
+      tbody.innerHTML = lista.map(item => {
         const asignado = item.asignado_a_oc;
         return `
-          <tr style="${asignado ? 'opacity:0.5' : ''}">
-            <td>
-              <input type="checkbox" class="goc-item-chk" data-id="${item.id_item}"
-                ${asignado ? 'disabled' : ''}
-                ${asignado ? '' : ''} />
-            </td>
-            <td><strong style="font-size:13px">${item.nombre_producto || item.detalle || item.id_producto_local || '—'}</strong></td>
+          <tr style="${asignado ? 'opacity:0.45;background:var(--bg)' : ''}">
+            <td><input type="checkbox" class="goc-item-chk" data-id="${item.id_item}" ${asignado ? 'disabled' : ''} /></td>
+            <td><strong style="font-size:13px">${item.nombre_producto || item.detalle || '—'}</strong></td>
             <td style="font-size:12px;color:var(--text-muted)">${item.categoria || '—'}</td>
             <td style="font-weight:600">${item.cantidad}</td>
             <td><span class="badge badge-gray">${item.unidad_medida || '—'}</span></td>
-            <td>
-              ${asignado
-                ? `<span class="badge badge-green" style="font-size:11px">OC: ${item.id_oc || '✓'}</span>`
-                : `<span class="badge badge-yellow" style="font-size:11px">Pendiente</span>`}
+            <td>${asignado
+              ? `<span class="badge badge-green" style="font-size:11px">OC: ${item.id_oc || '✓'}</span>`
+              : `<span class="badge badge-yellow" style="font-size:11px">Pendiente</span>`}
             </td>
           </tr>`;
       }).join('');
     }
 
     function toggleTodosItems(checked) {
-      document.querySelectorAll('.goc-item-chk:not(:disabled)')
-        .forEach(chk => chk.checked = checked);
+      document.querySelectorAll('.goc-item-chk:not(:disabled)').forEach(chk => chk.checked = checked);
     }
 
-    async function crearOCdesdePedido() {
-      const msg      = document.getElementById('msg-goc');
-      const btn      = document.getElementById('btn-crear-oc');
-      const proveedor= document.getElementById('goc-proveedor').value.trim();
-      const tipo     = document.getElementById('goc-tipo').value;
-      const fechaEnt = document.getElementById('goc-fecha-entrega').value;
-      const notas    = document.getElementById('goc-notas').value.trim();
-
-      // Items seleccionados
+    function irAGeneradorOC() {
+      // Validar que haya al menos un ítem seleccionado
       const seleccionados = [...document.querySelectorAll('.goc-item-chk:checked')]
         .map(chk => _itemsPedido.find(i => i.id_item === chk.dataset.id))
         .filter(Boolean);
 
-      if (!seleccionados.length) { showMsg(msg,'alert-error','Seleccioná al menos un ítem.'); return; }
-      if (!proveedor)            { showMsg(msg,'alert-error','Ingresá el nombre del proveedor.'); return; }
-
-      btn.disabled = true; btn.textContent = 'Creando...'; msg.style.display = 'none';
-
-      try {
-        const p   = _pedidoParaOC;
-        const ruc = p.ruc_empresa;
-
-        // Correlativo OC del local
-        const { data: localData } = await sbClient
-          .from('locales')
-          .select('correlativo_oc, codigo_corto, abreviatura')
-          .eq('id_local', p.id_local)
-          .single();
-
-        const { data: empData } = await sbClient
-          .from('empresas')
-          .select('abreviatura')
-          .eq('ruc', ruc)
-          .single();
-
-        const año      = new Date().getFullYear().toString().slice(-2);
-        const corr     = localData?.correlativo_oc || 1;
-        const codLocal = localData?.codigo_corto || p.id_local.slice(-3).toUpperCase();
-        const codEmp   = empData?.abreviatura || ruc.slice(-3);
-        const idOC     = `${tipo}-${codEmp}-${codLocal}-${año}-${corr.toString().padStart(5,'0')}`;
-
-        // Incrementar correlativo
-        await sbClient.from('locales')
-          .update({ correlativo_oc: corr + 1 })
-          .eq('id_local', p.id_local);
-
-        // Crear cabecera OC
-        const { error: e1 } = await sbClient.from('ordenes_compra').insert({
-          id_oc:           idOC,
-          numero:          idOC,
-          ruc_empresa:     ruc,
-          id_local:        p.id_local,
-          fecha:           new Date().toISOString().split('T')[0],
-          proveedor:       proveedor,
-          nombre_proveedor:proveedor,
-          tipo:            tipo,
-          estado:          'pendiente',
-          op_origen:       p.id_pedido,
-          id_pedido:       p.id_pedido,
-          fecha_entrega:   fechaEnt || null,
-          notas:           notas || null,
-          created_by:      perfil.user_id,
-        });
-        if (e1) throw new Error(e1.message);
-
-        // Crear ítems de la OC
-        const ocItems = seleccionados.map((item, idx) => ({
-          id_item:      `${idOC}-${(idx+1).toString().padStart(3,'0')}`,
-          id_oc:        idOC,
-          id_pedido:    p.id_pedido,
-          id_producto:  item.id_producto_local || item.id_producto,
-          descripcion:  item.nombre_producto || item.detalle,
-          cantidad:     item.cantidad,
-          unidad_medida:item.unidad_medida,
-          precio_unitario: 0,
-        }));
-        const { error: e2 } = await sbClient.from('oc_items').insert(ocItems);
-        if (e2) throw new Error(e2.message);
-
-        // Marcar ítems del pedido como asignados
-        const idsAsignar = seleccionados.map(i => i.id_item);
-        const { error: e3 } = await sbClient
-          .from('pedidos_items')
-          .update({ asignado_a_oc: true, id_oc: idOC })
-          .in('id_item', idsAsignar);
-        if (e3) throw new Error(e3.message);
-
-        // Si todos los ítems del pedido están asignados → marcar pedido como atendido
-        const { data: itemsActualizados } = await sbClient
-          .from('pedidos_items')
-          .select('asignado_a_oc')
-          .eq('id_pedido', p.id_pedido);
-
-        const todosAsignados = (itemsActualizados || []).every(i => i.asignado_a_oc);
-        if (todosAsignados) {
-          await sbClient.from('pedidos')
-            .update({ estado: 'atendida', oc_vinculada: idOC })
-            .eq('id_pedido', p.id_pedido);
-        }
-
-        await auditar(perfil, 'CREAR', 'ordenes_compra', `Creó ${idOC} desde pedido ${p.id_pedido} — ${seleccionados.length} ítems`);
-
-        cerrar('modal-generar-oc');
-        await cargar();
-        alert(`✅ ${idOC} creada correctamente${todosAsignados ? '\n\nTodos los ítems asignados — pedido marcado como Atendido.' : ''}`);
-
-      } catch(err) {
-        showMsg(msg, 'alert-error', 'Error: ' + err.message);
+      if (!seleccionados.length) {
+        alert('Seleccioná al menos un ítem para generar la OC.');
+        return;
       }
 
-      btn.disabled = false; btn.textContent = `${icons?.cart || '🛒'} Crear OC`;
+      // Guardar en sessionStorage para que ordenes-compra.html lo levante
+      sessionStorage.setItem('mpcs_op_para_oc', JSON.stringify({
+        id_pedido:    _pedidoParaOC.id_pedido,
+        numero:       _pedidoParaOC.numero || _pedidoParaOC.id_pedido,
+        ruc_empresa:  _pedidoParaOC.ruc_empresa,
+        id_local:     _pedidoParaOC.id_local,
+        local_nombre: _pedidoParaOC.locales?.nombre || _pedidoParaOC.id_local,
+        items_seleccionados: seleccionados.map(i => ({
+          id_item:       i.id_item,
+          nombre:        i.nombre_producto || i.detalle || '',
+          cantidad:      i.cantidad,
+          unidad_medida: i.unidad_medida || 'NIU',
+          categoria:     i.categoria || '',
+        })),
+      }));
+      window.location.href = '/pages/compras/ordenes-compra.html';
     }
 
     function abrirNuevo() {
