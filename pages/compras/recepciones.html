@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recepciones (OR) · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .or-badge-completa      { background:#D1FAE5;color:#065F46; }
+    .or-badge-parcial       { background:#FEF3C7;color:#92400E; }
+    .or-badge-parcial_cerrada { background:#F3F4F6;color:#374151; }
+    .or-badge-pendiente     { background:#DBEAFE;color:#1E40AF; }
+    .or-badge-rechazada     { background:#FEE2E2;color:#991B1B; }
+    .exceso-row             { background:#FEF2F2 !important; }
+    .auth-btn {
+      background:#D97706;color:#fff;border:none;border-radius:var(--radius-md);
+      padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;
+    }
+    .auth-btn:hover { background:#B45309; }
+  </style>
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Recepciones (OR)</h1>
+        <p>Órdenes de recepción generadas por los locales</p>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- Stats -->
+      <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:1.5rem">
+        <div class="stat-card"><div class="stat-value" id="stat-total">—</div><div class="stat-label">Total OR</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-completas" style="color:var(--success)">—</div><div class="stat-label">Completas</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-parciales" style="color:var(--warning)">—</div><div class="stat-label">Parciales</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-autorizacion" style="color:#D97706">—</div><div class="stat-label">Req. autorización</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-cerradas" style="color:var(--text-muted)">—</div><div class="stat-label">Cerradas</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 id="count-label">Recepciones</h2>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="filtro-estado" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
+              <option value="">Todos los estados</option>
+              <option value="completa">Completa</option>
+              <option value="parcial">Parcial</option>
+              <option value="parcial_cerrada">Parcial cerrada</option>
+              <option value="pendiente">Pendiente</option>
+            </select>
+            <select id="filtro-autorizacion" class="btn btn-sm" onchange="filtrar()" style="padding:5px 10px">
+              <option value="">Todos</option>
+              <option value="1">Requiere autorización</option>
+            </select>
+            <div class="search-bar">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="search" placeholder="Buscar por número, proveedor..." oninput="filtrar()" />
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Número OR</th>
+                <th>Fecha</th>
+                <th>Local</th>
+                <th>Proveedor</th>
+                <th>OC vinculadas</th>
+                <th>Guías</th>
+                <th>Estado</th>
+                <th>Autorización</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="9"><div class="loading">Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL DETALLE OR ── -->
+  <div class="modal-overlay hidden" id="modal-detalle">
+    <div class="modal" style="max-width:900px">
+      <div class="modal-header">
+        <h3 id="det-titulo">Detalle OR</h3>
+        <button class="modal-close" onclick="cerrarDetalle()">×</button>
+      </div>
+      <div class="modal-body" id="det-body"></div>
+      <div class="modal-footer" id="det-footer">
+        <button class="btn btn-ghost" onclick="cerrarDetalle()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let perfil  = null;
+    let ordenes = [];
+
+    async function init() {
+      perfil = await requireAuth(['admin','compras','gerencia'], 'compras_recepciones');
+      if (!perfil) return;
+      renderSidebar(perfil, 'or');
+      aplicarPermisosUI(perfil, 'compras_recepciones');
+      onContextoChange(async () => { await cargar(); aplicarPermisosUI(perfil, 'compras_recepciones'); });
+      if (getContexto().ruc) await cargar();
+      else await cargar(); // OR se carga siempre
+    }
+
+    async function cargar() {
+      document.getElementById('tbody').innerHTML =
+        '<tr><td colspan="9"><div class="loading">Cargando...</div></td></tr>';
+
+      const { ruc } = getContexto();
+      let q = sbClient.from('or_cabecera')
+        .select('*, or_oc_vinculo(id_oc), locales(nombre)')
+        .order('created_at', { ascending: false });
+      if (ruc) q = q.eq('ruc_empresa', ruc);
+
+      const { data, error } = await q;
+      if (error) {
+        document.getElementById('tbody').innerHTML =
+          `<tr><td colspan="9"><div class="empty-state"><p>Error: ${error.message}</p></div></td></tr>`;
+        return;
+      }
+      ordenes = data || [];
+
+      document.getElementById('stat-total').textContent       = ordenes.length;
+      document.getElementById('stat-completas').textContent   = ordenes.filter(o => o.estado === 'completa').length;
+      document.getElementById('stat-parciales').textContent   = ordenes.filter(o => o.estado === 'parcial').length;
+      document.getElementById('stat-autorizacion').textContent= ordenes.filter(o => o.requiere_autorizacion && !o.autorizado_por).length;
+      document.getElementById('stat-cerradas').textContent    = ordenes.filter(o => o.estado === 'parcial_cerrada').length;
+      filtrar();
+    }
+
+    function filtrar() {
+      const q     = document.getElementById('search').value.toLowerCase();
+      const estado= document.getElementById('filtro-estado').value;
+      const auth  = document.getElementById('filtro-autorizacion').value;
+
+      const lista = ordenes.filter(o =>
+        (!q     || (o.numero||'').toLowerCase().includes(q) ||
+                   (o.nombre_proveedor||'').toLowerCase().includes(q) ||
+                   (o.locales?.nombre||'').toLowerCase().includes(q)) &&
+        (!estado || o.estado === estado) &&
+        (!auth   || (o.requiere_autorizacion && !o.autorizado_por))
+      );
+
+      document.getElementById('count-label').textContent = `Recepciones (${lista.length})`;
+      renderTabla(lista);
+    }
+
+    function renderTabla(lista) {
+      const tbody = document.getElementById('tbody');
+      if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">
+          <h3>Sin recepciones</h3><p>No hay OR para los filtros aplicados.</p>
+        </div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = lista.map(or => {
+        const fecha    = or.created_at ? new Date(or.created_at).toLocaleDateString('es-PE') : '—';
+        const ocs      = (or.or_oc_vinculo || []).map(v => `<span style="font-family:monospace;font-size:11px">${v.id_oc}</span>`).join('<br>');
+        const guias    = (or.guias || []).join(', ') || '—';
+        const estadoBadge = `<span class="badge or-badge-${or.estado}" style="font-size:11px">${or.estado.replace('_',' ')}</span>`;
+        const authCell = or.requiere_autorizacion
+          ? or.autorizado_por
+            ? `<span class="badge badge-green" style="font-size:11px">✓ Autorizado</span>`
+            : `<button class="auth-btn" onclick="autorizarOR('${or.id_or}')">Autorizar</button>`
+          : '—';
+
+        return `<tr ${or.requiere_autorizacion && !or.autorizado_por ? 'class="exceso-row"' : ''}>
+          <td><strong style="font-family:monospace;font-size:12px">${or.numero || or.id_or}</strong></td>
+          <td style="font-size:12px;color:var(--text-muted)">${fecha}</td>
+          <td style="font-size:13px">${or.locales?.nombre || or.id_local}</td>
+          <td style="font-size:13px"><strong>${or.nombre_proveedor || '—'}</strong></td>
+          <td style="font-size:12px">${ocs || '—'}</td>
+          <td style="font-size:11px;font-family:monospace;color:var(--text-muted)">${guias}</td>
+          <td>${estadoBadge}</td>
+          <td>${authCell}</td>
+          <td>
+            <button class="btn btn-sm btn-ghost" onclick="verDetalle('${or.id_or}')">
+              ${icons.eye} Ver
+            </button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function verDetalle(idOR) {
+      const or = ordenes.find(o => o.id_or === idOR);
+      if (!or) return;
+
+      const [{ data: items }, { data: ocs }] = await Promise.all([
+        sbClient.from('or_detalle').select('*').eq('id_or', idOR).order('id'),
+        sbClient.from('or_oc_vinculo').select('id_oc, ordenes_compra(numero, nombre_proveedor, total)').eq('id_or', idOR),
+      ]);
+
+      const fecha     = or.created_at ? new Date(or.created_at).toLocaleString('es-PE') : '—';
+      const cerradoAt = or.cerrado_at  ? new Date(or.cerrado_at).toLocaleString('es-PE')  : null;
+
+      document.getElementById('det-titulo').textContent = or.numero || or.id_or;
+
+      const itemsHtml = (items || []).length ? `
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:8px">Items recibidos</div>
+        <div class="table-wrap" style="margin-bottom:1rem">
+          <table>
+            <thead>
+              <tr>
+                <th>Descripción</th>
+                <th>Unidad</th>
+                <th>Cant. OC</th>
+                <th>Cant. recibida</th>
+                <th>Precio unit.</th>
+                <th>Subtotal</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(items||[]).map(item => {
+                const excede = item.excede_limite;
+                const pct    = item.cantidad_oc > 0
+                  ? ((item.cantidad_recibida / item.cantidad_oc) * 100).toFixed(0) : 0;
+                return `<tr ${excede ? 'style="background:#FEF2F2"' : ''}>
+                  <td><strong>${item.descripcion}</strong>
+                    ${excede ? '<span style="font-size:10px;color:var(--error);margin-left:6px;font-weight:600">⚠ EXCESO</span>' : ''}
+                  </td>
+                  <td>${item.unidad_medida||'—'}</td>
+                  <td style="text-align:right">${item.cantidad_oc}</td>
+                  <td style="text-align:right;font-weight:700;color:${excede?'var(--error)':'var(--success)'}">${item.cantidad_recibida} <span style="font-size:11px;color:var(--text-muted)">(${pct}%)</span></td>
+                  <td style="text-align:right">S/ ${parseFloat(item.precio_unitario||0).toFixed(2)}</td>
+                  <td style="text-align:right;font-weight:600">S/ ${parseFloat(item.subtotal||0).toFixed(2)}</td>
+                  <td><span class="badge ${item.estado==='recibido'?'badge-green':item.estado==='rechazado'?'badge-red':'badge-yellow'}">${item.estado}</span></td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>` : '<p style="color:var(--text-muted);font-size:13px;margin-bottom:1rem">Sin ítems registrados.</p>';
+
+      const ocsHtml = (ocs||[]).length ? `
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:8px">OC vinculadas</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem">
+          ${(ocs||[]).map(v => `
+            <div style="background:var(--navy-light,#EEF2FB);border-radius:var(--radius-md);padding:8px 14px;font-size:13px">
+              <div style="font-family:monospace;font-weight:700">${v.id_oc}</div>
+              <div style="font-size:12px;color:var(--text-muted)">${v.ordenes_compra?.nombre_proveedor||'—'} · S/ ${parseFloat(v.ordenes_compra?.total||0).toFixed(2)}</div>
+            </div>`).join('')}
+        </div>` : '';
+
+      document.getElementById('det-body').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.25rem;background:var(--bg);border-radius:var(--radius-md);padding:1rem">
+          ${df('Proveedor', or.nombre_proveedor||'—')}
+          ${df('Local', or.locales?.nombre||or.id_local)}
+          ${df('Estado', `<span class="badge or-badge-${or.estado}">${or.estado.replace('_',' ')}</span>`)}
+          ${df('Fecha recepción', fecha)}
+          ${df('Guías', (or.guias||[]).join(', ')||'—')}
+          ${df('Autorización', or.requiere_autorizacion ? (or.autorizado_por ? '✓ Autorizado' : '⚠ Pendiente') : 'No requerida')}
+          ${cerradoAt ? df('Cerrado', cerradoAt) : ''}
+        </div>
+        ${ocsHtml}
+        ${itemsHtml}
+      `;
+
+      // Footer con botón autorizar si aplica
+      const footer = document.getElementById('det-footer');
+      if (or.requiere_autorizacion && !or.autorizado_por && puedeEditar(perfil,'compras_recepciones')) {
+        footer.innerHTML = `
+          <button class="btn btn-ghost" onclick="cerrarDetalle()">Cerrar</button>
+          <button class="auth-btn" style="padding:10px 20px;font-size:14px" onclick="autorizarOR('${or.id_or}')">
+            Autorizar exceso de cantidad
+          </button>`;
+      } else {
+        footer.innerHTML = '<button class="btn btn-ghost" onclick="cerrarDetalle()">Cerrar</button>';
+      }
+
+      document.getElementById('modal-detalle').classList.remove('hidden');
+    }
+
+    async function autorizarOR(idOR) {
+      if (!confirm('¿Confirmás la autorización del exceso de cantidad para esta OR?')) return;
+      const { error } = await sbClient.from('or_cabecera').update({
+        autorizado_por: perfil.user_id,
+        autorizado_at:  new Date().toISOString(),
+      }).eq('id_or', idOR);
+
+      if (error) { alert('Error: ' + error.message); return; }
+
+      // También marcar los ítems con exceso como recibidos
+      await sbClient.from('or_detalle').update({ estado: 'recibido' })
+        .eq('id_or', idOR).eq('excede_limite', true);
+
+      // Recalcular estado OC
+      const or = ordenes.find(o => o.id_or === idOR);
+      for (const v of or?.or_oc_vinculo || []) {
+        await sbClient.rpc('actualizar_estado_oc_por_or', { p_id_oc: v.id_oc });
+      }
+
+      await auditar(perfil, 'EDITAR', 'or_cabecera', `Autorizó exceso OR ${idOR}`);
+      cerrarDetalle();
+      await cargar();
+    }
+
+    function df(label, val) {
+      return `<div>
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">${label}</div>
+        <div style="font-size:13px;font-weight:500">${val||'—'}</div>
+      </div>`;
+    }
+
+    function cerrarDetalle() { document.getElementById('modal-detalle').classList.add('hidden'); }
+
+    document.getElementById('modal-detalle').addEventListener('click', function(e) {
+      if (e.target === this) cerrarDetalle();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarDetalle(); });
+
+    init();
+  </script>
+</body>
+</html>
