@@ -364,6 +364,7 @@ function renderSidebar(perfil, activePage) {
           ${puedeVer(perfil,'compras_recepciones') ? `<a href="/pages/compras/recepciones.html" class="nav-item ${activePage==='or'?'active':''}">${icons.package} Recepciones (OR)</a>` : ''}
           ${puedeVer(perfil,'compras_proveedores') ? `<a href="/pages/compras/proveedores.html" class="nav-item ${activePage==='proveedores'?'active':''}">${icons.users} Proveedores</a>` : ''}
           ${puedeVer(perfil,'compras_productos') ? `<a href="/pages/compras/productos.html" class="nav-item ${activePage==='productos'?'active':''}">${icons.box} Catálogo de compra</a>` : ''}
+          ${puedeVer(perfil,'compras_productos') ? `<a href="/pages/compras/vinculacion.html" class="nav-item ${activePage==='vinculacion'?'active':''}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Vinculación catálogos</a>` : ''}
           ${puedeVer(perfil,'compras_catalogo') ? `<a href="/pages/compras/catalogo-local.html" class="nav-item ${activePage==='catalogo-local'?'active':''}">${icons.clipboard} Catálogo de solicitud</a>` : ''}
 
         </div>` : ''}

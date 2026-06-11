@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vinculación de catálogos · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .cat-item {
+      display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;
+      padding:12px 16px;border-bottom:1px solid var(--border);
+    }
+    .cat-item:last-child { border-bottom:none; }
+    .cat-item:hover { background:rgba(230,238,247,0.3); }
+    .vinculo-chip {
+      display:inline-flex;align-items:center;gap:6px;
+      background:var(--navy-light,#EEF2FB);border-radius:20px;
+      padding:3px 10px;font-size:12px;font-weight:500;margin:2px;
+    }
+    .vinculo-chip.principal { background:#D1FAE5;color:#065F46; }
+    .vinculo-chip button {
+      background:none;border:none;cursor:pointer;color:var(--text-muted);
+      font-size:14px;line-height:1;padding:0;
+    }
+    .vinculo-chip button:hover { color:var(--error); }
+    .sin-vinculo { font-size:12px;color:var(--error);font-style:italic; }
+    .categoria-header {
+      padding:8px 16px;background:var(--bg);
+      font-size:11px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.06em;color:var(--text-muted);
+      border-bottom:1px solid var(--border);
+      position:sticky;top:0;
+    }
+    .autocomplete-prod {
+      position:absolute;left:0;right:0;top:100%;
+      background:var(--white);border:1px solid var(--border-md);
+      border-radius:var(--radius-md);box-shadow:0 4px 12px rgba(0,0,0,0.1);
+      z-index:100;max-height:240px;overflow-y:auto;
+    }
+    .autocomplete-prod div {
+      padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);
+    }
+    .autocomplete-prod div:hover { background:var(--bg); }
+  </style>
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Vinculación de catálogos</h1>
+        <p>Mapeá cada ítem del catálogo de solicitud al producto específico de compras</p>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="alert alert-info" style="margin-bottom:1.5rem">
+        <strong>¿Para qué sirve esto?</strong> Cuando un local pide "BIFE ANCHO", compras necesita saber que debe comprar "BIFE ANCHO COTO 5KG" al proveedor. Esta vinculación permite que el sistema sugiera automáticamente el producto correcto al generar una OC desde un pedido.
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start">
+
+        <!-- Panel izquierdo: catálogo genérico -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Catálogo de solicitud (genérico)</h2>
+            <div style="display:flex;gap:8px">
+              <select id="filtro-concepto" onchange="filtrarCatalogo()" style="padding:5px 10px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px">
+                <option value="">Todos los conceptos</option>
+              </select>
+              <select id="filtro-vinculado" onchange="filtrarCatalogo()" style="padding:5px 10px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px">
+                <option value="">Todos</option>
+                <option value="sin">Sin vincular</option>
+                <option value="con">Vinculados</option>
+              </select>
+            </div>
+          </div>
+          <div style="padding:8px 16px;border-bottom:1px solid var(--border)">
+            <input type="text" id="search-cat" placeholder="Buscar en catálogo..."
+              oninput="filtrarCatalogo()"
+              style="width:100%;padding:8px 12px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px" />
+          </div>
+          <div id="lista-catalogo" style="max-height:calc(100vh - 320px);overflow-y:auto">
+            <div class="loading">Cargando...</div>
+          </div>
+        </div>
+
+        <!-- Panel derecho: detalle y vinculación -->
+        <div>
+          <div class="card" id="panel-detalle" style="padding:2rem;text-align:center;color:var(--text-muted)">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:12px"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            <p>Seleccioná un ítem del catálogo para ver y editar sus vínculos</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let perfil       = null;
+    let catalogoAll  = [];  // todos los ítems del catálogo genérico
+    let productosAll = [];  // todos los productos específicos
+    let vinculosAll  = [];  // todas las vinculaciones
+    let itemSelec    = null;
+    let empresas     = [];
+
+    async function init() {
+      perfil = await requireAuth(['admin','compras','gerencia'], 'compras_productos');
+      if (!perfil) return;
+      renderSidebar(perfil, 'vinculacion');
+      onContextoChange(async () => await cargar());
+      await cargar();
+    }
+
+    async function cargar() {
+      const { ruc } = getContexto();
+      const [{ data: cat }, { data: prods }, { data: vinculos }, { data: emps }] = await Promise.all([
+        sbClient.from('catalogo_local').select('*').eq('activo', true).order('categoria').order('nombre'),
+        sbClient.from('productos').select('id_producto, nombre, unidad_medida, precio_ref, ruc_empresa, afecto_igv')
+          .eq('estado','activo').order('nombre'),
+        sbClient.from('catalogo_productos_vinculo').select('*'),
+        sbClient.from('empresas').select('ruc, abreviatura, razon_social').eq('estado','activa'),
+      ]);
+
+      catalogoAll  = cat     || [];
+      productosAll = prods   || [];
+      vinculosAll  = vinculos|| [];
+      empresas     = emps    || [];
+
+      // Cargar conceptos en filtro
+      const conceptos = [...new Set(catalogoAll.map(i => i.id_concepto).filter(Boolean))].sort();
+      const sel = document.getElementById('filtro-concepto');
+      sel.innerHTML = '<option value="">Todos los conceptos</option>';
+      conceptos.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        sel.appendChild(opt);
+      });
+
+      filtrarCatalogo();
+    }
+
+    function getVinculos(idProdLocal) {
+      return vinculosAll.filter(v => v.id_producto_local === idProdLocal);
+    }
+
+    function filtrarCatalogo() {
+      const q        = document.getElementById('search-cat').value.toLowerCase();
+      const concepto = document.getElementById('filtro-concepto').value;
+      const vinc     = document.getElementById('filtro-vinculado').value;
+
+      let lista = catalogoAll.filter(i =>
+        (!q       || (i.nombre||'').toLowerCase().includes(q)) &&
+        (!concepto|| i.id_concepto === concepto)
+      );
+
+      if (vinc === 'sin') lista = lista.filter(i => getVinculos(i.id_producto_local).length === 0);
+      if (vinc === 'con') lista = lista.filter(i => getVinculos(i.id_producto_local).length > 0);
+
+      renderCatalogo(lista);
+    }
+
+    function renderCatalogo(lista) {
+      const cont = document.getElementById('lista-catalogo');
+      if (!lista.length) {
+        cont.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:13px">Sin ítems</div>';
+        return;
+      }
+
+      // Agrupar por categoría
+      const grupos = {};
+      lista.forEach(i => {
+        const cat = i.categoria || 'Sin categoría';
+        if (!grupos[cat]) grupos[cat] = [];
+        grupos[cat].push(i);
+      });
+
+      cont.innerHTML = Object.entries(grupos).map(([cat, items]) => `
+        <div class="categoria-header">${cat} <span style="font-weight:400">(${items.length})</span></div>
+        ${items.map(item => {
+          const vinculos = getVinculos(item.id_producto_local);
+          const isActive = itemSelec?.id_producto_local === item.id_producto_local;
+          return `<div class="cat-item" style="cursor:pointer;${isActive?'background:var(--navy-light,#EEF2FB)':''}"
+            onclick="seleccionarItem('${item.id_producto_local}')">
+            <div>
+              <div style="font-size:14px;font-weight:600">${item.nombre}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.id_concepto||''} · ${item.unidad_medida}</div>
+              <div style="margin-top:4px">
+                ${vinculos.length
+                  ? vinculos.map(v => {
+                      const prod = productosAll.find(p => p.id_producto === v.id_producto);
+                      return `<span class="vinculo-chip ${v.es_principal?'principal':''}">${prod?.nombre||v.id_producto}</span>`;
+                    }).join('')
+                  : '<span class="sin-vinculo">Sin vincular</span>'}
+              </div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;margin-top:4px"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>`;
+        }).join('')}`).join('');
+    }
+
+    function seleccionarItem(id) {
+      itemSelec = catalogoAll.find(i => i.id_producto_local === id);
+      if (!itemSelec) return;
+      filtrarCatalogo(); // re-render para marcar activo
+      renderDetalle();
+    }
+
+    function renderDetalle() {
+      const item    = itemSelec;
+      const vinculos= getVinculos(item.id_producto_local);
+
+      document.getElementById('panel-detalle').innerHTML = `
+        <div style="padding:1.25rem;border-bottom:1px solid var(--border)">
+          <div style="font-size:16px;font-weight:700;margin-bottom:4px">${item.nombre}</div>
+          <div style="font-size:12px;color:var(--text-muted)">${item.id_concepto||''} · ${item.unidad_medida} · ${item.categoria||'Sin categoría'}</div>
+        </div>
+
+        <!-- Vínculos existentes -->
+        <div style="padding:1.25rem;border-bottom:1px solid var(--border)">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:10px">
+            Productos específicos vinculados (${vinculos.length})
+          </div>
+          ${vinculos.length ? `
+            <div id="vinculos-lista">
+              ${vinculos.map(v => {
+                const prod = productosAll.find(p => p.id_producto === v.id_producto);
+                const emp  = empresas.find(e => e.ruc === v.ruc_empresa);
+                return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+                  <div>
+                    <div style="font-weight:600">${prod?.nombre||v.id_producto}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${prod?.unidad_medida||'—'} · ${emp?emp.abreviatura:'Todas las empresas'}</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    ${v.es_principal
+                      ? '<span class="badge badge-green" style="font-size:11px">Principal</span>'
+                      : `<button class="btn btn-sm btn-ghost" onclick="setPrincipal(${v.id})">Marcar principal</button>`}
+                    <button class="btn btn-sm btn-ghost" style="color:var(--error)" onclick="eliminarVinculo(${v.id})">×</button>
+                  </div>
+                </div>`;
+              }).join('')}
+            </div>` : `<div style="color:var(--text-muted);font-size:13px;font-style:italic">Sin vínculos — agregá productos abajo</div>`}
+        </div>
+
+        <!-- Agregar nuevo vínculo -->
+        <div style="padding:1.25rem">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:10px">
+            Agregar vínculo
+          </div>
+          <div style="position:relative;margin-bottom:10px">
+            <input type="text" id="buscar-prod-esp" placeholder="Buscar producto específico..."
+              autocomplete="off" oninput="filtrarProductosEsp(this.value)"
+              style="width:100%;padding:10px 12px;border:1.5px solid var(--navy);border-radius:var(--radius-md);font-size:14px" />
+            <input type="hidden" id="sel-prod-id" />
+            <div id="lista-prods-esp" class="autocomplete-prod" style="display:none"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-bottom:10px">
+            <div class="field" style="margin:0">
+              <label>Empresa (opcional — vacío = todas)</label>
+              <select id="sel-empresa-vinc">
+                <option value="">Todas las empresas</option>
+                ${empresas.map(e => `<option value="${e.ruc}">${e.abreviatura}</option>`).join('')}
+              </select>
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding-bottom:2px">
+              <input type="checkbox" id="sel-es-principal" style="width:15px;height:15px" />
+              Principal
+            </label>
+          </div>
+          <div id="msg-vinc" class="alert" style="display:none;margin-bottom:8px"></div>
+          <button class="btn btn-primary" onclick="agregarVinculo()" style="width:100%">
+            + Agregar vínculo
+          </button>
+        </div>
+      `;
+
+      // Cerrar autocomplete al click fuera
+      document.addEventListener('click', function handler(e) {
+        if (!e.target.closest('#buscar-prod-esp') && !e.target.closest('#lista-prods-esp')) {
+          document.getElementById('lista-prods-esp')?.style && (document.getElementById('lista-prods-esp').style.display = 'none');
+        }
+      }, { once: false });
+    }
+
+    function filtrarProductosEsp(q) {
+      const lista = document.getElementById('lista-prods-esp');
+      if (!q || q.length < 2) { lista.style.display = 'none'; return; }
+      const { ruc } = getContexto();
+      const matches = productosAll
+        .filter(p => (p.nombre||'').toLowerCase().includes(q.toLowerCase()) &&
+                     (!ruc || p.ruc_empresa === ruc || p.es_global))
+        .slice(0, 10);
+      if (!matches.length) { lista.style.display = 'none'; return; }
+      lista.innerHTML = matches.map(p => `
+        <div onclick="seleccionarProdEsp('${p.id_producto}','${p.nombre.replace(/'/g,"\\'")}')">
+          <strong>${p.nombre}</strong>
+          <span style="color:var(--text-muted);font-size:11px;margin-left:6px">${p.unidad_medida}${p.precio_ref?' · S/ '+parseFloat(p.precio_ref).toFixed(2):''}</span>
+        </div>`).join('');
+      lista.style.display = 'block';
+    }
+
+    function seleccionarProdEsp(id, nombre) {
+      document.getElementById('buscar-prod-esp').value = nombre;
+      document.getElementById('sel-prod-id').value     = id;
+      document.getElementById('lista-prods-esp').style.display = 'none';
+    }
+
+    async function agregarVinculo() {
+      const msg     = document.getElementById('msg-vinc');
+      const idProd  = document.getElementById('sel-prod-id').value;
+      const empresa = document.getElementById('sel-empresa-vinc').value || null;
+      const esPrinc = document.getElementById('sel-es-principal').checked;
+
+      if (!idProd) { showMsg(msg,'alert-error','Seleccioná un producto específico.'); return; }
+
+      // Verificar que no exista ya
+      const existe = vinculosAll.find(v =>
+        v.id_producto_local === itemSelec.id_producto_local &&
+        v.id_producto === idProd &&
+        (v.ruc_empresa || null) === empresa
+      );
+      if (existe) { showMsg(msg,'alert-error','Este vínculo ya existe.'); return; }
+
+      // Si es principal, quitar el principal anterior para la misma empresa
+      if (esPrinc) {
+        const anterior = vinculosAll.find(v =>
+          v.id_producto_local === itemSelec.id_producto_local &&
+          v.es_principal === true &&
+          (v.ruc_empresa || null) === empresa
+        );
+        if (anterior) {
+          await sbClient.from('catalogo_productos_vinculo').update({ es_principal: false }).eq('id', anterior.id);
+        }
+      }
+
+      const { error } = await sbClient.from('catalogo_productos_vinculo').insert({
+        id_producto_local: itemSelec.id_producto_local,
+        id_producto:       idProd,
+        ruc_empresa:       empresa,
+        es_principal:      esPrinc || vinculosAll.filter(v => v.id_producto_local === itemSelec.id_producto_local).length === 0,
+        creado_por:        perfil.user_id,
+      });
+
+      if (error) { showMsg(msg,'alert-error','Error: '+error.message); return; }
+
+      await auditar(perfil, 'CREAR', 'catalogo_productos_vinculo',
+        `Vinculó ${itemSelec.nombre} → ${idProd}`);
+
+      // Limpiar
+      document.getElementById('buscar-prod-esp').value = '';
+      document.getElementById('sel-prod-id').value     = '';
+      document.getElementById('sel-es-principal').checked = false;
+      msg.style.display = 'none';
+
+      await cargar();
+      seleccionarItem(itemSelec.id_producto_local);
+    }
+
+    async function eliminarVinculo(id) {
+      if (!confirm('¿Eliminar este vínculo?')) return;
+      await sbClient.from('catalogo_productos_vinculo').delete().eq('id', id);
+      await auditar(perfil, 'ELIMINAR', 'catalogo_productos_vinculo', `Eliminó vínculo ID ${id}`);
+      await cargar();
+      seleccionarItem(itemSelec.id_producto_local);
+    }
+
+    async function setPrincipal(id) {
+      const vinculo = vinculosAll.find(v => v.id === id);
+      if (!vinculo) return;
+      // Quitar principal anterior para la misma empresa
+      const anterior = vinculosAll.find(v =>
+        v.id_producto_local === vinculo.id_producto_local &&
+        v.es_principal === true &&
+        (v.ruc_empresa || null) === (vinculo.ruc_empresa || null) &&
+        v.id !== id
+      );
+      if (anterior) await sbClient.from('catalogo_productos_vinculo').update({ es_principal: false }).eq('id', anterior.id);
+      await sbClient.from('catalogo_productos_vinculo').update({ es_principal: true }).eq('id', id);
+      await cargar();
+      seleccionarItem(itemSelec.id_producto_local);
+    }
+
+    function showMsg(el, cls, txt) { el.className=`alert ${cls}`;el.textContent=txt;el.style.display='block'; }
+
+    init();
+  </script>
+</body>
+</html>
