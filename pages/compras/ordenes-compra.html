@@ -882,10 +882,6 @@
         }));
         await sbClient.from('oc_items').insert(itemsRows);
 
-        // Incrementar correlativo via RPC (evita error de permisos)
-        const rpcFn = d.tipo === 'OS' ? 'incrementar_correlativo_os' : 'incrementar_correlativo_oc';
-        await sbClient.rpc(rpcFn, { p_id_local: d.idLocal });
-
         // Marcar OP como atendida
         if (d.opOrigen) {
           await sbClient.from('pedidos').update({ estado: 'atendida', oc_vinculada: numero }).eq('numero', d.opOrigen);
