@@ -641,6 +641,7 @@
         const codLocal = localData?.codigo_corto || local.slice(-3).toUpperCase();
         const codEmp   = empresa?.abreviatura || ruc.slice(-3);
         const numero   = `OP-${codEmp}-${codLocal}-${año}-${corr.toString().padStart(5,'0')}`;
+        console.log('Número generado:', numero, '| corr:', corr, '| codLocal:', codLocal, '| codEmp:', codEmp);
 
         // Insertar cabecera
         const { data: opData, error: e1 } = await sbClient.from('pedidos').insert({
