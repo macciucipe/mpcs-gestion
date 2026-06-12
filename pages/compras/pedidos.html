@@ -519,7 +519,7 @@
       document.getElementById('nuevo-producto-nombre').value = '';
       document.getElementById('nuevo-producto-unidad').value = '';
       document.getElementById('nuevo-producto-cat').value    = '';
-      document.getElementById('nuevo-unidad-display').value  = '';
+      document.getElementById('nuevo-unidad-display').textContent  = '';
       renderCarrito();
       setTimeout(() => document.getElementById('nuevo-cantidad').focus(), 50);
     }
@@ -641,11 +641,23 @@
 
         const corr = localCorr.correlativo_op || 1;
 
-        // Incrementar ANTES de insertar
-        await sbClient.from('locales')
+        // Incrementar ANTES de insertar y verificar que realmente se haya actualizado.
+        // Si esto no se actualiza, el segundo pedido vuelve a usar el mismo número
+        // y Supabase devuelve error 23505 / pedidos_pkey duplicado.
+        const { data: corrUpdate, error: eCorrUpdate } = await sbClient.from('locales')
           .update({ correlativo_op: corr + 1 })
           .eq('id_local', local)
-          .eq('correlativo_op', corr); // optimistic lock
+          .eq('correlativo_op', corr)
+          .select('id_local, correlativo_op')
+          .maybeSingle();
+
+        if (eCorrUpdate) {
+          throw new Error('Error al actualizar correlativo: ' + eCorrUpdate.message);
+        }
+
+        if (!corrUpdate) {
+          throw new Error('No se pudo reservar el número del pedido. Recargá la página e intentá nuevamente.');
+        }
 
         const año      = new Date().getFullYear().toString().slice(-2);
         const codLocal = localData?.codigo_corto || local.slice(-3).toUpperCase();
@@ -686,7 +698,11 @@
         await cargar();
 
       } catch(e) {
-        showMsg(msg,'alert-error','Error: ' + e.message);
+        const errorMsg = e?.message || 'Error desconocido';
+        const textoAmigable = errorMsg.includes('duplicate key') || errorMsg.includes('23505') || errorMsg.includes('pedidos_pkey')
+          ? 'Error: se intentó crear un pedido con un número que ya existe. Recargá la página e intentá nuevamente.'
+          : 'Error: ' + errorMsg;
+        showMsg(msg,'alert-error', textoAmigable);
       }
       btn.disabled = false; btn.textContent = '✓ Confirmar y enviar a Compras';
     }
@@ -891,7 +907,7 @@
       document.getElementById('nuevo-obs').value             = '';
       document.getElementById('msg-nuevo').style.display     = 'none';
       document.getElementById('nuevo-buscar').value          = '';
-      document.getElementById('nuevo-unidad-display').value  = '';
+      document.getElementById('nuevo-unidad-display').textContent  = '';
       document.getElementById('nuevo-catalogo-lista').style.display = 'none';
       carritoItems = [];
 
