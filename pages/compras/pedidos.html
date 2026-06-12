@@ -399,13 +399,24 @@
         console.warn('Local sin id_concepto:', idLocal);
         return;
       }
-      const { data } = await sbClient.from('catalogo_local')
-        .select('id_producto_local, nombre, unidad_medida, categoria')
+      // Obtener ids habilitados para este concepto
+      const { data: habilitados } = await sbClient
+        .from('catalogo_conceptos')
+        .select('id_producto_local')
         .eq('id_concepto', local.id_concepto)
+        .eq('activo', true);
+
+      if (!habilitados?.length) return;
+      const ids = habilitados.map(h => h.id_producto_local);
+
+      // Cargar los productos del maestro
+      const { data } = await sbClient
+        .from('catalogo_local')
+        .select('id_producto_local, nombre, unidad_medida, categoria')
+        .in('id_producto_local', ids)
         .eq('activo', true)
         .order('categoria').order('nombre');
       catalogoActual = data || [];
-      console.log('Catálogo cargado:', catalogoActual.length, 'items para concepto', local.id_concepto);
     }
 
     function filtrarCatalogo(q) {
