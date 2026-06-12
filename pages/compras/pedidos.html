@@ -662,6 +662,7 @@
           cantidad:           item.cantidad,
           unidad_medida:      item.unidad,
           detalle:            item.nombre,
+          categoria:          item.categoria || null,
         }));
         const { error: e2 } = await sbClient.from('pedidos_items').insert(itemsRows);
         if (e2) throw new Error(e2.message);
