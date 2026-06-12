@@ -631,17 +631,26 @@
         const localData = localesGlobal.find(l => l.id_local === local);
         const empresa   = empresas.find(e => e.ruc === ruc);
 
-        // Usar RPC para incrementar correlativo de forma segura
-        const { data: corrData, error: eCorr } = await sbClient.rpc('incrementar_correlativo_op', { p_id_local: local });
-        if (eCorr) throw new Error('Error al generar número: ' + eCorr.message);
-        console.log('RPC corrData:', corrData, 'tipo:', typeof corrData);
+        // Leer correlativo actual y luego incrementar
+        const { data: localCorr, error: eCorrLeer } = await sbClient
+          .from('locales')
+          .select('correlativo_op')
+          .eq('id_local', local)
+          .single();
+        if (eCorrLeer) throw new Error('Error al leer correlativo: ' + eCorrLeer.message);
+
+        const corr = localCorr.correlativo_op || 1;
+
+        // Incrementar ANTES de insertar
+        await sbClient.from('locales')
+          .update({ correlativo_op: corr + 1 })
+          .eq('id_local', local)
+          .eq('correlativo_op', corr); // optimistic lock
 
         const año      = new Date().getFullYear().toString().slice(-2);
-        const corr     = corrData || 1;
         const codLocal = localData?.codigo_corto || local.slice(-3).toUpperCase();
         const codEmp   = empresa?.abreviatura || ruc.slice(-3);
         const numero   = `OP-${codEmp}-${codLocal}-${año}-${corr.toString().padStart(5,'0')}`;
-        console.log('Número generado:', numero, '| corr:', corr, '| codLocal:', codLocal, '| codEmp:', codEmp);
 
         // Insertar cabecera
         const { data: opData, error: e1 } = await sbClient.from('pedidos').insert({
