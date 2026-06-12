@@ -634,6 +634,7 @@
         // Usar RPC para incrementar correlativo de forma segura
         const { data: corrData, error: eCorr } = await sbClient.rpc('incrementar_correlativo_op', { p_id_local: local });
         if (eCorr) throw new Error('Error al generar número: ' + eCorr.message);
+        console.log('RPC corrData:', corrData, 'tipo:', typeof corrData);
 
         const año      = new Date().getFullYear().toString().slice(-2);
         const corr     = corrData || 1;
