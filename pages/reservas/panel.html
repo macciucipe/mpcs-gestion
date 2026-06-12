@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reservas · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    /* ── TABS ── */
+    .res-tabs { display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:1.5rem;overflow-x:auto; }
+    .res-tab { padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;
+      color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .15s; }
+    .res-tab:hover { color:var(--navy); }
+    .res-tab.active { color:var(--navy);border-bottom-color:var(--navy);font-weight:700; }
+    .res-tab-content { display:none; }
+    .res-tab-content.active { display:block; }
+
+    /* ── ESTADO BADGES ── */
+    .est-pendiente   { background:#EDE9FE;color:#5B21B6; }
+    .est-confirmada  { background:#D1FAE5;color:#065F46; }
+    .est-sentada     { background:#DBEAFE;color:#1E40AF; }
+    .est-completada  { background:#F3F4F6;color:#374151; }
+    .est-cancelada   { background:#FEE2E2;color:#991B1B; }
+    .est-no_show     { background:#FEE2E2;color:#991B1B; }
+    .est-esperando   { background:#FEF3C7;color:#92400E; }
+
+    /* ── TIMELINE ── */
+    .timeline { display:flex;flex-direction:column;gap:0; }
+    .timeline-hora {
+      display:grid;grid-template-columns:64px 1fr;
+      border-bottom:1px solid var(--border);min-height:56px;
+    }
+    .timeline-hora-label {
+      font-size:12px;font-weight:600;color:var(--text-muted);
+      padding:8px 10px;border-right:2px solid var(--border);
+      display:flex;align-items:flex-start;
+    }
+    .timeline-hora-slots { padding:4px 8px;display:flex;flex-wrap:wrap;gap:4px;align-items:flex-start; }
+    .res-chip {
+      display:inline-flex;align-items:center;gap:6px;
+      padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;
+      border:1px solid transparent;transition:all .15s;
+    }
+    .res-chip:hover { opacity:.8;transform:scale(1.02); }
+
+    /* ── MESAS GRID ── */
+    .mesas-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px; }
+    .mesa-card {
+      border:2px solid var(--border);border-radius:var(--radius-lg);padding:1rem;
+      text-align:center;transition:all .15s;cursor:pointer;
+    }
+    .mesa-card.libre     { border-color:var(--success);background:#F0FFF4; }
+    .mesa-card.ocupada   { border-color:var(--error);background:#FFF5F5; }
+    .mesa-card.reservada { border-color:var(--warning);background:#FFFBEB; }
+    .mesa-card .mesa-nombre { font-size:14px;font-weight:700;margin-bottom:4px; }
+    .mesa-card .mesa-cap    { font-size:12px;color:var(--text-muted); }
+    .mesa-card .mesa-estado { font-size:11px;font-weight:600;margin-top:6px; }
+
+    /* ── CONFIG ── */
+    .config-grid { display:grid;grid-template-columns:1fr 1fr;gap:1.25rem; }
+    .slot-chip {
+      display:inline-flex;align-items:center;justify-content:center;
+      padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600;
+      border:1.5px solid var(--border);cursor:pointer;margin:3px;transition:all .15s;
+    }
+    .slot-chip.on  { background:var(--navy);color:#fff;border-color:var(--navy); }
+    .slot-chip.off { background:var(--bg);color:var(--text-muted); }
+    .slot-chip:hover { opacity:.8; }
+  </style>
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Reservas</h1>
+        <p id="page-subtitle">Gestión de reservas y salón</p>
+      </div>
+      <div class="page-header-right">
+        <!-- Selector de local -->
+        <select id="sel-local" onchange="cambiarLocal()" class="btn btn-ghost" style="padding:8px 12px">
+          <option value="">Seleccionar local...</option>
+        </select>
+        <input type="date" id="sel-fecha" onchange="cargarDia()"
+          style="padding:8px 12px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:14px" />
+        <button class="btn btn-primary" onclick="abrirNuevaReserva()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nueva reserva
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- Stats del día -->
+      <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:1.5rem">
+        <div class="stat-card"><div class="stat-value" id="stat-total" style="color:var(--navy)">—</div><div class="stat-label">Total reservas</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-pendiente" style="color:#7C3AED">—</div><div class="stat-label">Pendientes</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-confirmada" style="color:var(--success)">—</div><div class="stat-label">Confirmadas</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-personas" style="color:var(--accent)">—</div><div class="stat-label">Personas esperadas</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-disponible" style="color:var(--text-muted)">—</div><div class="stat-label">Lugares disponibles</div></div>
+      </div>
+
+      <div class="res-tabs">
+        <button class="res-tab active" onclick="showTab('tab-timeline',this)">Timeline del día</button>
+        <button class="res-tab" onclick="showTab('tab-lista',this)">Lista de reservas</button>
+        <button class="res-tab" onclick="showTab('tab-mesas',this)">Estado del salón</button>
+        <button class="res-tab" onclick="showTab('tab-espera',this)">Lista de espera</button>
+        <button class="res-tab" onclick="showTab('tab-config',this)">Configuración</button>
+      </div>
+
+      <!-- ── TIMELINE ── -->
+      <div class="res-tab-content active" id="tab-timeline">
+        <div class="card">
+          <div class="card-header"><h2 id="timeline-titulo">Timeline</h2></div>
+          <div id="timeline-content" style="padding:1rem"><div class="loading">Cargando...</div></div>
+        </div>
+      </div>
+
+      <!-- ── LISTA ── -->
+      <div class="res-tab-content" id="tab-lista">
+        <div class="card">
+          <div class="card-header">
+            <h2 id="lista-count">Reservas</h2>
+            <div style="display:flex;gap:8px">
+              <select id="filtro-estado-res" onchange="filtrarReservas()" style="padding:5px 10px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px">
+                <option value="">Todos los estados</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="confirmada">Confirmada</option>
+                <option value="sentada">Sentada</option>
+                <option value="completada">Completada</option>
+                <option value="cancelada">Cancelada</option>
+                <option value="no_show">No show</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th>Cliente</th>
+                  <th>Personas</th>
+                  <th>Mesa</th>
+                  <th>Ocasión</th>
+                  <th>Canal</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="lista-tbody"><tr><td colspan="8"><div class="loading">Cargando...</div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MESAS ── -->
+      <div class="res-tab-content" id="tab-mesas">
+        <div class="card" style="padding:1.5rem;margin-bottom:1rem">
+          <div style="display:flex;gap:16px;margin-bottom:1rem;flex-wrap:wrap">
+            <span style="display:flex;align-items:center;gap:6px;font-size:13px">
+              <span style="width:12px;height:12px;border-radius:3px;background:var(--success);display:inline-block"></span> Libre
+            </span>
+            <span style="display:flex;align-items:center;gap:6px;font-size:13px">
+              <span style="width:12px;height:12px;border-radius:3px;background:var(--warning);display:inline-block"></span> Reservada
+            </span>
+            <span style="display:flex;align-items:center;gap:6px;font-size:13px">
+              <span style="width:12px;height:12px;border-radius:3px;background:var(--error);display:inline-block"></span> Ocupada
+            </span>
+          </div>
+          <div class="mesas-grid" id="mesas-grid"><div class="loading">Cargando...</div></div>
+        </div>
+
+        <!-- Walk-in -->
+        <div class="card" style="padding:1.5rem">
+          <div style="font-size:14px;font-weight:700;margin-bottom:1rem">Sentar cliente sin reserva (Walk-in)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end">
+            <div class="field" style="margin:0">
+              <label>Nombre</label>
+              <input type="text" id="wi-nombre" placeholder="Nombre (opcional)" />
+            </div>
+            <div class="field" style="margin:0">
+              <label>Personas *</label>
+              <input type="number" id="wi-personas" min="1" max="30" value="2" />
+            </div>
+            <div class="field" style="margin:0">
+              <label>Mesa</label>
+              <select id="wi-mesa"></select>
+            </div>
+            <button class="btn btn-primary" onclick="registrarWalkin()">Sentar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ESPERA ── -->
+      <div class="res-tab-content" id="tab-espera">
+        <div class="card" style="padding:1.5rem;margin-bottom:1rem">
+          <div style="font-size:14px;font-weight:700;margin-bottom:1rem">Agregar a lista de espera</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end">
+            <div class="field" style="margin:0">
+              <label>Nombre *</label>
+              <input type="text" id="esp-nombre" placeholder="Nombre del cliente" />
+            </div>
+            <div class="field" style="margin:0">
+              <label>Teléfono *</label>
+              <input type="tel" id="esp-telefono" placeholder="999 999 999" />
+            </div>
+            <div class="field" style="margin:0">
+              <label>Personas *</label>
+              <input type="number" id="esp-personas" min="1" max="30" value="2" />
+            </div>
+            <button class="btn btn-primary" onclick="agregarEspera()">Agregar</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2 id="espera-count">Lista de espera</h2></div>
+          <div id="espera-lista"><div class="loading">Cargando...</div></div>
+        </div>
+      </div>
+
+      <!-- ── CONFIGURACIÓN ── -->
+      <div class="res-tab-content" id="tab-config">
+        <div class="config-grid">
+          <!-- Horarios -->
+          <div class="card" style="padding:1.5rem">
+            <div style="font-size:14px;font-weight:700;margin-bottom:1rem">Horarios de apertura</div>
+            <div id="config-horarios"><div class="loading">Cargando...</div></div>
+          </div>
+          <!-- Slots -->
+          <div class="card" style="padding:1.5rem">
+            <div style="font-size:14px;font-weight:700;margin-bottom:1rem">Slots habilitados</div>
+            <select id="config-dia-slots" onchange="renderConfigSlots()" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px;margin-bottom:12px">
+              <option value="0">Domingo</option>
+              <option value="3" selected>Miércoles</option>
+              <option value="4">Jueves</option>
+              <option value="5">Viernes</option>
+              <option value="6">Sábado</option>
+            </select>
+            <div id="config-slots"></div>
+          </div>
+        </div>
+        <!-- Mesas -->
+        <div class="card" style="padding:1.5rem;margin-top:1.25rem">
+          <div style="font-size:14px;font-weight:700;margin-bottom:1rem">Mesas y espacios</div>
+          <div id="config-mesas"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── MODAL RESERVA ── -->
+  <div class="modal-overlay hidden" id="modal-reserva">
+    <div class="modal" style="max-width:620px">
+      <div class="modal-header">
+        <h3 id="modal-res-titulo">Nueva reserva</h3>
+        <button class="modal-close" onclick="cerrarModalReserva()">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Nombre *</label>
+            <input type="text" id="r-nombre" placeholder="Nombre del cliente" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>Apellido</label>
+            <input type="text" id="r-apellido" placeholder="Apellido" />
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Teléfono *</label>
+            <input type="tel" id="r-telefono" placeholder="999 999 999" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>Email</label>
+            <input type="email" id="r-email" placeholder="email@ejemplo.com" />
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Fecha *</label>
+            <input type="date" id="r-fecha" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>Hora *</label>
+            <select id="r-hora"></select>
+          </div>
+          <div class="field" style="margin:0">
+            <label>Personas *</label>
+            <input type="number" id="r-personas" min="1" max="126" value="2" />
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field" style="margin:0">
+            <label>Mesa (opcional)</label>
+            <select id="r-mesa">
+              <option value="">Sin asignar</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0">
+            <label>Ocasión</label>
+            <select id="r-ocasion">
+              <option value="">Sin ocasión</option>
+              <option value="cumpleaños">Cumpleaños</option>
+              <option value="aniversario">Aniversario</option>
+              <option value="corporativo">Corporativo</option>
+              <option value="despedida">Despedida</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Canal</label>
+          <select id="r-canal">
+            <option value="telefono">Teléfono</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="presencial">Presencial</option>
+            <option value="web">Web</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Notas</label>
+          <textarea id="r-notas" rows="2" placeholder="Pedidos especiales, alergias..."></textarea>
+        </div>
+        <div id="msg-reserva" class="alert" style="display:none"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="cerrarModalReserva()">Cancelar</button>
+        <button class="btn btn-primary" id="btn-guardar-res" onclick="guardarReserva()">Guardar reserva</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL DETALLE RESERVA ── -->
+  <div class="modal-overlay hidden" id="modal-detalle-res">
+    <div class="modal" style="max-width:560px">
+      <div class="modal-header">
+        <h3 id="det-res-titulo">Reserva</h3>
+        <button class="modal-close" onclick="cerrar('modal-detalle-res')">×</button>
+      </div>
+      <div class="modal-body" id="det-res-body"></div>
+      <div class="modal-footer" id="det-res-footer">
+        <button class="btn btn-ghost" onclick="cerrar('modal-detalle-res')">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let perfil      = null;
+    let localActual = null;
+    let reservas    = [];
+    let mesas       = [];
+    let slots       = [];
+    let espera      = [];
+    let fechaActual = new Date().toISOString().split('T')[0];
+    const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+    async function init() {
+      perfil = await requireAuth(['admin','gerencia','supervisor'], 'reservas');
+      if (!perfil) return;
+      renderSidebar(perfil, 'reservas');
+
+      // Cargar locales con reservas habilitadas
+      const { data: configs } = await sbClient.from('reservas_config')
+        .select('id_local, nombre_publico, locales(nombre)')
+        .eq('activo', true);
+
+      const sel = document.getElementById('sel-local');
+      (configs || []).forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id_local;
+        opt.textContent = c.nombre_publico || c.locales?.nombre || c.id_local;
+        sel.appendChild(opt);
+      });
+
+      if (configs?.length) {
+        sel.value   = configs[0].id_local;
+        localActual = configs[0].id_local;
+      }
+
+      document.getElementById('sel-fecha').value = fechaActual;
+      await cargarDia();
+    }
+
+    async function cambiarLocal() {
+      localActual = document.getElementById('sel-local').value;
+      await cargarDia();
+    }
+
+    async function cargarDia() {
+      fechaActual = document.getElementById('sel-fecha').value;
+      if (!localActual || !fechaActual) return;
+
+      const [{ data: res }, { data: mes }, { data: slt }, { data: esp }] = await Promise.all([
+        sbClient.from('reservas').select('*').eq('id_local', localActual).eq('fecha', fechaActual).order('hora'),
+        sbClient.from('reservas_mesas').select('*').eq('id_local', localActual).eq('activa', true).order('orden'),
+        sbClient.from('reservas_slots').select('*').eq('id_local', localActual).order('hora'),
+        sbClient.from('reservas_espera').select('*').eq('id_local', localActual).eq('fecha', fechaActual).eq('estado','esperando').order('created_at'),
+      ]);
+
+      reservas = res || [];
+      mesas    = mes || [];
+      slots    = slt || [];
+      espera   = esp || [];
+
+      // Stats
+      const noCanc = reservas.filter(r => !['cancelada','no_show'].includes(r.estado));
+      document.getElementById('stat-total').textContent     = noCanc.length;
+      document.getElementById('stat-pendiente').textContent = reservas.filter(r => r.estado === 'pendiente').length;
+      document.getElementById('stat-confirmada').textContent= reservas.filter(r => r.estado === 'confirmada').length;
+      document.getElementById('stat-personas').textContent  = noCanc.reduce((s,r) => s+r.personas, 0);
+
+      // Disponibilidad del próximo slot
+      const dow = new Date(fechaActual + 'T12:00:00').getDay();
+      const slotsHoy = slots.filter(s => s.dia_semana === dow && s.habilitado);
+      const { data: config } = await sbClient.from('reservas_config').select('capacidad_total').eq('id_local', localActual).single();
+      const capacidad = config?.capacidad_total || 0;
+      const ocupado   = noCanc.reduce((s,r) => s+r.personas, 0);
+      document.getElementById('stat-disponible').textContent = Math.max(0, capacidad - ocupado);
+
+      renderTimeline(slotsHoy);
+      filtrarReservas();
+      renderMesas();
+      renderEspera();
+      renderConfigSlots();
+      renderConfigHorarios();
+      renderConfigMesas();
+      cargarMesasEnSelects();
+    }
+
+    // ── TIMELINE ────────────────────────────────────────────────
+    function renderTimeline(slotsHoy) {
+      const cont = document.getElementById('timeline-content');
+      const fecha = new Date(fechaActual + 'T12:00:00');
+      document.getElementById('timeline-titulo').textContent =
+        `${DIAS[fecha.getDay()]} ${fecha.toLocaleDateString('es-PE', {day:'numeric',month:'long'})}`;
+
+      if (!slotsHoy.length) {
+        cont.innerHTML = '<div class="empty-state"><h3>Sin servicio</h3><p>Este día no está habilitado para reservas.</p></div>';
+        return;
+      }
+
+      // Agrupar reservas por hora
+      const porHora = {};
+      reservas.forEach(r => {
+        const h = r.hora.slice(0,5);
+        if (!porHora[h]) porHora[h] = [];
+        porHora[h].push(r);
+      });
+
+      cont.innerHTML = slotsHoy.map(s => {
+        const hora = s.hora.slice(0,5);
+        const resEnHora = porHora[hora] || [];
+        const chips = resEnHora.map(r => {
+          const color = { pendiente:'#EDE9FE', confirmada:'#D1FAE5', sentada:'#DBEAFE', cancelada:'#FEE2E2', no_show:'#FEE2E2', completada:'#F3F4F6' };
+          const textColor = { pendiente:'#5B21B6', confirmada:'#065F46', sentada:'#1E40AF', cancelada:'#991B1B', no_show:'#991B1B', completada:'#374151' };
+          return `<span class="res-chip" style="background:${color[r.estado]||'#F3F4F6'};color:${textColor[r.estado]||'#374151'}"
+            onclick="verDetalleReserva(${r.id})">
+            👤 ${r.nombre} · ${r.personas}p
+          </span>`;
+        }).join('');
+        return `<div class="timeline-hora">
+          <div class="timeline-hora-label">${hora}</div>
+          <div class="timeline-hora-slots">
+            ${chips || '<span style="color:var(--text-muted);font-size:12px;padding:8px">Libre</span>'}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // ── LISTA ────────────────────────────────────────────────────
+    function filtrarReservas() {
+      const estado = document.getElementById('filtro-estado-res').value;
+      const lista  = estado ? reservas.filter(r => r.estado === estado) : reservas;
+      document.getElementById('lista-count').textContent = `Reservas (${lista.length})`;
+      const tbody = document.getElementById('lista-tbody');
+      if (!lista.length) {
+        tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><h3>Sin reservas</h3></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = lista.map(r => {
+        const hora  = r.hora.slice(0,5);
+        const mesa  = mesas.find(m => m.id === r.id_mesa);
+        const canal = { web:'🌐', whatsapp:'💬', telefono:'📞', presencial:'🏠' };
+        return `<tr>
+          <td style="font-weight:700;font-size:14px">${hora}</td>
+          <td><strong>${r.nombre} ${r.apellido||''}</strong><br>
+            <span style="font-size:12px;color:var(--text-muted)">${r.telefono}</span></td>
+          <td style="text-align:center;font-weight:700">${r.personas}</td>
+          <td style="font-size:12px">${mesa?.nombre||'Sin asignar'}</td>
+          <td style="font-size:12px">${r.ocasion||'—'}</td>
+          <td style="text-align:center">${canal[r.canal]||'—'}</td>
+          <td><span class="badge est-${r.estado}" style="font-size:11px">${r.estado}</span></td>
+          <td>
+            <div style="display:flex;gap:4px;flex-wrap:wrap">
+              <button class="btn btn-sm btn-ghost" onclick="verDetalleReserva(${r.id})">${icons.eye}</button>
+              ${r.estado === 'pendiente' ? `<button class="btn btn-sm btn-ghost" style="color:var(--success)" onclick="cambiarEstado(${r.id},'confirmada')">✓</button>` : ''}
+              ${r.estado === 'confirmada' ? `<button class="btn btn-sm btn-ghost" style="color:var(--accent)" onclick="cambiarEstado(${r.id},'sentada')">Sentar</button>` : ''}
+              ${!['cancelada','no_show','completada'].includes(r.estado) ? `<button class="btn btn-sm btn-ghost" style="color:var(--error)" onclick="cambiarEstado(${r.id},'cancelada')">✗</button>` : ''}
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    // ── MESAS ────────────────────────────────────────────────────
+    function renderMesas() {
+      const grid = document.getElementById('mesas-grid');
+      const reservasActivas = reservas.filter(r => ['confirmada','sentada'].includes(r.estado));
+      const mesasOcupadas   = new Set(reservasActivas.filter(r => r.id_mesa).map(r => r.id_mesa));
+
+      grid.innerHTML = mesas.map(m => {
+        const ocupada  = mesasOcupadas.has(m.id);
+        const resDeEsta= reservasActivas.filter(r => r.id_mesa === m.id);
+        const estado   = ocupada ? (resDeEsta[0]?.estado === 'sentada' ? 'ocupada' : 'reservada') : 'libre';
+        const estadoLabel = { libre:'Libre', ocupada:'Ocupada', reservada:'Reservada' };
+        return `<div class="mesa-card ${estado}" onclick="verMesa(${m.id})">
+          <div class="mesa-nombre">${m.nombre}</div>
+          <div class="mesa-cap">${m.capacidad} sillas · ${m.tipo}</div>
+          <div class="mesa-estado" style="color:${estado==='libre'?'var(--success)':estado==='ocupada'?'var(--error)':'var(--warning)'}">
+            ${estadoLabel[estado]}
+            ${resDeEsta.length ? `<br><span style="font-size:10px">${resDeEsta[0].nombre} · ${resDeEsta[0].personas}p</span>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // ── WALK-IN ──────────────────────────────────────────────────
+    function cargarMesasEnSelects() {
+      const selWI  = document.getElementById('wi-mesa');
+      const selRes = document.getElementById('r-mesa');
+      const opts   = '<option value="">Sin asignar</option>' +
+        mesas.map(m => `<option value="${m.id}">${m.nombre} (${m.capacidad})</option>`).join('');
+      if (selWI)  selWI.innerHTML  = opts;
+      if (selRes) selRes.innerHTML = opts;
+    }
+
+    async function registrarWalkin() {
+      const personas = parseInt(document.getElementById('wi-personas').value);
+      const idMesa   = document.getElementById('wi-mesa').value || null;
+      const nombre   = document.getElementById('wi-nombre').value.trim() || null;
+      if (!personas) { alert('Ingresá el número de personas.'); return; }
+      const { error } = await sbClient.from('reservas_walkin').insert({
+        id_local: localActual, fecha: fechaActual,
+        hora: new Date().toTimeString().slice(0,5),
+        nombre, personas, id_mesa: idMesa ? parseInt(idMesa) : null,
+        estado: 'sentado', atendido_por: perfil.user_id,
+      });
+      if (error) { alert('Error: '+error.message); return; }
+      document.getElementById('wi-nombre').value   = '';
+      document.getElementById('wi-personas').value = '2';
+      await cargarDia();
+    }
+
+    // ── ESPERA ───────────────────────────────────────────────────
+    function renderEspera() {
+      const cont = document.getElementById('espera-lista');
+      document.getElementById('espera-count').textContent = `Lista de espera (${espera.length})`;
+      if (!espera.length) { cont.innerHTML = '<div class="empty-state" style="padding:1.5rem"><p>Sin clientes en espera</p></div>'; return; }
+      cont.innerHTML = espera.map(e => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)">
+          <div>
+            <strong>${e.nombre}</strong> · ${e.personas} personas
+            <div style="font-size:12px;color:var(--text-muted)">${e.telefono}${e.hora_pref?' · Pref: '+e.hora_pref.slice(0,5):''}</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-sm btn-ghost" style="color:var(--success)" onclick="contactarEspera(${e.id})">Contactar</button>
+            <button class="btn btn-sm btn-ghost" style="color:var(--error)" onclick="quitarEspera(${e.id})">✗</button>
+          </div>
+        </div>`).join('');
+    }
+
+    async function agregarEspera() {
+      const nombre   = document.getElementById('esp-nombre').value.trim();
+      const telefono = document.getElementById('esp-telefono').value.trim();
+      const personas = parseInt(document.getElementById('esp-personas').value);
+      if (!nombre || !telefono || !personas) { alert('Completá los campos obligatorios.'); return; }
+      await sbClient.from('reservas_espera').insert({
+        id_local: localActual, fecha: fechaActual,
+        nombre, telefono, personas, estado: 'esperando',
+      });
+      document.getElementById('esp-nombre').value    = '';
+      document.getElementById('esp-telefono').value  = '';
+      document.getElementById('esp-personas').value  = '2';
+      await cargarDia();
+    }
+
+    async function contactarEspera(id) {
+      await sbClient.from('reservas_espera').update({ estado:'contactado' }).eq('id', id);
+      await cargarDia();
+    }
+    async function quitarEspera(id) {
+      await sbClient.from('reservas_espera').update({ estado:'cancelado' }).eq('id', id);
+      await cargarDia();
+    }
+
+    // ── NUEVA RESERVA ────────────────────────────────────────────
+    async function abrirNuevaReserva() {
+      document.getElementById('modal-res-titulo').textContent = 'Nueva reserva';
+      ['r-nombre','r-apellido','r-telefono','r-email','r-notas'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+      document.getElementById('r-personas').value = '2';
+      document.getElementById('r-fecha').value    = fechaActual;
+      document.getElementById('r-canal').value    = 'telefono';
+      document.getElementById('msg-reserva').style.display = 'none';
+
+      // Cargar slots en select de hora
+      const dow = new Date(fechaActual + 'T12:00:00').getDay();
+      const slotsHoy = slots.filter(s => s.dia_semana === dow && s.habilitado);
+      const selHora  = document.getElementById('r-hora');
+      selHora.innerHTML = slotsHoy.map(s => `<option value="${s.hora.slice(0,5)}">${s.hora.slice(0,5)}</option>`).join('');
+
+      document.getElementById('modal-reserva').classList.remove('hidden');
+    }
+
+    function cerrarModalReserva() { document.getElementById('modal-reserva').classList.add('hidden'); }
+
+    async function guardarReserva() {
+      const msg  = document.getElementById('msg-reserva');
+      const btn  = document.getElementById('btn-guardar-res');
+      const nombre = document.getElementById('r-nombre').value.trim();
+      const tel    = document.getElementById('r-telefono').value.trim();
+      const hora   = document.getElementById('r-hora').value;
+      const fecha  = document.getElementById('r-fecha').value;
+      const pers   = parseInt(document.getElementById('r-personas').value);
+      if (!nombre||!tel||!hora||!fecha||!pers) { showMsg(msg,'alert-error','Completá los campos obligatorios.'); return; }
+      btn.disabled = true; btn.textContent = 'Guardando...'; msg.style.display = 'none';
+      try {
+        const { data: codigo } = await sbClient.rpc('generar_codigo_reserva');
+        const idMesa = document.getElementById('r-mesa').value || null;
+        const { error } = await sbClient.from('reservas').insert({
+          id_local: localActual, fecha, hora,
+          nombre, apellido: document.getElementById('r-apellido').value.trim()||null,
+          email:   document.getElementById('r-email').value.trim()||null,
+          telefono: tel, personas: pers,
+          ocasion:  document.getElementById('r-ocasion').value||null,
+          notas_cliente: document.getElementById('r-notas').value.trim()||null,
+          id_mesa: idMesa ? parseInt(idMesa) : null,
+          estado: 'confirmada', canal: document.getElementById('r-canal').value,
+          codigo_confirm: codigo, confirmada_at: new Date().toISOString(),
+          atendido_por: perfil.user_id,
+        });
+        if (error) throw new Error(error.message);
+        cerrarModalReserva();
+        await cargarDia();
+      } catch(e) { showMsg(msg,'alert-error','Error: '+e.message); }
+      btn.disabled = false; btn.textContent = 'Guardar reserva';
+    }
+
+    // ── DETALLE RESERVA ──────────────────────────────────────────
+    function verDetalleReserva(id) {
+      const r = reservas.find(x => x.id === id);
+      if (!r) return;
+      const mesa = mesas.find(m => m.id === r.id_mesa);
+      document.getElementById('det-res-titulo').textContent = `${r.nombre} ${r.apellido||''} · ${r.hora.slice(0,5)}`;
+      document.getElementById('det-res-body').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;background:var(--bg);border-radius:var(--radius-md);padding:1rem;margin-bottom:1rem">
+          ${df('Nombre',    `${r.nombre} ${r.apellido||''}`)}
+          ${df('Teléfono',  r.telefono)}
+          ${df('Email',     r.email||'—')}
+          ${df('Fecha',     r.fecha)}
+          ${df('Hora',      r.hora.slice(0,5))}
+          ${df('Personas',  r.personas)}
+          ${df('Mesa',      mesa?.nombre||'Sin asignar')}
+          ${df('Ocasión',   r.ocasion||'—')}
+          ${df('Canal',     r.canal)}
+          ${df('Estado',    `<span class="badge est-${r.estado}">${r.estado}</span>`)}
+          ${df('Código',    `<span style="font-family:monospace;font-weight:700">${r.codigo_confirm||'—'}</span>`)}
+          ${r.notas_cliente ? df('Notas', r.notas_cliente) : ''}
+        </div>
+        <!-- Asignar mesa -->
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:1rem">
+          <select id="det-mesa-sel" style="flex:1;padding:8px 10px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px">
+            <option value="">Sin asignar</option>
+            ${mesas.map(m => `<option value="${m.id}" ${r.id_mesa===m.id?'selected':''}>${m.nombre} (${m.capacidad})</option>`).join('')}
+          </select>
+          <button class="btn btn-sm btn-primary" onclick="asignarMesa(${r.id})">Asignar mesa</button>
+        </div>
+      `;
+      const btns = ['<button class="btn btn-ghost" onclick="cerrar(\'modal-detalle-res\')">Cerrar</button>'];
+      if (r.estado === 'pendiente')   btns.push(`<button class="btn btn-primary" style="background:var(--success)" onclick="cambiarEstado(${r.id},'confirmada');cerrar('modal-detalle-res')">✓ Confirmar</button>`);
+      if (r.estado === 'confirmada')  btns.push(`<button class="btn btn-primary" onclick="cambiarEstado(${r.id},'sentada');cerrar('modal-detalle-res')">Sentar</button>`);
+      if (r.estado === 'sentada')     btns.push(`<button class="btn btn-primary" style="background:var(--success)" onclick="cambiarEstado(${r.id},'completada');cerrar('modal-detalle-res')">Completar</button>`);
+      if (!['cancelada','no_show','completada'].includes(r.estado))
+        btns.push(`<button class="btn btn-ghost" style="color:var(--error)" onclick="cambiarEstado(${r.id},'cancelada');cerrar('modal-detalle-res')">Cancelar</button>`);
+      if (r.estado === 'confirmada')  btns.push(`<button class="btn btn-ghost" style="color:var(--error)" onclick="cambiarEstado(${r.id},'no_show');cerrar('modal-detalle-res')">No show</button>`);
+      document.getElementById('det-res-footer').innerHTML = btns.join('');
+      abrir('modal-detalle-res');
+    }
+
+    async function asignarMesa(idRes) {
+      const idMesa = document.getElementById('det-mesa-sel').value || null;
+      await sbClient.from('reservas').update({ id_mesa: idMesa ? parseInt(idMesa) : null }).eq('id', idRes);
+      await cargarDia();
+      cerrar('modal-detalle-res');
+    }
+
+    async function cambiarEstado(id, nuevoEstado) {
+      const update = { estado: nuevoEstado };
+      if (nuevoEstado === 'confirmada') update.confirmada_at = new Date().toISOString();
+      if (nuevoEstado === 'cancelada')  update.cancelada_at  = new Date().toISOString();
+      await sbClient.from('reservas').update(update).eq('id', id);
+      await auditar(perfil, 'EDITAR', 'reservas', `${nuevoEstado} reserva ID ${id}`);
+      await cargarDia();
+    }
+
+    // ── CONFIGURACIÓN ────────────────────────────────────────────
+    async function renderConfigHorarios() {
+      const { data: hs } = await sbClient.from('reservas_horarios').select('*').eq('id_local', localActual);
+      const cont = document.getElementById('config-horarios');
+      if (!hs?.length) { cont.innerHTML = '<p style="color:var(--text-muted);font-size:13px">Sin horarios configurados.</p>'; return; }
+      cont.innerHTML = hs.map(h => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+          <div>
+            <strong>${DIAS[h.dia_semana]}</strong>
+            <span style="color:var(--text-muted);margin-left:8px">${h.hora_inicio.slice(0,5)} — ${h.hora_fin.slice(0,5)}</span>
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" ${h.activo?'checked':''} onchange="toggleHorario(${h.id},this.checked)" />
+            <span style="font-size:12px">${h.activo?'Activo':'Inactivo'}</span>
+          </label>
+        </div>`).join('');
+    }
+
+    async function toggleHorario(id, activo) {
+      await sbClient.from('reservas_horarios').update({ activo }).eq('id', id);
+    }
+
+    async function renderConfigSlots() {
+      const dow   = parseInt(document.getElementById('config-dia-slots').value);
+      const slotsD= slots.filter(s => s.dia_semana === dow);
+      const cont  = document.getElementById('config-slots');
+      if (!slotsD.length) { cont.innerHTML = '<p style="color:var(--text-muted);font-size:13px">Sin slots para este día.</p>'; return; }
+      cont.innerHTML = '<div>' + slotsD.map(s => `
+        <span class="slot-chip ${s.habilitado?'on':'off'}" onclick="toggleSlot(${s.id},${!s.habilitado})">
+          ${s.hora.slice(0,5)}
+        </span>`).join('') + '</div>';
+    }
+
+    async function toggleSlot(id, habilitado) {
+      await sbClient.from('reservas_slots').update({ habilitado }).eq('id', id);
+      const { data: slt } = await sbClient.from('reservas_slots').select('*').eq('id_local', localActual);
+      slots = slt || [];
+      renderConfigSlots();
+    }
+
+    async function renderConfigMesas() {
+      const cont = document.getElementById('config-mesas');
+      if (!mesas.length) { cont.innerHTML = '<p style="color:var(--text-muted);font-size:13px">Sin mesas configuradas.</p>'; return; }
+      cont.innerHTML = `<div class="table-wrap"><table>
+        <thead><tr><th>Mesa</th><th>Tipo</th><th>Capacidad</th><th>Comunal</th><th>Activa</th></tr></thead>
+        <tbody>${mesas.map(m => `
+          <tr>
+            <td><strong>${m.nombre}</strong></td>
+            <td><span class="badge badge-gray" style="font-size:11px">${m.tipo}</span></td>
+            <td style="text-align:center">${m.capacidad}</td>
+            <td style="text-align:center">${m.es_comunal?'✓':'—'}</td>
+            <td style="text-align:center">
+              <input type="checkbox" ${m.activa?'checked':''} onchange="toggleMesa(${m.id},this.checked)" />
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`;
+    }
+
+    async function toggleMesa(id, activa) {
+      await sbClient.from('reservas_mesas').update({ activa }).eq('id', id);
+    }
+
+    function verMesa(id) {
+      const m = mesas.find(x => x.id === id);
+      if (!m) return;
+      const resDeEsta = reservas.filter(r => r.id_mesa === id && ['confirmada','sentada'].includes(r.estado));
+      if (resDeEsta.length) verDetalleReserva(resDeEsta[0].id);
+    }
+
+    // ── UTILS ─────────────────────────────────────────────────────
+    function showTab(id, btn) {
+      document.querySelectorAll('.res-tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.res-tab').forEach(el => el.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      if (btn) btn.classList.add('active');
+    }
+    function df(label, val) {
+      return `<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">${label}</div><div style="font-size:13px">${val||'—'}</div></div>`;
+    }
+    function showMsg(el,cls,txt){ el.className=`alert ${cls}`;el.textContent=txt;el.style.display='block'; }
+    function abrir(id){ document.getElementById(id).classList.remove('hidden'); }
+    function cerrar(id){ document.getElementById(id).classList.add('hidden'); }
+
+    ['modal-reserva','modal-detalle-res'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', function(e){ if(e.target===this) cerrar(id); });
+    });
+    document.addEventListener('keydown', e => { if(e.key==='Escape'){ cerrar('modal-reserva'); cerrar('modal-detalle-res'); } });
+
+    init();
+  </script>
+</body>
+</html>
