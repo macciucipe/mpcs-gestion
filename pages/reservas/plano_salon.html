@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plano del salón · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    /* ── LAYOUT ── */
+    .editor-layout {
+      display:grid;
+      grid-template-columns:220px 1fr 200px;
+      gap:0;
+      height:calc(100vh - 120px);
+      border:1px solid var(--border);
+      border-radius:var(--radius-lg);
+      overflow:hidden;
+    }
+
+    /* ── SIDEBAR IZQUIERDO: elementos ── */
+    .elem-panel {
+      background:var(--bg);
+      border-right:1px solid var(--border);
+      overflow-y:auto;
+      padding:12px;
+    }
+    .elem-section { margin-bottom:1rem; }
+    .elem-section-label {
+      font-size:10px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.08em;color:var(--text-muted);
+      margin-bottom:6px;padding-bottom:4px;
+      border-bottom:1px solid var(--border);
+    }
+    .elem-item {
+      display:flex;align-items:center;gap:8px;
+      padding:7px 10px;border-radius:var(--radius-md);
+      cursor:grab;font-size:13px;font-weight:500;
+      border:1.5px solid var(--border);background:var(--white);
+      margin-bottom:4px;transition:all .15s;user-select:none;
+    }
+    .elem-item:hover { border-color:var(--navy);background:var(--navy-light); }
+    .elem-item:active { cursor:grabbing; }
+    .elem-icon { font-size:18px;width:24px;text-align:center; }
+
+    /* ── GRILLA CENTRAL ── */
+    .grid-container {
+      background:#F0EDE8;
+      overflow:auto;
+      position:relative;
+      cursor:default;
+    }
+    .grid-canvas {
+      position:relative;
+      background-image:
+        linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px);
+      background-size:40px 40px;
+      min-width:1200px;
+      min-height:800px;
+    }
+
+    /* ── ELEMENTOS EN GRILLA ── */
+    .plano-elem {
+      position:absolute;
+      border-radius:6px;
+      display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      cursor:move;
+      user-select:none;
+      font-size:11px;font-weight:700;
+      text-align:center;
+      border:2px solid transparent;
+      transition:border-color .15s, box-shadow .15s;
+      overflow:hidden;
+    }
+    .plano-elem:hover { border-color:var(--navy);z-index:10; }
+    .plano-elem.selected { border-color:var(--navy);box-shadow:0 0 0 3px rgba(12,35,64,0.2);z-index:20; }
+    .plano-elem .elem-label { font-size:10px;font-weight:700;line-height:1.2;padding:2px; }
+    .plano-elem .elem-cap   { font-size:9px;opacity:.7; }
+
+    /* Estados de mesas */
+    .plano-elem.mesa-libre     { background:#D1FAE5;border-color:#0F6E56; }
+    .plano-elem.mesa-reservada { background:#FEF3C7;border-color:#D97706; }
+    .plano-elem.mesa-ocupada   { background:#FEE2E2;border-color:#DC2626; }
+    .plano-elem.mesa-edit      { background:#DBEAFE;border-color:#1E40AF; }
+
+    /* Otros elementos */
+    .plano-elem.tipo-pared    { background:#6B7280;border-color:#374151; }
+    .plano-elem.tipo-columna  { background:#9CA3AF;border-color:#6B7280;border-radius:50%; }
+    .plano-elem.tipo-cocina   { background:#FDE68A;border-color:#D97706; }
+    .plano-elem.tipo-bano     { background:#BAE6FD;border-color:#0369A1; }
+    .plano-elem.tipo-planta   { background:#A7F3D0;border-color:#059669; }
+    .plano-elem.tipo-barra    { background:#DDD6FE;border-color:#7C3AED; }
+    .plano-elem.tipo-decoracion { background:#FCE7F3;border-color:#DB2777; }
+
+    /* ── SIDEBAR DERECHO: propiedades ── */
+    .props-panel {
+      background:var(--white);
+      border-left:1px solid var(--border);
+      overflow-y:auto;
+      padding:12px;
+    }
+    .props-title { font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px; }
+    .prop-row { margin-bottom:10px; }
+    .prop-row label { font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px; }
+    .prop-row input, .prop-row select {
+      width:100%;padding:6px 8px;border:1px solid var(--border-md);
+      border-radius:var(--radius-sm);font-size:13px;
+    }
+    .prop-row input:focus, .prop-row select:focus { outline:none;border-color:var(--accent); }
+    .size-row { display:grid;grid-template-columns:1fr 1fr;gap:6px; }
+    .btn-delete { background:var(--error-bg);color:var(--error);border:none;border-radius:var(--radius-md);padding:7px;width:100%;cursor:pointer;font-size:13px;font-weight:600;margin-top:8px; }
+
+    /* ── TOOLBAR ── */
+    .editor-toolbar {
+      display:flex;align-items:center;gap:8px;
+      padding:8px 12px;background:var(--white);
+      border-bottom:1px solid var(--border);
+      flex-wrap:wrap;
+    }
+    .toolbar-btn {
+      padding:6px 12px;border-radius:var(--radius-md);font-size:12px;font-weight:600;
+      border:1px solid var(--border-md);background:var(--white);cursor:pointer;
+      transition:all .15s;
+    }
+    .toolbar-btn:hover { background:var(--bg); }
+    .toolbar-btn.active { background:var(--navy);color:#fff;border-color:var(--navy); }
+
+    .zoom-ctrl { display:flex;align-items:center;gap:4px;margin-left:auto; }
+    .zoom-ctrl button { padding:4px 8px;border:1px solid var(--border-md);border-radius:4px;background:var(--white);cursor:pointer;font-size:14px; }
+    .zoom-level { font-size:12px;color:var(--text-muted);min-width:40px;text-align:center; }
+  </style>
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Plano del salón</h1>
+        <p>Editor de distribución de mesas y espacios</p>
+      </div>
+      <div class="page-header-right">
+        <select id="sel-local-plano" onchange="cargarSalones()" class="btn btn-ghost" style="padding:8px 12px">
+          <option value="">Seleccionar local...</option>
+        </select>
+        <select id="sel-salon" onchange="cargarPlano()" class="btn btn-ghost" style="padding:8px 12px">
+          <option value="">Seleccionar salón...</option>
+        </select>
+        <button class="btn btn-ghost" onclick="nuevoSalon()">+ Salón</button>
+        <button class="btn btn-primary" id="btn-guardar-plano" onclick="guardarPlano()">
+          💾 Guardar plano
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body" style="padding-bottom:0">
+      <!-- Toolbar -->
+      <div class="editor-toolbar">
+        <button class="toolbar-btn active" id="tool-seleccionar" onclick="setTool('seleccionar')">↖ Seleccionar</button>
+        <button class="toolbar-btn" id="tool-agregar" onclick="setTool('agregar')">+ Agregar</button>
+        <div style="width:1px;height:24px;background:var(--border);margin:0 4px"></div>
+        <button class="toolbar-btn" onclick="limpiarSeleccion()">Deseleccionar</button>
+        <button class="toolbar-btn" onclick="centrarVista()">⊙ Centrar</button>
+        <div class="zoom-ctrl">
+          <button onclick="zoom(-0.1)">−</button>
+          <span class="zoom-level" id="zoom-label">100%</span>
+          <button onclick="zoom(0.1)">+</button>
+        </div>
+      </div>
+
+      <!-- Editor -->
+      <div class="editor-layout">
+
+        <!-- Panel izquierdo: elementos disponibles -->
+        <div class="elem-panel">
+          <div class="elem-section">
+            <div class="elem-section-label">Mesas</div>
+            <div id="elem-mesas-lista">
+              <div style="font-size:12px;color:var(--text-muted);font-style:italic">Seleccioná un local</div>
+            </div>
+          </div>
+          <div class="elem-section">
+            <div class="elem-section-label">Estructura</div>
+            <div class="elem-item" draggable="true" data-tipo="pared" data-w="4" data-h="1" ondragstart="onDragStart(event)">
+              <span class="elem-icon">🧱</span> Pared
+            </div>
+            <div class="elem-item" draggable="true" data-tipo="columna" data-w="1" data-h="1" ondragstart="onDragStart(event)">
+              <span class="elem-icon">⬛</span> Columna
+            </div>
+            <div class="elem-item" draggable="true" data-tipo="cocina" data-w="4" data-h="3" ondragstart="onDragStart(event)">
+              <span class="elem-icon">🍳</span> Cocina
+            </div>
+            <div class="elem-item" draggable="true" data-tipo="bano" data-w="2" data-h="2" ondragstart="onDragStart(event)">
+              <span class="elem-icon">🚻</span> Baño
+            </div>
+            <div class="elem-item" draggable="true" data-tipo="barra" data-w="4" data-h="2" ondragstart="onDragStart(event)">
+              <span class="elem-icon">🍺</span> Barra
+            </div>
+          </div>
+          <div class="elem-section">
+            <div class="elem-section-label">Decoración</div>
+            <div class="elem-item" draggable="true" data-tipo="planta" data-w="1" data-h="1" ondragstart="onDragStart(event)">
+              <span class="elem-icon">🌿</span> Planta
+            </div>
+            <div class="elem-item" draggable="true" data-tipo="decoracion" data-w="2" data-h="1" ondragstart="onDragStart(event)">
+              <span class="elem-icon">✨</span> Decoración
+            </div>
+          </div>
+        </div>
+
+        <!-- Grilla central -->
+        <div class="grid-container" id="grid-container"
+          ondragover="onDragOver(event)" ondrop="onDrop(event)">
+          <div class="grid-canvas" id="grid-canvas" style="transform-origin:top left">
+            <!-- elementos se renderizan aquí -->
+          </div>
+        </div>
+
+        <!-- Panel derecho: propiedades -->
+        <div class="props-panel" id="props-panel">
+          <div class="props-title">Propiedades</div>
+          <div id="props-content" style="color:var(--text-muted);font-size:13px;font-style:italic">
+            Seleccioná un elemento para editar sus propiedades.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    const CELL  = 40;  // px por celda de la grilla
+    let perfil  = null;
+    let mesas   = [];  // mesas del local actual
+    let elementos = []; // elementos del plano actual
+    let idSalonActual = null;
+    let seleccionado  = null;  // id del elemento seleccionado
+    let tool = 'seleccionar';
+    let zoomLevel = 1;
+    let dragData  = null;
+    // Para mover elementos
+    let moviendo  = null;
+    let moveOffset= { x:0, y:0 };
+
+    async function init() {
+      perfil = await requireAuth(['admin','gerencia','supervisor'], 'reservas');
+      if (!perfil) return;
+      renderSidebar(perfil, 'plano-salon');
+
+      // Cargar locales con reservas
+      const { data: configs } = await sbClient.from('reservas_config')
+        .select('id_local, nombre_publico, locales(nombre)').eq('activo', true);
+      const sel = document.getElementById('sel-local-plano');
+      (configs||[]).forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id_local;
+        opt.textContent = c.nombre_publico || c.locales?.nombre || c.id_local;
+        sel.appendChild(opt);
+      });
+      if (configs?.length) { sel.value = configs[0].id_local; await cargarSalones(); }
+    }
+
+    async function cargarSalones() {
+      const idLocal = document.getElementById('sel-local-plano').value;
+      if (!idLocal) return;
+      const { data: salones } = await sbClient.from('salones')
+        .select('*').eq('id_local', idLocal).eq('activo', true).order('orden');
+      const sel = document.getElementById('sel-salon');
+      sel.innerHTML = '<option value="">Seleccionar salón...</option>';
+      (salones||[]).forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id; opt.textContent = s.nombre;
+        sel.appendChild(opt);
+      });
+      // Cargar mesas del local
+      const { data: mes } = await sbClient.from('reservas_mesas')
+        .select('*').eq('id_local', idLocal).eq('activa', true).order('orden');
+      mesas = mes || [];
+      renderElemMesas();
+      if (salones?.length) { sel.value = salones[0].id; await cargarPlano(); }
+    }
+
+    function renderElemMesas() {
+      const cont = document.getElementById('elem-mesas-lista');
+      if (!mesas.length) { cont.innerHTML = '<div style="font-size:12px;color:var(--text-muted);font-style:italic">Sin mesas</div>'; return; }
+      cont.innerHTML = mesas.map(m => `
+        <div class="elem-item" draggable="true"
+          data-tipo="mesa" data-id-mesa="${m.id}"
+          data-label="${m.nombre}" data-cap="${m.capacidad}" data-w="3" data-h="2"
+          ondragstart="onDragStart(event)">
+          <span class="elem-icon">🪑</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.nombre}</div>
+            <div style="font-size:10px;color:var(--text-muted)">${m.capacidad} sillas</div>
+          </div>
+        </div>`).join('');
+    }
+
+    async function cargarPlano() {
+      const idSalon = document.getElementById('sel-salon').value;
+      if (!idSalon) { limpiarCanvas(); return; }
+      idSalonActual = parseInt(idSalon);
+      const { data } = await sbClient.from('plano_elementos')
+        .select('*').eq('id_salon', idSalonActual).order('id');
+      elementos = (data||[]).map(e => ({ ...e, _id: e.id }));
+      renderCanvas();
+    }
+
+    async function nuevoSalon() {
+      const nombre = prompt('Nombre del salón:');
+      if (!nombre) return;
+      const idLocal = document.getElementById('sel-local-plano').value;
+      const { data } = await sbClient.from('salones').insert({
+        id_local: idLocal, nombre, activo: true,
+      }).select().single();
+      if (data) { await cargarSalones(); document.getElementById('sel-salon').value = data.id; await cargarPlano(); }
+    }
+
+    // ── DRAG & DROP desde panel izquierdo ─────────────────────
+    function onDragStart(e) {
+      const el = e.currentTarget;
+      dragData = {
+        tipo:    el.dataset.tipo,
+        idMesa:  el.dataset.idMesa ? parseInt(el.dataset.idMesa) : null,
+        label:   el.dataset.label || el.querySelector(':not(.elem-icon)')?.textContent?.trim() || el.dataset.tipo,
+        cap:     el.dataset.cap || '',
+        w:       parseInt(el.dataset.w||2),
+        h:       parseInt(el.dataset.h||2),
+      };
+      e.dataTransfer.effectAllowed = 'copy';
+    }
+
+    function onDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }
+
+    function onDrop(e) {
+      e.preventDefault();
+      if (!idSalonActual || !dragData) return;
+      const canvas = document.getElementById('grid-canvas');
+      const rect   = canvas.getBoundingClientRect();
+      const x = Math.floor((e.clientX - rect.left) / (CELL * zoomLevel));
+      const y = Math.floor((e.clientY - rect.top)  / (CELL * zoomLevel));
+      const nuevoElem = {
+        _id:      Date.now(), // temp id
+        id:       null,
+        id_salon: idSalonActual,
+        tipo:     dragData.tipo,
+        id_mesa:  dragData.idMesa,
+        pos_x:    Math.max(0, x),
+        pos_y:    Math.max(0, y),
+        ancho:    dragData.w,
+        alto:     dragData.h,
+        rotacion: 0,
+        etiqueta: dragData.label,
+        props:    { capacidad: dragData.cap },
+      };
+      elementos.push(nuevoElem);
+      dragData = null;
+      renderCanvas();
+      seleccionar(nuevoElem._id);
+    }
+
+    // ── CANVAS ────────────────────────────────────────────────
+    function limpiarCanvas() {
+      elementos = []; idSalonActual = null; seleccionado = null;
+      document.getElementById('grid-canvas').innerHTML = '';
+      renderProps(null);
+    }
+
+    function renderCanvas() {
+      const canvas = document.getElementById('grid-canvas');
+      canvas.innerHTML = elementos.map(e => renderElem(e)).join('');
+      // Re-attach events
+      canvas.querySelectorAll('.plano-elem').forEach(el => {
+        el.addEventListener('mousedown', onElemMouseDown);
+        el.addEventListener('click', (ev) => { ev.stopPropagation(); seleccionar(parseInt(el.dataset.id)); });
+      });
+      canvas.addEventListener('click', () => limpiarSeleccion());
+    }
+
+    function renderElem(e) {
+      const x = e.pos_x * CELL;
+      const y = e.pos_y * CELL;
+      const w = e.ancho * CELL;
+      const h = e.alto  * CELL;
+      const isSel = seleccionado === e._id;
+      let cls = `plano-elem tipo-${e.tipo}`;
+      if (e.tipo === 'mesa') cls = `plano-elem mesa-edit`;
+      if (isSel) cls += ' selected';
+      const label = e.etiqueta || e.tipo;
+      const cap   = e.props?.capacidad ? `${e.props.capacidad}s` : '';
+      return `<div class="${cls}" data-id="${e._id}"
+        style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;transform:rotate(${e.rotacion||0}deg)">
+        <div class="elem-label">${label}</div>
+        ${cap ? `<div class="elem-cap">${cap}</div>` : ''}
+      </div>`;
+    }
+
+    // ── SELECCIÓN ─────────────────────────────────────────────
+    function seleccionar(id) {
+      seleccionado = id;
+      renderCanvas();
+      const e = elementos.find(x => x._id === id);
+      renderProps(e);
+    }
+
+    function limpiarSeleccion() {
+      seleccionado = null;
+      renderCanvas();
+      renderProps(null);
+    }
+
+    function renderProps(e) {
+      const cont = document.getElementById('props-content');
+      if (!e) {
+        cont.innerHTML = '<div style="color:var(--text-muted);font-size:13px;font-style:italic">Seleccioná un elemento.</div>';
+        return;
+      }
+      cont.innerHTML = `
+        <div class="prop-row">
+          <label>Etiqueta</label>
+          <input type="text" value="${e.etiqueta||''}" oninput="updateProp('etiqueta',this.value)" />
+        </div>
+        <div class="prop-row size-row">
+          <div>
+            <label>Ancho (celdas)</label>
+            <input type="number" min="1" max="20" value="${e.ancho}" oninput="updateProp('ancho',parseInt(this.value)||1)" />
+          </div>
+          <div>
+            <label>Alto (celdas)</label>
+            <input type="number" min="1" max="20" value="${e.alto}" oninput="updateProp('alto',parseInt(this.value)||1)" />
+          </div>
+        </div>
+        <div class="prop-row size-row">
+          <div>
+            <label>X (celda)</label>
+            <input type="number" min="0" value="${e.pos_x}" oninput="updateProp('pos_x',parseInt(this.value)||0)" />
+          </div>
+          <div>
+            <label>Y (celda)</label>
+            <input type="number" min="0" value="${e.pos_y}" oninput="updateProp('pos_y',parseInt(this.value)||0)" />
+          </div>
+        </div>
+        <div class="prop-row">
+          <label>Rotación (°)</label>
+          <input type="number" min="0" max="360" step="45" value="${e.rotacion||0}" oninput="updateProp('rotacion',parseInt(this.value)||0)" />
+        </div>
+        ${e.tipo === 'mesa' ? `
+        <div class="prop-row">
+          <label>Capacidad</label>
+          <input type="number" min="1" value="${e.props?.capacidad||''}" oninput="updatePropNested('props','capacidad',this.value)" />
+        </div>` : ''}
+        <button class="btn-delete" onclick="eliminarElem()">🗑 Eliminar elemento</button>
+      `;
+    }
+
+    function updateProp(key, val) {
+      const e = elementos.find(x => x._id === seleccionado);
+      if (!e) return;
+      e[key] = val;
+      renderCanvas();
+      // Re-seleccionar para mantener foco
+      const el = document.querySelector(`[data-id="${seleccionado}"]`);
+      if (el) el.classList.add('selected');
+    }
+
+    function updatePropNested(obj, key, val) {
+      const e = elementos.find(x => x._id === seleccionado);
+      if (!e) return;
+      if (!e[obj]) e[obj] = {};
+      e[obj][key] = val;
+    }
+
+    function eliminarElem() {
+      if (!seleccionado) return;
+      elementos = elementos.filter(x => x._id !== seleccionado);
+      seleccionado = null;
+      renderCanvas();
+      renderProps(null);
+    }
+
+    // ── DRAG para mover elementos en canvas ───────────────────
+    function onElemMouseDown(e) {
+      if (tool !== 'seleccionar') return;
+      e.stopPropagation();
+      const el  = e.currentTarget;
+      const id  = parseInt(el.dataset.id);
+      const elem= elementos.find(x => x._id === id);
+      if (!elem) return;
+      seleccionar(id);
+      moviendo = id;
+      const canvas = document.getElementById('grid-canvas');
+      const rect   = canvas.getBoundingClientRect();
+      moveOffset.x = e.clientX - (elem.pos_x * CELL * zoomLevel + rect.left);
+      moveOffset.y = e.clientY - (elem.pos_y * CELL * zoomLevel + rect.top);
+
+      function onMove(ev) {
+        if (!moviendo) return;
+        const newX = Math.max(0, Math.floor((ev.clientX - rect.left - moveOffset.x) / (CELL * zoomLevel)));
+        const newY = Math.max(0, Math.floor((ev.clientY - rect.top  - moveOffset.y) / (CELL * zoomLevel)));
+        const el2 = document.querySelector(`[data-id="${moviendo}"]`);
+        if (el2) { el2.style.left = (newX * CELL) + 'px'; el2.style.top = (newY * CELL) + 'px'; }
+        elem.pos_x = newX; elem.pos_y = newY;
+      }
+      function onUp() {
+        moviendo = null;
+        renderCanvas();
+        seleccionar(id);
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }
+
+    // ── ZOOM ──────────────────────────────────────────────────
+    function zoom(delta) {
+      zoomLevel = Math.max(0.3, Math.min(2, zoomLevel + delta));
+      document.getElementById('grid-canvas').style.transform = `scale(${zoomLevel})`;
+      document.getElementById('zoom-label').textContent = Math.round(zoomLevel * 100) + '%';
+    }
+
+    function centrarVista() {
+      const cont = document.getElementById('grid-container');
+      cont.scrollTo({ left:0, top:0, behavior:'smooth' });
+    }
+
+    // ── TOOL ──────────────────────────────────────────────────
+    function setTool(t) {
+      tool = t;
+      document.querySelectorAll('.toolbar-btn[id^="tool-"]').forEach(b => b.classList.remove('active'));
+      document.getElementById(`tool-${t}`)?.classList.add('active');
+    }
+
+    // ── GUARDAR ───────────────────────────────────────────────
+    async function guardarPlano() {
+      if (!idSalonActual) { alert('Seleccioná un salón primero.'); return; }
+      const btn = document.getElementById('btn-guardar-plano');
+      btn.disabled = true; btn.textContent = 'Guardando...';
+      try {
+        // Borrar elementos existentes del salón
+        await sbClient.from('plano_elementos').delete().eq('id_salon', idSalonActual);
+        // Insertar todos los elementos actuales
+        if (elementos.length) {
+          const rows = elementos.map(e => ({
+            id_salon:  idSalonActual,
+            tipo:      e.tipo,
+            id_mesa:   e.id_mesa || null,
+            pos_x:     e.pos_x,
+            pos_y:     e.pos_y,
+            ancho:     e.ancho,
+            alto:      e.alto,
+            rotacion:  e.rotacion || 0,
+            etiqueta:  e.etiqueta || null,
+            props:     e.props || {},
+          }));
+          const { error } = await sbClient.from('plano_elementos').insert(rows);
+          if (error) throw new Error(error.message);
+        }
+        await auditar(perfil, 'EDITAR', 'plano_elementos', `Guardó plano salón ID ${idSalonActual}`);
+        btn.textContent = '✓ Guardado';
+        setTimeout(() => { btn.disabled = false; btn.textContent = '💾 Guardar plano'; }, 2000);
+        // Recargar con IDs reales
+        await cargarPlano();
+      } catch(e) {
+        alert('Error al guardar: ' + e.message);
+        btn.disabled = false; btn.textContent = '💾 Guardar plano';
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
