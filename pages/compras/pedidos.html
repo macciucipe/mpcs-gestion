@@ -395,11 +395,10 @@
 
     // ── NUEVO PEDIDO ────────────────────────────────────────────
     async function cargarCatalogoNuevoConLocal(idLocal) {
-      const sel = document.getElementById('nuevo-producto');
-      sel.innerHTML = '<option value="">-- Cargando catálogo... --</option>';
+      catalogoActual = [];
       const local = localesGlobal.find(l => l.id_local === idLocal);
       if (!local?.id_concepto) {
-        sel.innerHTML = '<option value="">Sin catálogo asignado para este local</option>';
+        console.warn('Local sin id_concepto:', idLocal);
         return;
       }
       const { data } = await sbClient.from('catalogo_local')
@@ -408,27 +407,7 @@
         .eq('activo', true)
         .order('categoria').order('nombre');
       catalogoActual = data || [];
-      sel.innerHTML = '<option value="">-- Seleccionar producto --</option>';
-      const porCat = {};
-      catalogoActual.forEach(i => {
-        const cat = i.categoria || 'Sin categoría';
-        if (!porCat[cat]) porCat[cat] = [];
-        porCat[cat].push(i);
-      });
-      Object.keys(porCat).sort().forEach(cat => {
-        const og = document.createElement('optgroup');
-        og.label = cat;
-        porCat[cat].forEach(i => {
-          const opt = document.createElement('option');
-          opt.value = i.id_producto_local;
-          opt.textContent = `${i.nombre} (${i.unidad_medida})`;
-          opt.dataset.nombre = i.nombre;
-          opt.dataset.unidad = i.unidad_medida;
-          opt.dataset.cat    = i.categoria || '';
-          og.appendChild(opt);
-        });
-        sel.appendChild(og);
-      });
+      console.log('Catálogo cargado:', catalogoActual.length, 'items para concepto', local.id_concepto);
     }
 
     function filtrarCatalogo(q) {
