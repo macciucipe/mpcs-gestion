@@ -962,191 +962,226 @@
     async function generarPDF(d, numero, localData, emp) {
       const { jsPDF } = window.jspdf;
       const doc  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const mL   = 15, mR = 195, ancho = 180;
-      const azul = [27, 43, 94], gris = [100,100,100], grisCla = [220,220,220], negro = [30,30,30];
+      const mL   = 14, mR = 196, ancho = 182;
+      const azul = [27, 43, 94], azulCla = [44, 82, 160], gris = [120,120,120], grisCla = [210,215,225], negro = [30,30,30], blanco = [255,255,255];
       const fmt2 = n => parseFloat(n||0).toLocaleString('en-US', { minimumFractionDigits: 2 });
       const fecha = new Date().toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'numeric' });
       const prov  = proveedoresGlobal.find(p => p.razon_social === d.proveedor || p.documento === d.docProveedor);
+      const tipoLabel = d.tipo === 'OS' ? 'ORDEN DE SERVICIO' : 'ORDEN DE COMPRA';
 
-      // ── LOGO ────────────────────────────────────────────────────
+      // ══════════════════════════════════════════════
+      // CABECERA — franja azul superior
+      // ══════════════════════════════════════════════
+      doc.setFillColor(...azul);
+      doc.rect(0, 0, 210, 32, 'F');
+
+      // Logo — izquierda en la franja azul
       const logoUrl = LOGOS[d.rucEmpresa];
       if (logoUrl) {
         try {
           const imgData = await cargarImagenBase64(logoUrl);
-          doc.addImage(imgData, 'PNG', mL, 8, 45, 22);
+          doc.addImage(imgData, 'PNG', mL, 4, 38, 24);
         } catch(e) { console.warn('Logo:', e); }
       }
 
-      // ── NÚMERO OC (arriba derecha) ───────────────────────────────
-      const tipoLabel = d.tipo === 'OS' ? 'ORDEN DE SERVICIO N°:' : 'ORDEN DE COMPRA N°:';
-      // Label pequeño
-      doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...gris);
-      doc.text(tipoLabel, mR, 11, { align:'right' });
-      // Número grande bold en azul
-      doc.setFont('helvetica','bold').setFontSize(12).setTextColor(...azul);
-      doc.text(numero, mR, 18, { align:'right' });
-      // Fecha
-      doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...gris);
-      doc.text(`Fecha de Emisión: ${fecha}`, mR, 24, { align:'right' });
+      // Empresa + local — centro de la franja
+      doc.setFont('helvetica','bold').setFontSize(11).setTextColor(...blanco);
+      doc.text(d.empresa, 105, 12, { align:'center' });
+      doc.setFont('helvetica','normal').setFontSize(9).setTextColor(180, 200, 240);
+      doc.text(`RUC: ${d.rucEmpresa}`, 105, 18, { align:'center' });
+      doc.setFontSize(8.5).setTextColor(210, 225, 255);
+      doc.text(d.local, 105, 24, { align:'center' });
 
-      // ── EMPRESA Y LOCAL (centrado en la mitad derecha, junto al logo) ──
-      // Logo ocupa mL..mL+45 (~x=60). Centramos el texto en el espacio x=65..mR
-      const xMidRight = (65 + mR) / 2; // ~130
-      let y = 14;
-      doc.setFont('helvetica','bold').setFontSize(11).setTextColor(...azul);
-      doc.text(`${d.rucEmpresa}  ${d.empresa}`, xMidRight, y, { align:'center' });
-      y += 6;
-      doc.setFontSize(10).setTextColor(...negro);
-      doc.text(d.local, xMidRight, y, { align:'center' });
-      y += 5;
+      // Número OC — derecha en la franja, en caja blanca
+      const boxX = 148, boxW = 48, boxH = 24, boxY = 4;
+      doc.setFillColor(...blanco);
+      doc.roundedRect(boxX, boxY, boxW, boxH, 2, 2, 'F');
+      doc.setFont('helvetica','normal').setFontSize(6.5).setTextColor(...azul);
+      doc.text(tipoLabel + ' N°:', boxX + boxW/2, boxY + 7, { align:'center' });
+      doc.setFont('helvetica','bold').setFontSize(9.5).setTextColor(...azul);
+      doc.text(numero, boxX + boxW/2, boxY + 14, { align:'center' });
+      doc.setFont('helvetica','normal').setFontSize(6.5).setTextColor(...gris);
+      doc.text(`Emisión: ${fecha}`, boxX + boxW/2, boxY + 20, { align:'center' });
 
-      // Dirección, teléfono, horario
-      if (localData?.direccion) {
-        doc.setFont('helvetica','bold').setFontSize(9).setTextColor(...azul);
-        doc.text(localData.direccion, xMidRight, y, { align:'center' });
-        y += 5;
-      }
-      if (localData?.telefono) {
-        doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...negro);
-        doc.text(localData.telefono, xMidRight, y, { align:'center' });
-        y += 4;
-      }
-      if (localData?.horario) {
-        doc.setFontSize(8).setTextColor(...gris);
-        doc.text(localData.horario, xMidRight, y, { align:'center' });
-        y += 4;
+      let y = 38;
+
+      // ══════════════════════════════════════════════
+      // DATOS DEL LOCAL — dirección/contacto bajo cabecera
+      // ══════════════════════════════════════════════
+      if (localData?.direccion || localData?.telefono || localData?.horario) {
+        doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...gris);
+        const infoLocal = [localData?.direccion, localData?.telefono, localData?.horario].filter(Boolean).join('  |  ');
+        doc.text(infoLocal, 105, y, { align:'center' });
+        y += 6;
       }
 
-      y = Math.max(y, 34); // asegurar que la línea no tape el logo
-      y += 3;
-      doc.setDrawColor(...azul).setLineWidth(0.5);
+      // Línea separadora
+      doc.setDrawColor(...grisCla).setLineWidth(0.4);
       doc.line(mL, y, mR, y);
-      y += 6;
+      y += 7;
 
-      // ── PROVEEDOR ────────────────────────────────────────────────
-      doc.setFont('helvetica','bold').setFontSize(9).setTextColor(...azul);
-      doc.text('2. Señores:', mL, y);
-      doc.setTextColor(0, 100, 0);
-      doc.text(d.proveedor, mL + 25, y);
+      // ══════════════════════════════════════════════
+      // PROVEEDOR — en caja con fondo claro
+      // ══════════════════════════════════════════════
+      doc.setFillColor(244, 247, 252);
+      doc.roundedRect(mL, y - 4, ancho, 12, 1.5, 1.5, 'F');
+      doc.setFont('helvetica','bold').setFontSize(8.5).setTextColor(...azul);
+      doc.text('PROVEEDOR:', mL + 3, y + 3);
+      doc.setFont('helvetica','bold').setFontSize(9).setTextColor(0, 90, 0);
+      doc.text(d.proveedor, mL + 30, y + 3);
       if (prov?.documento) {
-        doc.setTextColor(...azul);
-        doc.text('RUC:', mR - 40, y);
-        doc.setTextColor(0, 100, 0);
-        doc.text(prov.documento, mR - 32, y);
+        doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...gris);
+        doc.text(`RUC: ${prov.documento}`, mR - 3, y + 3, { align:'right' });
       }
-      y += 8;
+      y += 14;
 
-      // ── TABLA ────────────────────────────────────────────────────
-      const colW = [8, 12, 10, 62, 32, 20, 18, 18];
+      // ══════════════════════════════════════════════
+      // TABLA DE ITEMS
+      // ══════════════════════════════════════════════
+      // Anchos ajustados: N°, Cant, Und, Descripción, Detalle, P.Unit, IGV, Total
+      const colW = [7, 12, 10, 65, 33, 20, 17, 18];
       const colX = [mL];
       colW.forEach((w,i) => { if(i>0) colX.push(colX[i-1]+colW[i-1]); });
-      const headers = ['N°','Cant.','Und','Descripción / Artículo','Detalle','P. Unit. Bruto','IGV','Total'];
+      const headers = ['N°','Cant.','Und','Descripción / Artículo','Detalle / Especif.','P.Unit Bruto','IGV','Total'];
 
-      // Header
+      // Header tabla
       doc.setFillColor(...azul);
-      doc.rect(mL, y, ancho, 8, 'F');
-      doc.setFont('helvetica','bold').setFontSize(7).setTextColor(255,255,255);
+      doc.rect(mL, y, ancho, 7.5, 'F');
+      doc.setFont('helvetica','bold').setFontSize(6.8).setTextColor(...blanco);
       headers.forEach((h, i) => {
         const isRight = i >= 5;
-        const xPos = isRight ? colX[i]+colW[i]-1 : (i===0 ? colX[i]+colW[i]/2 : colX[i]+1);
-        const lines = h.split('\n');
-        if (lines.length > 1) {
-          doc.text(lines[0], xPos, y+3.5, { align: isRight?'right':'left' });
-          doc.text(lines[1], xPos, y+6.5, { align: isRight?'right':'left' });
-        } else {
-          doc.text(h, xPos, y+5, { align: isRight?'right':(i===0?'center':'left') });
-        }
+        const isCenter = i === 0;
+        const xPos = isRight ? colX[i]+colW[i]-1 : isCenter ? colX[i]+colW[i]/2 : colX[i]+1.5;
+        doc.text(h, xPos, y + 4.8, { align: isRight ? 'right' : isCenter ? 'center' : 'left' });
       });
-      y += 8;
+      y += 7.5;
 
       // Filas
-      doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...negro);
+      doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...negro);
       d.items.forEach((item, idx) => {
-        const descLines = doc.splitTextToSize(item.desc, colW[3]-2);
-        const detLines  = item.det ? doc.splitTextToSize(item.det, colW[4]-2) : [];
+        const descLines = doc.splitTextToSize(item.desc, colW[3]-3);
+        const detLines  = item.det ? doc.splitTextToSize(item.det, colW[4]-3) : [];
         const maxLines  = Math.max(descLines.length, detLines.length, 1);
-        const rowH      = Math.max(maxLines * 4.5 + 2, 7);
+        const rowH      = Math.max(maxLines * 4.8 + 3, 8.5);
 
-        if (y + rowH > 265) { doc.addPage(); y = 15; }
+        if (y + rowH > 262) { doc.addPage(); y = 15; }
 
-        // Fondo alterno
+        // Fondo alterno suave
         if (idx % 2 === 1) {
-          doc.setFillColor(246,248,252);
+          doc.setFillColor(248, 250, 254);
           doc.rect(mL, y, ancho, rowH, 'F');
         }
-        // Borde
-        doc.setDrawColor(...grisCla).setLineWidth(0.1);
-        doc.rect(mL, y, ancho, rowH, 'S');
+        // Borde inferior
+        doc.setDrawColor(...grisCla).setLineWidth(0.15);
+        doc.line(mL, y + rowH, mR, y + rowH);
 
-        const cy = y + rowH/2 + 1;
+        const cy = y + rowH / 2 + 1.2;
+        const ty = y + 5; // top-align para texto multilinea
         doc.setTextColor(...negro);
-        doc.text((idx+1).toString(),              colX[0]+colW[0]/2, cy, { align:'center' });
-        doc.text(item.cant.toString(),             colX[1]+1, cy);
-        doc.text(item.und,                         colX[2]+1, cy);
-        doc.text(descLines,                        colX[3]+1, y+4);
-        if (detLines.length) doc.text(detLines,    colX[4]+1, y+4);
-        doc.text('S/ '+fmt2(item.precioBruto),     colX[5]+colW[5]-1, cy, { align:'right' });
-        doc.text('S/ '+fmt2(item.igvLinea),        colX[6]+colW[6]-1, cy, { align:'right' });
-        doc.text('S/ '+fmt2(item.subtotalBruto),   colX[7]+colW[7]-1, cy, { align:'right' });
+        doc.text((idx+1).toString(),            colX[0]+colW[0]/2, cy, { align:'center' });
+        doc.setFont('helvetica','bold').setFontSize(8);
+        doc.text(item.cant.toString(),           colX[1]+colW[1]-1, cy, { align:'right' });
+        doc.setFont('helvetica','normal').setFontSize(7.5);
+        doc.text(item.und,                       colX[2]+1.5, cy);
+        doc.setFont('helvetica','normal').setFontSize(8);
+        doc.text(descLines,                      colX[3]+1.5, ty);
+        if (detLines.length) {
+          doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...gris);
+          doc.text(detLines, colX[4]+1.5, ty);
+          doc.setTextColor(...negro);
+        }
+        doc.setFont('helvetica','normal').setFontSize(8);
+        doc.text('S/'+fmt2(item.precioBruto),   colX[5]+colW[5]-1, cy, { align:'right' });
+        // IGV: mostrar "Exento" si es 0, o el monto
+        const igvText = parseFloat(item.igvLinea||0) === 0 ? 'Exento' : 'S/'+fmt2(item.igvLinea);
+        doc.setTextColor(parseFloat(item.igvLinea||0) === 0 ? 150 : 30, parseFloat(item.igvLinea||0) === 0 ? 150 : 30, parseFloat(item.igvLinea||0) === 0 ? 150 : 30);
+        doc.text(igvText,                        colX[6]+colW[6]-1, cy, { align:'right' });
+        doc.setTextColor(...negro);
+        doc.setFont('helvetica','bold').setFontSize(8);
+        doc.text('S/'+fmt2(item.subtotalBruto), colX[7]+colW[7]-1, cy, { align:'right' });
+        doc.setFont('helvetica','normal');
         y += rowH;
       });
 
-      y += 5;
+      y += 6;
 
-      // ── TOTALES (derecha) ────────────────────────────────────────
-      const xTL = mR - 70, xTV = mR;
-      doc.setFont('helvetica','normal').setFontSize(8.5).setTextColor(...gris);
-      doc.text('Subtotal (Base Imponible):', xTL, y); doc.text(`S/ ${fmt2(d.subtotal)}`, xTV, y, {align:'right'}); y+=5;
-      doc.text(`IGV:`, xTL, y); doc.text(`S/ ${fmt2(d.igv)}`, xTV, y, {align:'right'}); y+=2;
-      doc.setDrawColor(...azul).line(xTL, y, xTV, y); y+=4;
+      // ══════════════════════════════════════════════
+      // TOTALES — caja derecha
+      // ══════════════════════════════════════════════
+      const totW = 72, totX = mR - totW;
+      doc.setFillColor(244, 247, 252);
+      doc.roundedRect(totX, y - 2, totW, 26, 1.5, 1.5, 'F');
+
+      doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...gris);
+      doc.text('Subtotal (sin IGV):', totX + 3, y + 5);
+      doc.text(`S/ ${fmt2(d.subtotal)}`, mR - 3, y + 5, { align:'right' });
+
+      doc.text('IGV (18%):', totX + 3, y + 11);
+      doc.text(`S/ ${fmt2(d.igv)}`, mR - 3, y + 11, { align:'right' });
+
+      doc.setDrawColor(...azulCla).setLineWidth(0.4);
+      doc.line(totX + 3, y + 14, mR - 3, y + 14);
+
       doc.setFont('helvetica','bold').setFontSize(10).setTextColor(...azul);
-      doc.text('TOTAL A PAGAR:', xTL, y); doc.text(`S/ ${fmt2(d.total)}`, xTV, y, {align:'right'}); y+=8;
+      doc.text('TOTAL:', totX + 3, y + 21);
+      doc.text(`S/ ${fmt2(d.total)}`, mR - 3, y + 21, { align:'right' });
+      y += 32;
 
-      // ── OBSERVACIONES ────────────────────────────────────────────
+      // ══════════════════════════════════════════════
+      // OBSERVACIONES
+      // ══════════════════════════════════════════════
       if (d.obs) {
-        if (y > 240) { doc.addPage(); y = 15; }
+        if (y > 238) { doc.addPage(); y = 15; }
+        doc.setFillColor(255, 252, 230);
+        const obsLines = doc.splitTextToSize(d.obs, ancho - 6);
+        doc.roundedRect(mL, y - 3, ancho, obsLines.length * 4.5 + 8, 1.5, 1.5, 'F');
+        doc.setFont('helvetica','bold').setFontSize(7.5).setTextColor(140, 100, 0);
+        doc.text('Observaciones:', mL + 3, y + 2);
         doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...negro);
-        const obsLines = doc.splitTextToSize(d.obs, ancho);
-        doc.text(obsLines, mL, y); y += obsLines.length*4 + 4;
+        doc.text(obsLines, mL + 3, y + 7);
+        y += obsLines.length * 4.5 + 12;
       }
 
-      // ── CONDICIONES ──────────────────────────────────────────────
-      if (y > 240) { doc.addPage(); y = 15; }
-      y += 3;
+      // ══════════════════════════════════════════════
+      // CONDICIONES
+      // ══════════════════════════════════════════════
+      if (y > 238) { doc.addPage(); y = 15; }
+      y += 2;
       doc.setFont('helvetica','bold').setFontSize(8).setTextColor(...azul);
       doc.text('CONDICIONES:', mL, y); y += 6;
       doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...negro);
       const conds = [
-        `Emitir la factura electronica a nombre de ${d.empresa}.`,
-        'Los bienes/servicios deben ser entregados en el lugar indicado.',
-        'Cualquier variacion en precio o cantidad debe ser informada previamente.',
+        `Emitir la factura electronica a nombre de ${d.empresa} (RUC: ${d.rucEmpresa}).`,
+        'Los bienes/servicios deben ser entregados en el lugar y fecha indicados.',
+        'Cualquier variacion en precio o cantidad debe ser informada y autorizada previamente.',
       ];
       conds.forEach(c => {
-        // Dibujar bullet como círculo relleno en lugar de carácter unicode
-        doc.setFillColor(...azul);
-        doc.circle(mL + 2, y - 1.2, 0.8, 'F');
+        doc.setFillColor(...azulCla);
+        doc.circle(mL + 2, y - 1.5, 0.9, 'F');
         doc.text(c, mL + 5, y);
-        y += 5;
+        y += 5.5;
       });
 
-      // ── PIE ──────────────────────────────────────────────────────
-      const pieY = 282;
-      doc.setDrawColor(...grisCla).setLineWidth(0.3);
-      doc.line(mL, pieY, mR, pieY);
+      // ══════════════════════════════════════════════
+      // PIE — siempre pegado abajo
+      // ══════════════════════════════════════════════
+      const pieY = 284;
+      doc.setFillColor(...azul);
+      doc.rect(0, pieY - 1, 210, 14, 'F');
 
-      // QR — abajo derecha sobre la línea
+      // QR
       try {
         const qrCanvas = document.createElement('canvas');
         qrCanvas.width = 80; qrCanvas.height = 80;
         new QRCode(qrCanvas, { text: numero, width:80, height:80 });
         const qrData = qrCanvas.toDataURL('image/png');
-        doc.addImage(qrData, 'PNG', mR - 18, pieY + 2, 16, 16);
+        doc.addImage(qrData, 'PNG', mR - 14, pieY, 12, 12);
       } catch(e) {}
 
-      // Texto pie — izquierda
-      doc.setFont('helvetica','normal').setFontSize(7).setTextColor(...gris);
-      doc.text(`Generado por MPCS · ${fecha}`, mL, pieY + 5);
-      doc.text('Sistema de gestion MPC Soluciones — gestion.mpcs.pe', mL, pieY + 9);
+      doc.setFont('helvetica','bold').setFontSize(7).setTextColor(...blanco);
+      doc.text('MPCS · Sistema de Gestión', mL, pieY + 5);
+      doc.setFont('helvetica','normal').setFontSize(6.5).setTextColor(180, 200, 240);
+      doc.text(`gestion.mpcs.pe  ·  ${fecha}`, mL, pieY + 10);
 
       return doc.output('datauristring').split(',')[1];
     }
