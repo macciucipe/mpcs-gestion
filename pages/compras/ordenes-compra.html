@@ -664,7 +664,7 @@
       agregarFila('', 1, 'NIU', '', '', true, '');
     }
 
-    function agregarFila(desc = '', cant = 1, und = 'NIU', det = '', precio = '', afectoIgv = true, idProducto = '', idItem = '') {
+    function agregarFila(desc = '', cant = 1, und = 'NIU', det = '', precio = '', afectoIgv = true, idProducto = '', idItem = '', categoria = '') {
       const tbody = document.getElementById('tbody-oc');
       const tr    = document.createElement('tr');
       const igvChecked = afectoIgv ? 'checked' : '';
@@ -672,7 +672,7 @@
         <td style="text-align:center;width:32px;color:var(--text-muted);font-size:12px" class="num-fila"></td>
         <td style="width:80px"><input type="number" step="0.01" min="0.01" value="${cant}" class="cant" onchange="calcularTotales()"></td>
         <td style="width:70px"><input type="text" value="${und}" class="und"></td>
-        <td><input type="text" value="${desc}" class="desc" data-id-producto="${idProducto}" data-id-item="${idItem}"></td>
+        <td><input type="text" value="${desc}" class="desc" data-id-producto="${idProducto}" data-id-item="${idItem}" data-categoria="${categoria}"></td>
         <td><input type="text" value="${det}" class="det"></td>
         <td style="width:110px"><input type="number" step="0.01" min="0" value="${precio}" class="precio" placeholder="0.00" onchange="calcularTotales()"></td>
         <td style="width:64px;text-align:center">
@@ -793,7 +793,7 @@
           }
         }
 
-        agregarFila(nombre, cantidad, unidad, '', precio, afectoIgv, idProducto, item.id_item || '');
+        agregarFila(nombre, cantidad, unidad, '', precio, afectoIgv, idProducto, item.id_item || '', item.categoria || '');
       }
 
       const count = itemsParaCargar.length;
@@ -888,7 +888,8 @@
         const idProducto = tr.querySelector('.desc')?.dataset.idProducto || '';
         totalNeto += sNeto; totalIGV += igvL; totalBruto += sBruto;
         items.push({
-          idItem:        tr.querySelector('.desc')?.dataset.idItem || '',
+          idItem:        tr.querySelector('.desc')?.dataset.idItem     || '',
+          categoria:     tr.querySelector('.desc')?.dataset.categoria  || '',
           cant:          c,
           und:           tr.querySelector('.und').value,
           desc:          tr.querySelector('.desc').value,
@@ -1021,10 +1022,11 @@
           detalle_adic:   item.det || null,
           unidad_medida:  item.und,
           precio_bruto:   parseFloat(item.precioBruto),
-          precio_unitario:parseFloat(item.precioNeto),   // precio neto unitario (sin IGV)
+          precio_unitario:parseFloat(item.precioNeto),
           subtotal_bruto: parseFloat(item.subtotalBruto),
           igv_linea:      parseFloat(item.igvLinea),
           precio_neto:    parseFloat(item.precioNeto),
+          categoria:      item.categoria || null,
         }));
         await sbClient.from('oc_items').insert(itemsRows);
 

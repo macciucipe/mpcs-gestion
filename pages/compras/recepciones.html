@@ -172,11 +172,13 @@
 
       // Badges de tabs
       const paraCompras = ordenes.filter(o =>
-        o.estado === 'observada' || (o.requiere_autorizacion && !o.autorizado_por)
+        o.estado === 'observada' ||
+        o.estado === 'incompleta' ||
+        (o.requiere_autorizacion && !o.autorizado_por)
       ).length;
       const paraAdmin = ordenes.filter(o =>
-        (o.estado === 'conforme' || o.estado === 'parcial_cerrada') &&
-        (!o.requiere_autorizacion || o.autorizado_por)
+        o.enviada_admin === true ||
+        (o.estado === 'conforme' && !o.requiere_autorizacion)
       ).length;
       document.getElementById('badge-compras').textContent = paraCompras;
       document.getElementById('badge-admin').textContent   = paraAdmin;
@@ -200,12 +202,14 @@
       // Filtrar por vista
       if (vistaActual === 'compras') {
         lista = lista.filter(o =>
-          o.estado === 'observada' || (o.requiere_autorizacion && !o.autorizado_por)
+          o.estado === 'observada' ||
+          o.estado === 'incompleta' ||
+          (o.requiere_autorizacion && !o.autorizado_por)
         );
       } else if (vistaActual === 'admin') {
         lista = lista.filter(o =>
-          (o.estado === 'conforme' || o.estado === 'parcial_cerrada') &&
-          (!o.requiere_autorizacion || o.autorizado_por)
+          o.enviada_admin === true ||
+          (o.estado === 'conforme' && !o.requiere_autorizacion)
         );
       }
 
@@ -332,6 +336,14 @@
               <button class="btn btn-sm btn-ghost" style="color:var(--error)" onclick="rechazarObservada('${or.id_or}')">✗ Rechazar — devolver a local</button>
             </div>
           </div>` : ''}
+        ${or.estado === 'incompleta' ? `
+          <div class="alert" style="background:#EDE9FE;border-left:4px solid #7C3AED;margin-bottom:1rem">
+            <strong style="color:#5B21B6">📋 OR Incompleta</strong> — Algunos ítems no fueron entregados.
+            <div style="font-size:13px;color:#6D28D9;margin-top:4px">Revisá los ítems rechazados y decidí si generás una nueva OC para reposición.</div>
+            <div style="margin-top:10px;display:flex;gap:8px">
+              <button class="btn btn-sm btn-primary" onclick="aprobarIncompleta('${or.id_or}')">✓ Aprobar y enviar a Administración</button>
+            </div>
+          </div>` : ''}
         ${ocsHtml}
         ${itemsHtml}
       `;
@@ -391,6 +403,19 @@
       }).eq('id_or', idOR);
       if (error) { alert('Error: ' + error.message); return; }
       await auditar(perfil, 'EDITAR', 'or_cabecera', `Aprobó OR observada ${idOR} → envió a Administración`);
+      cerrarDetalle();
+      await cargar();
+    }
+
+    async function aprobarIncompleta(idOR) {
+      if (!confirm('¿Confirmás que esta OR puede pasar a Administración con los ítems faltantes?')) return;
+      const { error } = await sbClient.from('or_cabecera').update({
+        estado:           'conforme',
+        enviada_admin:    true,
+        enviada_admin_at: new Date().toISOString(),
+      }).eq('id_or', idOR);
+      if (error) { alert('Error: ' + error.message); return; }
+      await auditar(perfil, 'EDITAR', 'or_cabecera', `Aprobó OR incompleta ${idOR} → envió a Administración`);
       cerrarDetalle();
       await cargar();
     }
