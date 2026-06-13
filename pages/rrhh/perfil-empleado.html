@@ -721,9 +721,14 @@
                   <div class="field"><label>Fecha de emisión</label><input type="date" id="doc-lib-emision" /></div>
                   <div class="field"><label>Fecha de vencimiento</label><input type="date" id="doc-lib-vencimiento" /></div>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-bottom:10px">
-                  <div class="field"><label>UBIGEO distrito</label><input type="text" id="doc-lib-ubigeo" maxlength="6" placeholder="150101" style="font-family:monospace" /></div>
-                  <div class="field"><label>Distrito emisor</label><input type="text" id="doc-lib-distrito" placeholder="Ej: Lima Cercado" /></div>
+                <div class="field" style="margin-bottom:10px;position:relative">
+                  <label>Distrito emisor <span style="font-size:11px;color:var(--text-muted)">— escribí para buscar</span></label>
+                  <input type="text" id="doc-lib-distrito" placeholder="Ej: Miraflores, San Isidro..." autocomplete="off"
+                    oninput="ubigeoSearch(this.value)"
+                    style="width:100%" />
+                  <div id="ubigeo-dropdown" style="display:none;position:absolute;z-index:200;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border-md);border-radius:var(--radius-md);box-shadow:var(--shadow-md);max-height:200px;overflow-y:auto;"></div>
+                  <input type="hidden" id="doc-lib-ubigeo" />
+                  <div id="ubigeo-sel-label" style="font-size:11px;color:var(--text-muted);margin-top:3px;display:none"></div>
                 </div>
               </div>
 
@@ -747,7 +752,35 @@
                 </div>
               </div>
 
-              <div class="field"><label>Notas adicionales (opcional)</label><input type="text" id="doc-notas" placeholder="Ej: Contrato 2024-2025" /></div>
+              <!-- Campos extra: Boleta de pago -->
+              <div id="extra-boleta" style="display:none">
+                <div class="field" style="margin-bottom:10px">
+                  <label>Período <span style="font-size:11px;color:var(--text-muted)">(YYYYMM — ej: 202601)</span></label>
+                  <input type="text" id="doc-bol-periodo" maxlength="6" placeholder="202601" style="font-family:monospace;letter-spacing:.08em" oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
+                </div>
+              </div>
+
+              <!-- Campos extra: Contrato -->
+              <div id="extra-contrato" style="display:none">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                  <div class="field"><label>Fecha de suscripción</label><input type="date" id="doc-con-suscripcion" /></div>
+                  <div class="field"><label>Fecha de vencimiento</label><input type="date" id="doc-con-vencimiento" /></div>
+                </div>
+                <div class="field" style="margin-bottom:10px">
+                  <label>Tipo de contrato <span style="font-size:11px;color:var(--text-muted)">(lista completa próximamente)</span></label>
+                  <input type="text" id="doc-con-tipo" placeholder="Ej: Plazo fijo, Indefinido..." />
+                </div>
+              </div>
+
+              <!-- Campos extra: Permiso de residencia -->
+              <div id="extra-permiso" style="display:none">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                  <div class="field"><label>Fecha de emisión</label><input type="date" id="doc-per-emision" /></div>
+                  <div class="field"><label>Fecha de vencimiento</label><input type="date" id="doc-per-vencimiento" /></div>
+                </div>
+              </div>
+
+              <div class="field"><label>Notas adicionales (opcional)</label><input type="text" id="doc-notas" placeholder="Ej: Observaciones sobre el documento" /></div>
             </div>
             <div class="modal-footer">
               <button class="btn btn-ghost" onclick="cancelarSubida()">Cancelar</button>
@@ -806,6 +839,19 @@
     const RENIEC_TOKEN = 'a26db6d95f35f6c3ffe47be304049b1a024c4103a279ab48ed2161a59dc72fa7';
     const SUNAT_TOKEN  = 'a26db6d95f35f6c3ffe47be304049b1a024c4103a279ab48ed2161a59dc72fa7';
     const catLabels    = { foto:'Foto', dni_ce:'DNI/CE', contrato:'Contrato', libreta_sanitaria:'Libreta sanitaria', permiso_residencia:'Permiso residencia', sancion:'Sanción/Memo', notificacion:'Notificación', boleta:'Boleta de pago', otro:'Otro' };
+    const catAbrev     = { foto:'FOTO', dni_ce:'DNI', contrato:'CONTRATO', libreta_sanitaria:'LIBRETA', permiso_residencia:'PERMISO', sancion:'MEMO', notificacion:'NOTIF', boleta:'BOLETA', otro:'DOC' };
+
+    // Genera nombre de archivo normalizado: ID-EMP_CAT[_SUFIJO]_YYYYMMDD.ext
+    function nombreArchivo(cat, ext, sufijo) {
+      const id    = (empleadoId || 'EMP').toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      const abr   = (catAbrev[cat] || 'DOC').toUpperCase();
+      const hoy   = new Date();
+      const fecha = hoy.getFullYear().toString()
+                  + String(hoy.getMonth()+1).padStart(2,'0')
+                  + String(hoy.getDate()).padStart(2,'0');
+      const sfx   = sufijo ? '_' + sufijo.toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
+      return `${id}_${abr}${sfx}_${fecha}.${ext.toLowerCase()}`;
+    }
 
     let empleadoId = null, empleado = null, documentos = [], isDirty = false, pendingFile = null, perfilUser = null, isNuevo = false;
 
@@ -1166,11 +1212,12 @@
     async function subirFoto(input) {
       const file = input.files[0]; if (!file) return;
       const ext = file.name.split('.').pop().toLowerCase();
-      const path = `${empleado?.ruc_empresa||'general'}/${empleadoId}/foto_${Date.now()}.${ext}`;
+      const path = `${empleado?.ruc_empresa||'general'}/${empleadoId}/${nombreArchivo('foto', ext)}`;
       const { error } = await sbClient.storage.from('Legajos').upload(path, file, { upsert: true });
       if (error) { alert('Error al subir foto: ' + error.message); return; }
       const session = await checkSession();
-      await sbClient.from('legajo_documentos').insert([{ id_empleado: empleadoId, ruc_empresa: empleado.ruc_empresa, categoria: 'foto', nombre_archivo: file.name, storage_path: path, tamanio_kb: Math.round(file.size/1024), subido_por: session.user.id }]);
+      const nomFoto = nombreArchivo('foto', ext);
+      await sbClient.from('legajo_documentos').insert([{ id_empleado: empleadoId, ruc_empresa: empleado.ruc_empresa, categoria: 'foto', nombre_archivo: nomFoto, storage_path: path, tamanio_kb: Math.round(file.size/1024), subido_por: session.user.id }]);
       const reader = new FileReader();
       reader.onload = e => { document.getElementById('foto-img').src = e.target.result; document.getElementById('foto-img').style.display='block'; document.getElementById('foto-initials').style.display='none'; };
       reader.readAsDataURL(file);
@@ -1207,16 +1254,26 @@
     function metaResumen(d) {
       const { _meta, obs } = parseMeta(d.notas);
       const partes = [];
-      if (_meta.emision)     partes.push(`Emis.: ${_meta.emision}`);
-      if (_meta.vencimiento) partes.push(`Venc.: ${_meta.vencimiento}`);
-      if (_meta.ubigeo)      partes.push(`UBIGEO: ${_meta.ubigeo}`);
-      if (_meta.distrito)    partes.push(_meta.distrito);
-      if (_meta.tipo_san)    partes.push(_meta.tipo_san);
-      if (_meta.fecha_hecho) partes.push(`Hecho: ${_meta.fecha_hecho}`);
-      if (_meta.emisor)      partes.push(`Por: ${_meta.emisor}`);
-      if (_meta.tipo_id)     partes.push(_meta.tipo_id);
+      // DNI / CE
+      if (_meta.tipo_id)        partes.push(_meta.tipo_id);
+      if (_meta.emision)        partes.push(`Emis.: ${_meta.emision}`);
+      if (_meta.vencimiento)    partes.push(`Venc.: ${_meta.vencimiento}`);
       if (_meta.vig_migratoria) partes.push(`Vig. migrat.: ${_meta.vig_migratoria}`);
-      if (obs)               partes.push(obs);
+      // Libreta sanitaria
+      if (_meta.ubigeo)         partes.push(`UBIGEO: ${_meta.ubigeo}`);
+      if (_meta.distrito)       partes.push(_meta.distrito);
+      // Sanción / Memo
+      if (_meta.tipo_san)       partes.push(_meta.tipo_san);
+      if (_meta.fecha_hecho)    partes.push(`Hecho: ${_meta.fecha_hecho}`);
+      if (_meta.emisor)         partes.push(`Por: ${_meta.emisor}`);
+      // Boleta
+      if (_meta.periodo)        partes.push(`Período: ${_meta.periodo}`);
+      // Contrato
+      if (_meta.tipo_con)       partes.push(_meta.tipo_con);
+      if (_meta.suscripcion)    partes.push(`Suscr.: ${_meta.suscripcion}`);
+      // vencimiento ya cubierto arriba (comparte key con DNI/libreta/permiso)
+      // Permiso de residencia: emision y vencimiento ya cubiertos arriba
+      if (obs)                  partes.push(obs);
       return partes.join(' · ');
     }
 
@@ -1263,9 +1320,12 @@
     // ── Campos extra dinámicos según categoría ────────────
     function onCategoriaDocChange() {
       const cat = document.getElementById('doc-categoria-sel').value;
-      document.getElementById('extra-dni').style.display     = (cat === 'dni_ce')            ? '' : 'none';
-      document.getElementById('extra-libreta').style.display = (cat === 'libreta_sanitaria')  ? '' : 'none';
-      document.getElementById('extra-sancion').style.display = (cat === 'sancion')            ? '' : 'none';
+      document.getElementById('extra-dni').style.display      = (cat === 'dni_ce')            ? '' : 'none';
+      document.getElementById('extra-libreta').style.display  = (cat === 'libreta_sanitaria') ? '' : 'none';
+      document.getElementById('extra-sancion').style.display  = (cat === 'sancion')           ? '' : 'none';
+      document.getElementById('extra-boleta').style.display   = (cat === 'boleta')            ? '' : 'none';
+      document.getElementById('extra-contrato').style.display = (cat === 'contrato')          ? '' : 'none';
+      document.getElementById('extra-permiso').style.display  = (cat === 'permiso_residencia')? '' : 'none';
       onTipoIdChange();
     }
 
@@ -1282,8 +1342,8 @@
         meta.emision     = document.getElementById('doc-dni-emision').value    || null;
         meta.vencimiento = document.getElementById('doc-dni-vencimiento').value || null;
         if (meta.tipo_id === 'CE') {
-          meta.vig_migratoria = document.getElementById('doc-ce-vigencia').value  || null;
-          meta.calidad        = document.getElementById('doc-ce-calidad').value   || null;
+          meta.vig_migratoria = document.getElementById('doc-ce-vigencia').value || null;
+          meta.calidad        = document.getElementById('doc-ce-calidad').value  || null;
         }
       } else if (cat === 'libreta_sanitaria') {
         meta.emision     = document.getElementById('doc-lib-emision').value     || null;
@@ -1291,9 +1351,18 @@
         meta.ubigeo      = document.getElementById('doc-lib-ubigeo').value       || null;
         meta.distrito    = document.getElementById('doc-lib-distrito').value     || null;
       } else if (cat === 'sancion') {
-        meta.tipo_san    = document.getElementById('doc-san-tipo').value         || null;
-        meta.fecha_hecho = document.getElementById('doc-san-fecha').value        || null;
+        meta.tipo_san    = document.getElementById('doc-san-tipo').value          || null;
+        meta.fecha_hecho = document.getElementById('doc-san-fecha').value         || null;
         meta.emisor      = document.getElementById('doc-san-emisor').value.trim() || null;
+      } else if (cat === 'boleta') {
+        meta.periodo     = document.getElementById('doc-bol-periodo').value.trim() || null;
+      } else if (cat === 'contrato') {
+        meta.suscripcion = document.getElementById('doc-con-suscripcion').value  || null;
+        meta.vencimiento = document.getElementById('doc-con-vencimiento').value  || null;
+        meta.tipo_con    = document.getElementById('doc-con-tipo').value.trim()  || null;
+      } else if (cat === 'permiso_residencia') {
+        meta.emision     = document.getElementById('doc-per-emision').value      || null;
+        meta.vencimiento = document.getElementById('doc-per-vencimiento').value  || null;
       }
       return meta;
     }
@@ -1303,10 +1372,16 @@
       document.getElementById('doc-filename-preview').textContent = `Archivo: ${pendingFile.name}`;
       // Reset campos extra
       ['doc-dni-emision','doc-dni-vencimiento','doc-ce-vigencia','doc-lib-emision','doc-lib-vencimiento',
-       'doc-lib-ubigeo','doc-lib-distrito','doc-san-fecha','doc-san-emisor','doc-notas'].forEach(id => {
+       'doc-lib-ubigeo','doc-lib-distrito','doc-san-fecha','doc-san-emisor',
+       'doc-bol-periodo','doc-con-suscripcion','doc-con-vencimiento','doc-con-tipo',
+       'doc-per-emision','doc-per-vencimiento','doc-notas','doc-lib-ubigeo','doc-lib-distrito'].forEach(id => {
         const el = document.getElementById(id); if (el) el.value = '';
       });
       document.querySelectorAll('input[name="doc-id-tipo"]')[0].checked = true;
+      const ubiLbl = document.getElementById('ubigeo-sel-label');
+      if (ubiLbl) { ubiLbl.style.display = 'none'; ubiLbl.textContent = ''; }
+      const ubiDd = document.getElementById('ubigeo-dropdown');
+      if (ubiDd) ubiDd.style.display = 'none';
       onCategoriaDocChange();
       document.getElementById('modal-doc-cat').classList.remove('hidden');
       input.value = '';
@@ -1326,18 +1401,21 @@
       const hasData = obs || Object.values(_meta).some(v=>v);
       const notasVal = hasData ? JSON.stringify({ _meta, obs }) : null;
 
-      const ext  = pendingFile.name.split('.').pop().toLowerCase();
-      const path = `${empleado.ruc_empresa}/${empleadoId}/${cat}_${Date.now()}.${ext}`;
-      const btn  = document.getElementById('btn-subir-doc');
+      const ext    = pendingFile.name.split('.').pop().toLowerCase();
+      // Para boletas, el sufijo es el período (ej: 202601) → CYC-EMP-001_BOLETA_202601_20250613.pdf
+      const sufijo = (cat === 'boleta' && _meta.periodo) ? _meta.periodo : null;
+      const path   = `${empleado.ruc_empresa}/${empleadoId}/${nombreArchivo(cat, ext, sufijo)}`;
+      const btn    = document.getElementById('btn-subir-doc');
       btn.disabled = true; btn.textContent = 'Subiendo...';
       const { error } = await sbClient.storage.from('Legajos').upload(path, pendingFile);
       if (error) { alert('Error: ' + error.message); btn.disabled=false; btn.textContent='Subir'; return; }
       const session = await checkSession();
+      const nomDoc  = nombreArchivo(cat, ext, sufijo);
       await sbClient.from('legajo_documentos').insert([{
         id_empleado:  empleadoId,
         ruc_empresa:  empleado.ruc_empresa,
         categoria:    cat,
-        nombre_archivo: pendingFile.name,
+        nombre_archivo: nomDoc,
         storage_path: path,
         tamanio_kb:   Math.round(pendingFile.size/1024),
         notas:        notasVal,
@@ -1562,8 +1640,67 @@
       doc.save(`Legajo_${e.id_empleado}_${e.apellidos}.pdf`);
     }
 
+    // ── Ubigeo predictivo ─────────────────────────────────
+    let _ubigeoTimer = null;
+
+    function ubigeoSearch(q) {
+      clearTimeout(_ubigeoTimer);
+      const dd = document.getElementById('ubigeo-dropdown');
+      const hidden = document.getElementById('doc-lib-ubigeo');
+      const label  = document.getElementById('ubigeo-sel-label');
+
+      // Si borraron el campo, limpiar selección
+      if (!q || q.length < 2) {
+        dd.style.display = 'none';
+        if (!q) { hidden.value = ''; label.style.display = 'none'; }
+        return;
+      }
+
+      _ubigeoTimer = setTimeout(() => {
+        const term = q.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+        const matches = UBIGEOS.filter(u => {
+          const dis = u.dis.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+          const prov = u.prov.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+          return dis.includes(term) || prov.includes(term);
+        }).slice(0, 12);
+
+        if (!matches.length) { dd.style.display = 'none'; return; }
+
+        dd.innerHTML = matches.map(u =>
+          `<div onclick="ubigeoSelect('${u.c}','${u.dis}','${u.prov}','${u.dep}')"
+            style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)"
+            onmouseover="this.style.background='var(--navy-light)'"
+            onmouseout="this.style.background=''"
+          >
+            <strong>${u.dis}</strong>
+            <span style="color:var(--text-muted);font-size:11px"> — ${u.prov}, ${u.dep}</span>
+            <span style="float:right;font-family:monospace;font-size:11px;color:var(--text-muted)">${u.c}</span>
+          </div>`
+        ).join('');
+        dd.style.display = 'block';
+      }, 200);
+    }
+
+    function ubigeoSelect(codigo, distrito, provincia, depto) {
+      document.getElementById('doc-lib-distrito').value = distrito;
+      document.getElementById('doc-lib-ubigeo').value   = codigo;
+      document.getElementById('ubigeo-dropdown').style.display = 'none';
+      const lbl = document.getElementById('ubigeo-sel-label');
+      lbl.textContent = `${codigo} — ${distrito}, ${provincia}, ${depto}`;
+      lbl.style.display = 'block';
+    }
+
+    // Cerrar dropdown al hacer click fuera
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#extra-libreta')) {
+        const dd = document.getElementById('ubigeo-dropdown');
+        if (dd) dd.style.display = 'none';
+      }
+    });
+
     init();
   </script>
+  <script src="../../js/ubigeos.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB0N4DS4-6zKehujK6VSVw0i0A8CfRutNs&libraries=places&callback=initGoogleMaps" async defer></script>
 </body>
 </html>
