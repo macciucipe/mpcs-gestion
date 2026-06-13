@@ -737,10 +737,10 @@
     // ── BORRADORES ────────────────────────────────────────────────
     async function guardarBorrador() {
       const datos = recolectarDatos();
-      const id    = document.getElementById('gen-id-borrador').value || ('B-' + Date.now());
+      const id    = document.getElementById('gen-id-borrador').value || crypto.randomUUID();
       const { error } = await sbClient.from('oc_borradores').upsert({
         id:         id,
-        perfil_id:  perfil.id,
+        perfil_id:  perfil.user_id,
         datos_json: datos,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
@@ -748,6 +748,8 @@
         document.getElementById('gen-id-borrador').value = id;
         alert('Borrador guardado (válido por 48 horas).');
         await auditar(perfil, 'CREAR', 'oc_borradores', `Guardó borrador de OC — ${datos.empresa || ''}`);
+      } else {
+        alert('Error al guardar borrador: ' + error.message);
       }
     }
 
@@ -757,7 +759,7 @@
       document.getElementById('modal-borradores').classList.remove('hidden');
       const hace48h = new Date(Date.now() - 48 * 3600000).toISOString();
       const { data } = await sbClient.from('oc_borradores')
-        .select('*').eq('perfil_id', perfil.id)
+        .select('*').eq('perfil_id', perfil.user_id)
         .gte('updated_at', hace48h)
         .order('updated_at', { ascending: false });
       const lista = data || [];
@@ -914,11 +916,14 @@
         const itemsRows = d.items.map((item, i) => ({
           id_item:        `${numero}-${(i+1).toString().padStart(3,'0')}`,
           id_oc:          numero,
+          id_pedido:      d.opOrigen || null,
+          id_producto:    item.idProducto || null,
           cantidad:       item.cant,
           descripcion:    item.desc,
           detalle_adic:   item.det || null,
           unidad_medida:  item.und,
-          precio_unitario:parseFloat(item.precioBruto),
+          precio_bruto:   parseFloat(item.precioBruto),
+          precio_unitario:parseFloat(item.precioNeto),   // precio neto unitario (sin IGV)
           subtotal_bruto: parseFloat(item.subtotalBruto),
           igv_linea:      parseFloat(item.igvLinea),
           precio_neto:    parseFloat(item.precioNeto),
@@ -1163,12 +1168,82 @@
     }
 
     // ── VER DETALLE OC ────────────────────────────────────────────
+    // ── VER DETALLE OC ────────────────────────────────────────────
     async function verDetalleOC(id) {
       const { data: oc }    = await sbClient.from('ordenes_compra').select('*').eq('id_oc', id).single();
-      const { data: items } = await sbClient.from('oc_items').select('*').eq('id_oc', id);
+      const { data: items } = await sbClient.from('oc_items').select('*').eq('id_oc', id).order('id_item');
       if (!oc) return;
-      const fecha = oc.created_at ? new Date(oc.created_at).toLocaleDateString('es-PE') : '—';
-      alert(`${oc.numero}\n${oc.proveedor}\n${fecha}\nTotal: S/ ${parseFloat(oc.total).toFixed(2)}\nEstado: ${oc.estado}\n\nItems: ${(items||[]).length}`);
+
+      const fecha     = oc.created_at ? new Date(oc.created_at).toLocaleDateString('es-PE') : '—';
+      const tipoBadge = oc.tipo === 'OS'
+        ? '<span class="badge badge-green">OS</span>'
+        : '<span class="badge badge-blue">OC</span>';
+      const fmt2 = n => parseFloat(n||0).toLocaleString('es-PE', { minimumFractionDigits: 2 });
+
+      // Crear modal si no existe
+      let modal = document.getElementById('modal-detalle-oc');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-detalle-oc';
+        modal.className = 'modal-overlay hidden';
+        modal.innerHTML = `
+          <div class="modal" style="max-width:760px">
+            <div class="modal-header">
+              <h3 id="det-oc-titulo">Detalle de orden</h3>
+              <button class="modal-close" onclick="cerrar('modal-detalle-oc')">×</button>
+            </div>
+            <div class="modal-body" id="det-oc-body"></div>
+            <div class="modal-footer" id="det-oc-footer">
+              <button class="btn btn-ghost" onclick="cerrar('modal-detalle-oc')">Cerrar</button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e => { if (e.target === modal) cerrar('modal-detalle-oc'); });
+      }
+
+      document.getElementById('det-oc-titulo').innerHTML = `${oc.numero || oc.id_oc} ${tipoBadge}`;
+      document.getElementById('det-oc-body').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;background:var(--bg);padding:12px 16px;border-radius:var(--radius-md);font-size:13px">
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Fecha</div><strong>${fecha}</strong></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Local</div><strong>${oc.id_local || '—'}</strong></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Estado</div>${getEstadoBadge(oc.estado)}</div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Proveedor</div><strong>${oc.nombre_proveedor || oc.proveedor || '—'}</strong></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Pedido origen</div><span style="font-family:monospace">${oc.op_origen || '—'}</span></div>
+          <div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Creado por</div>${oc.created_by || '—'}</div>
+        </div>
+        ${oc.notas ? `<div style="background:var(--bg);padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:16px;color:var(--text-muted)"><strong>Observaciones:</strong> ${oc.notas}</div>` : ''}
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px">Items (${(items||[]).length})</div>
+        <div class="table-wrap" style="margin-bottom:16px">
+          <table>
+            <thead><tr><th>N°</th><th>Cant.</th><th>Und</th><th>Descripción</th><th>Detalle</th><th style="text-align:right">P.Unit Bruto</th><th style="text-align:right">Total</th></tr></thead>
+            <tbody>
+              ${(items||[]).map((it,i) => `
+                <tr>
+                  <td style="color:var(--text-muted);font-size:12px">${i+1}</td>
+                  <td style="font-weight:600">${it.cantidad}</td>
+                  <td><span class="badge badge-gray">${it.unidad_medida||'—'}</span></td>
+                  <td>${it.descripcion||'—'}</td>
+                  <td style="font-size:12px;color:var(--text-muted)">${it.detalle_adic||'—'}</td>
+                  <td style="text-align:right">S/ ${fmt2(it.precio_bruto||it.precio_unitario)}</td>
+                  <td style="text-align:right;font-weight:600">S/ ${fmt2(it.subtotal_bruto)}</td>
+                </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Sin items</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:24px;font-size:13px;border-top:1px solid var(--border);padding-top:12px">
+          <span style="color:var(--text-muted)">Subtotal: <strong>S/ ${fmt2(oc.subtotal)}</strong></span>
+          <span style="color:var(--text-muted)">IGV: <strong>S/ ${fmt2(oc.igv)}</strong></span>
+          <span style="font-size:16px;font-weight:700;color:var(--navy)">Total: S/ ${fmt2(oc.total)}</span>
+        </div>`;
+
+      const footer = document.getElementById('det-oc-footer');
+      footer.innerHTML = `<button class="btn btn-ghost" onclick="cerrar('modal-detalle-oc')">Cerrar</button>`;
+      if (oc.pdf_url) {
+        footer.innerHTML += `<a href="${oc.pdf_url}" target="_blank" class="btn btn-outline">
+          ${icons.download} Descargar PDF</a>`;
+      }
+
+      modal.classList.remove('hidden');
     }
 
     // ── UTILS ─────────────────────────────────────────────────────
