@@ -927,6 +927,15 @@
           numero = `OC-${codEmp}-${codLoc}-${año}-${corr.toString().padStart(5,'0')}`;
         }
 
+        // Si viene de una OP, obtener total de items del pedido para el PDF
+        if (d.opOrigen) {
+          const { data: itemsOP } = await sbClient
+            .from('pedidos_items')
+            .select('id_item')
+            .eq('id_pedido', d.opOrigen);
+          d._totalItemsOP = itemsOP?.length || d.items.length;
+        }
+
         // Generar PDF
         const pdfBase64 = await generarPDF(d, numero, localData, emp);
 
@@ -1125,6 +1134,27 @@
       y += 14;
 
       // ══════════════════════════════════════════════
+      // PEDIDO ORIGEN — solo si viene de una OP
+      // ══════════════════════════════════════════════
+      if (d.opOrigen) {
+        // Contar total de items del pedido y cuántos van en esta OC
+        const totalItemsOP  = d._totalItemsOP  || d.items.length;
+        const itemsEnEstaOC = d.items.length;
+        doc.setFillColor(235, 245, 235);
+        doc.roundedRect(mL, y - 4, ancho, 10, 1.5, 1.5, 'F');
+        doc.setFont('helvetica','bold').setFontSize(8).setTextColor(0, 90, 0);
+        doc.text('PEDIDO ORIGEN:', mL + 3, y + 2);
+        doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...negro);
+        doc.text(d.opOrigen, mL + 33, y + 2);
+        doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...gris);
+        doc.text(
+          `${itemsEnEstaOC} de ${totalItemsOP} ítem${totalItemsOP !== 1 ? 's' : ''} del pedido`,
+          mR - 3, y + 2, { align:'right' }
+        );
+        y += 12;
+      }
+
+      // ══════════════════════════════════════════════
       // TABLA DE ITEMS
       // ══════════════════════════════════════════════
       // Anchos ajustados: N°, Cant, Und, Descripción, Detalle, P.Unit, IGV, Total
@@ -1258,13 +1288,18 @@
       doc.setFillColor(...azul);
       doc.rect(0, pieY - 1, 210, 14, 'F');
 
-      // QR
+      // QR — apunta a la URL de recepción del portal de locales
       try {
+        const qrUrl = `https://locales.mpcs.pe/pages/recepciones.html?oc=${numero}`;
         const qrCanvas = document.createElement('canvas');
-        qrCanvas.width = 80; qrCanvas.height = 80;
-        new QRCode(qrCanvas, { text: numero, width:80, height:80 });
+        qrCanvas.width = 120; qrCanvas.height = 120;
+        new QRCode(qrCanvas, { text: qrUrl, width:120, height:120, correctLevel: QRCode.CorrectLevel.M });
         const qrData = qrCanvas.toDataURL('image/png');
-        doc.addImage(qrData, 'PNG', mR - 14, pieY, 12, 12);
+        doc.addImage(qrData, 'PNG', mR - 18, pieY - 1, 15, 15);
+        // Tooltip debajo del QR
+        doc.setFont('helvetica','normal').setFontSize(5.5).setTextColor(...gris);
+        doc.text('Escanear para', mR - 10.5, pieY + 15, { align:'center' });
+        doc.text('recibir mercadería', mR - 10.5, pieY + 18.5, { align:'center' });
       } catch(e) {}
 
       doc.setFont('helvetica','bold').setFontSize(7).setTextColor(...blanco);
