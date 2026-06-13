@@ -630,66 +630,33 @@
       try {
         const localData = localesGlobal.find(l => l.id_local === local);
         const empresa   = empresas.find(e => e.ruc === ruc);
+        const codLocal  = localData?.codigo_corto || local.slice(-3).toUpperCase();
+        const codEmp    = empresa?.abreviatura    || ruc.slice(-3);
 
-        // Leer correlativo actual y luego incrementar
-        const { data: localCorr, error: eCorrLeer } = await sbClient
-          .from('locales')
-          .select('correlativo_op')
-          .eq('id_local', local)
-          .single();
-        if (eCorrLeer) throw new Error('Error al leer correlativo: ' + eCorrLeer.message);
+        // Llamada RPC atómica: reserva correlativo + inserta pedido + items
+        // en una sola transacción con FOR UPDATE en locales.
+        // Si dos usuarios llaman al mismo tiempo, Postgres serializa el acceso
+        // y cada uno obtiene su propio número sin conflicto.
+        const { data: rpcData, error: rpcError } = await sbClient.rpc('crear_pedido_atomico', {
+          p_ruc_empresa:  ruc,
+          p_id_local:     local,
+          p_solicitante:  soli,
+          p_notas:        document.getElementById('nuevo-obs').value.trim() || '',
+          p_cod_empresa:  codEmp,
+          p_cod_local:    codLocal,
+          p_items:        carritoItems.map(item => ({
+            id_producto_local: item.id_producto_local,
+            nombre:            item.nombre,
+            cantidad:          item.cantidad,
+            unidad_medida:     item.unidad,
+            categoria:         item.categoria || '',
+          })),
+        });
 
-        const corr = localCorr.correlativo_op || 1;
+        if (rpcError) throw new Error(rpcError.message);
+        if (!rpcData?.ok) throw new Error(rpcData?.error || 'Error desconocido en el servidor.');
 
-        // Incrementar ANTES de insertar y verificar que realmente se haya actualizado.
-        // Si esto no se actualiza, el segundo pedido vuelve a usar el mismo número
-        // y Supabase devuelve error 23505 / pedidos_pkey duplicado.
-        const { data: corrUpdate, error: eCorrUpdate } = await sbClient.from('locales')
-          .update({ correlativo_op: corr + 1 })
-          .eq('id_local', local)
-          .eq('correlativo_op', corr)
-          .select('id_local, correlativo_op')
-          .maybeSingle();
-
-        if (eCorrUpdate) {
-          throw new Error('Error al actualizar correlativo: ' + eCorrUpdate.message);
-        }
-
-        if (!corrUpdate) {
-          throw new Error('No se pudo reservar el número del pedido. Recargá la página e intentá nuevamente.');
-        }
-
-        const año      = new Date().getFullYear().toString().slice(-2);
-        const codLocal = localData?.codigo_corto || local.slice(-3).toUpperCase();
-        const codEmp   = empresa?.abreviatura || ruc.slice(-3);
-        const numero   = `OP-${codEmp}-${codLocal}-${año}-${corr.toString().padStart(5,'0')}`;
-
-        // Insertar cabecera
-        const { data: opData, error: e1 } = await sbClient.from('pedidos').insert({
-          id_pedido:    numero,
-          numero:       numero,
-          ruc_empresa:  ruc,
-          id_local:     local,
-          solicitante:  soli,
-          estado:       'pendiente',
-          notas:        document.getElementById('nuevo-obs').value.trim() || null,
-        }).select().single();
-        if (e1) throw new Error(e1.message);
-
-        // Insertar items
-        const itemsRows = carritoItems.map((item, i) => ({
-          id_item:            `${numero}-${(i+1).toString().padStart(3,'0')}`,
-          id_pedido:          numero,
-          id_producto_local:  item.id_producto_local,
-          nombre_producto:    item.nombre,
-          cantidad:           item.cantidad,
-          unidad_medida:      item.unidad,
-          detalle:            item.nombre,
-          categoria:          item.categoria || null,
-        }));
-        const { error: e2 } = await sbClient.from('pedidos_items').insert(itemsRows);
-        if (e2) throw new Error(e2.message);
-
+        const numero = rpcData.numero;
         await auditar(perfil, 'CREAR', 'pedidos', `Creó pedido ${numero} — ${local} — ${carritoItems.length} items`);
 
         cerrar('modal-preview');
@@ -698,12 +665,9 @@
         await cargar();
 
       } catch(e) {
-        const errorMsg = e?.message || 'Error desconocido';
-        const textoAmigable = errorMsg.includes('duplicate key') || errorMsg.includes('23505') || errorMsg.includes('pedidos_pkey')
-          ? 'Error: se intentó crear un pedido con un número que ya existe. Recargá la página e intentá nuevamente.'
-          : 'Error: ' + errorMsg;
-        showMsg(msg,'alert-error', textoAmigable);
+        showMsg(msg, 'alert-error', 'Error: ' + (e?.message || 'Error desconocido'));
       }
+
       btn.disabled = false; btn.textContent = '✓ Confirmar y enviar a Compras';
     }
 
