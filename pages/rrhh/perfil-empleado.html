@@ -1428,45 +1428,65 @@
     }
 
     // ── Vista previa ──────────────────────────────────────
-    let _previewPath = null, _previewNombre = null;
+    let _previewPath = null, _previewNombre = null, _previewBlobUrl = null;
 
     async function verPrevia(path, nombre) {
       _previewPath   = path;
       _previewNombre = nombre;
-      const ext = nombre.split('.').pop().toLowerCase();
+      const ext      = nombre.split('.').pop().toLowerCase();
       const esImagen = ['jpg','jpeg','png','webp','gif'].includes(ext);
       const esPDF    = ext === 'pdf';
 
+      // Resetear modal
+      document.getElementById('preview-titulo').textContent = 'Cargando...';
+      document.getElementById('preview-iframe').style.display      = 'none';
+      document.getElementById('preview-img').style.display         = 'none';
+      document.getElementById('preview-no-soporte').style.display  = 'none';
+      document.getElementById('modal-preview').classList.remove('hidden');
+
+      // Liberar blob anterior si existe
+      if (_previewBlobUrl) { URL.revokeObjectURL(_previewBlobUrl); _previewBlobUrl = null; }
+
+      if (!esImagen && !esPDF) {
+        document.getElementById('preview-titulo').textContent = nombre;
+        document.getElementById('preview-no-soporte').style.display = 'flex';
+        return;
+      }
+
+      // Descargar con token de sesión (funciona sin bucket público)
+      const { data, error } = await sbClient.storage.from('Legajos').download(path);
+      if (error || !data) {
+        document.getElementById('preview-titulo').textContent = nombre;
+        document.getElementById('preview-no-soporte').style.display = 'flex';
+        return;
+      }
+
+      const mimeType = esPDF ? 'application/pdf'
+                     : ext === 'png' ? 'image/png'
+                     : ext === 'gif' ? 'image/gif'
+                     : ext === 'webp' ? 'image/webp'
+                     : 'image/jpeg';
+      const blob = new Blob([data], { type: mimeType });
+      _previewBlobUrl = URL.createObjectURL(blob);
+
       document.getElementById('preview-titulo').textContent = nombre;
-      document.getElementById('preview-iframe').style.display = 'none';
-      document.getElementById('preview-img').style.display    = 'none';
-      document.getElementById('preview-no-soporte').style.display = 'none';
-
-      const modal = document.getElementById('modal-preview');
-      modal.classList.remove('hidden');
-
-      // Obtener URL pública desde Supabase Storage
-      const { data: urlData } = sbClient.storage.from('Legajos').getPublicUrl(path);
-      const url = urlData?.publicUrl;
-
-      if (!url) { document.getElementById('preview-no-soporte').style.display='flex'; return; }
 
       if (esImagen) {
         const img = document.getElementById('preview-img');
-        img.src = url;
+        img.src = _previewBlobUrl;
         img.style.display = 'block';
-      } else if (esPDF) {
-        const iframe = document.getElementById('preview-iframe');
-        iframe.src = url;
-        iframe.style.display = 'block';
       } else {
-        document.getElementById('preview-no-soporte').style.display = 'flex';
+        const iframe = document.getElementById('preview-iframe');
+        iframe.src = _previewBlobUrl;
+        iframe.style.display = 'block';
       }
     }
 
     function cerrarPreview() {
       document.getElementById('modal-preview').classList.add('hidden');
       document.getElementById('preview-iframe').src = '';
+      document.getElementById('preview-img').src = '';
+      if (_previewBlobUrl) { URL.revokeObjectURL(_previewBlobUrl); _previewBlobUrl = null; }
       _previewPath = null; _previewNombre = null;
     }
 
