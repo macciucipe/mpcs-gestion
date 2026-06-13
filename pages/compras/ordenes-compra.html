@@ -528,9 +528,15 @@
       document.getElementById('input-detalle-rapido').value = '';
       document.getElementById('input-buscar-op').value = '';
       document.getElementById('msg-gen').style.display = 'none';
-      // Fecha de entrega por defecto: mañana
-      const _manana = new Date(); _manana.setDate(_manana.getDate() + 1);
-      document.getElementById('gen-fecha-entrega').value = _manana.toISOString().split('T')[0];
+      // Fecha de entrega — mínimo hoy, máximo 8 días, por defecto mañana
+      const _hoyLima  = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Lima' }));
+      const _manana   = new Date(_hoyLima); _manana.setDate(_manana.getDate() + 1);
+      const _maxFecha = new Date(_hoyLima); _maxFecha.setDate(_maxFecha.getDate() + 8);
+      const _toISO    = d => d.toISOString().split('T')[0];
+      const inputFecha = document.getElementById('gen-fecha-entrega');
+      inputFecha.min   = _toISO(_hoyLima);
+      inputFecha.max   = _toISO(_maxFecha);
+      inputFecha.value = _toISO(_manana);
       document.getElementById('gen-vigencia-hs').value = '24';
       document.getElementById('btns-empresa').querySelectorAll('.btn-empresa').forEach(b => b.classList.remove('active'));
       document.getElementById('btns-local').innerHTML = '';
@@ -924,6 +930,21 @@
       if (!d.proveedor) { showMsg(msg,'alert-error','Seleccioná un proveedor.'); return; }
       if (!d.items.length) { showMsg(msg,'alert-error','Agregá al menos un item.'); return; }
       if (d.items.some(i => !i.desc)) { showMsg(msg,'alert-error','Todos los items deben tener descripción.'); return; }
+
+      // Validar fecha de entrega
+      if (!d.fechaEntrega) { showMsg(msg,'alert-error','Seleccioná una fecha de entrega.'); return; }
+      const hoyLima  = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Lima' }));
+      hoyLima.setHours(0,0,0,0);
+      const fechaEnt = new Date(d.fechaEntrega + 'T00:00:00');
+      if (fechaEnt < hoyLima) {
+        showMsg(msg,'alert-error','La fecha de entrega no puede ser anterior a hoy.');
+        return;
+      }
+      const maxFecha = new Date(hoyLima); maxFecha.setDate(maxFecha.getDate() + 8);
+      if (fechaEnt > maxFecha) {
+        showMsg(msg,'alert-error','La fecha de entrega no puede ser más de 8 días desde hoy.');
+        return;
+      }
 
       btn.disabled = true; btn.textContent = 'Generando...'; msg.style.display = 'none';
 
