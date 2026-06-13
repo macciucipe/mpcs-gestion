@@ -91,7 +91,7 @@
                 <th>OC vinculadas</th>
                 <th>Guías</th>
                 <th>Estado</th>
-                <th>Autorización</th>
+                <th>PDF</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -119,6 +119,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="../../js/config.js"></script>
   <script src="../../js/auth.js"></script>
   <script>
@@ -151,7 +152,7 @@
 
       const { ruc } = getContexto();
       let q = sbClient.from('or_cabecera')
-        .select('*, or_oc_vinculo(id_oc), locales(nombre)')
+        .select('*, or_oc_vinculo(id_oc), locales(nombre), pdf_url, ruc_empresa, id_oc')
         .order('created_at', { ascending: false });
       if (ruc) q = q.eq('ruc_empresa', ruc);
 
@@ -247,7 +248,10 @@
           <td style="font-size:12px">${ocs || '—'}</td>
           <td style="font-size:11px;font-family:monospace;color:var(--text-muted)">${guias}</td>
           <td>${estadoBadge}</td>
-          <td>${authCell}</td>
+          <td>${or.pdf_url
+            ? `<a href="${or.pdf_url}" target="_blank" class="btn btn-sm btn-ghost" title="Ver PDF">
+                ${icons.download} PDF</a>`
+            : '—'}</td>
           <td>
             <button class="btn btn-sm btn-ghost" onclick="verDetalle('${or.id_or}')">
               ${icons.eye} Ver
@@ -359,6 +363,14 @@
       } else {
         footer.innerHTML = '<button class="btn btn-ghost" onclick="cerrarDetalle()">Cerrar</button>';
       }
+      // Botón PDF — generar si no existe, ver si ya existe
+      if (or.pdf_url) {
+        footer.innerHTML += `<a href="${or.pdf_url}" target="_blank" class="btn btn-outline">
+          ${icons.download} Ver PDF</a>`;
+      } else if (['conforme','incompleta','declinada'].includes(or.estado)) {
+        footer.innerHTML += `<button class="btn btn-primary" onclick="generarYSubirPDF_OR('${or.id_or}')">
+          ${icons.download} Generar PDF</button>`;
+      }
 
       document.getElementById('modal-detalle').classList.remove('hidden');
     }
@@ -431,6 +443,181 @@
       await auditar(perfil, 'EDITAR', 'or_cabecera', `Rechazó OR observada ${idOR}`);
       cerrarDetalle();
       await cargar();
+    }
+
+    function base64ToBlob(base64, mimeType) {
+      const bytes = atob(base64);
+      const arr   = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+      return new Blob([arr], { type: mimeType });
+    }
+
+    async function generarYSubirPDF_OR(idOR) {
+      const or = ordenes.find(o => o.id_or === idOR);
+      if (!or) return;
+
+      const { data: items } = await sbClient.from('or_detalle').select('*').eq('id_or', idOR).order('id');
+      const { data: ocData } = await sbClient.from('ordenes_compra').select('nombre_proveedor, ruc_empresa, id_local, locales(nombre, direccion)').eq('id_oc', or.id_oc).single();
+
+      const { jsPDF } = window.jspdf;
+      const doc   = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+      const mL    = 14, mR = 196, ancho = 182;
+      const azul  = [27,43,94], negro = [30,30,30], gris = [120,120,120], grisCla = [210,215,225], blanco = [255,255,255];
+      const fmt2  = n => parseFloat(n||0).toLocaleString('en-US', { minimumFractionDigits:2 });
+      const fecha = new Date(or.created_at).toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'numeric' });
+
+      // ── CABECERA ─────────────────────────────────────────────────
+      doc.setFillColor(...azul);
+      doc.rect(0, 0, 210, 28, 'F');
+
+      doc.setFont('helvetica','bold').setFontSize(13).setTextColor(...blanco);
+      doc.text('ORDEN DE RECEPCIÓN', 105, 11, { align:'center' });
+      doc.setFont('helvetica','normal').setFontSize(9).setTextColor(180,200,240);
+      doc.text(or.id_or, 105, 18, { align:'center' });
+
+      // Caja número
+      doc.setFillColor(...blanco);
+      doc.roundedRect(148, 3, 46, 22, 2, 2, 'F');
+      doc.setFont('helvetica','normal').setFontSize(6.5).setTextColor(...azul);
+      doc.text('NÚMERO OR:', 171, 9, { align:'center' });
+      doc.setFont('helvetica','bold').setFontSize(8.5).setTextColor(...azul);
+      doc.text(or.id_or, 171, 16, { align:'center' });
+      doc.setFont('helvetica','normal').setFontSize(6.5).setTextColor(...gris);
+      doc.text(`Fecha: ${fecha}`, 171, 22, { align:'center' });
+
+      let y = 34;
+
+      // ── INFO GENERAL ─────────────────────────────────────────────
+      doc.setFillColor(244,247,252);
+      doc.roundedRect(mL, y-3, ancho, 18, 1.5, 1.5, 'F');
+
+      doc.setFont('helvetica','bold').setFontSize(8).setTextColor(...azul);
+      doc.text('PROVEEDOR:', mL+3, y+3);
+      doc.setFont('helvetica','bold').setFontSize(9).setTextColor(0,90,0);
+      doc.text(or.nombre_proveedor || '—', mL+30, y+3);
+
+      doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...azul);
+      doc.text('LOCAL:', mL+3, y+10);
+      doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...negro);
+      doc.text(or.locales?.nombre || or.id_local || '—', mL+18, y+10);
+
+      doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...azul);
+      doc.text('OC:', mR-60, y+3);
+      doc.setFont('helvetica','bold').setFontSize(8).setTextColor(...negro);
+      doc.text(or.id_oc || '—', mR-52, y+3);
+
+      doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...azul);
+      doc.text('Guías:', mR-60, y+10);
+      doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...negro);
+      doc.text((or.guias||[]).join(', ') || '—', mR-43, y+10);
+
+      // Estado badge
+      const estadoColors = { conforme:[0,120,0], incompleta:[100,30,200], declinada:[180,0,0], parcial:[180,120,0] };
+      const estadoColor = estadoColors[or.estado] || negro;
+      doc.setFont('helvetica','bold').setFontSize(8).setTextColor(...estadoColor);
+      doc.text(`Estado: ${or.estado.toUpperCase()}`, mR-3, y+3, { align:'right' });
+
+      y += 22;
+
+      // ── TABLA DE ITEMS ────────────────────────────────────────────
+      const colW = [7, 57, 15, 18, 18, 18, 18, 18, 13];
+      const colX = [mL];
+      colW.forEach((w,i) => { if(i>0) colX.push(colX[i-1]+colW[i-1]); });
+      const headers = ['N°','Descripción','Unid','Cant OC','Cant Rec','Precio','Subtotal','Estado'];
+
+      doc.setFillColor(...azul);
+      doc.rect(mL, y, ancho, 7, 'F');
+      doc.setFont('helvetica','bold').setFontSize(7).setTextColor(...blanco);
+      ['N°','Descripción','Unid','Cant. OC','Cant. Rec.','P.Unit','Subtotal','Estado'].forEach((h,i) => {
+        const isRight = i >= 3 && i <= 6;
+        const xPos = isRight ? colX[i]+colW[i]-1 : i===0 ? colX[i]+colW[i]/2 : colX[i]+1.5;
+        doc.text(h, xPos, y+4.8, { align: isRight?'right':i===0?'center':'left' });
+      });
+      y += 7;
+
+      doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...negro);
+      (items||[]).forEach((item, idx) => {
+        const rowH = 8;
+        if (y + rowH > 265) { doc.addPage(); y = 15; }
+        if (idx % 2 === 1) { doc.setFillColor(248,250,254); doc.rect(mL,y,ancho,rowH,'F'); }
+        doc.setDrawColor(...grisCla).setLineWidth(0.15);
+        doc.line(mL, y+rowH, mR, y+rowH);
+
+        const cy = y + rowH/2 + 1;
+        const estadoItem = item.estado || 'pendiente';
+        const colEstado = estadoItem==='recibido'?[0,120,0]:estadoItem==='rechazado'?[180,0,0]:[150,100,0];
+
+        doc.setTextColor(...negro);
+        doc.text((idx+1).toString(), colX[0]+colW[0]/2, cy, {align:'center'});
+        doc.text((item.descripcion||'').slice(0,30), colX[1]+1.5, cy);
+        doc.text(item.unidad_medida||'—', colX[2]+1.5, cy);
+        doc.text(fmt2(item.cantidad_oc), colX[3]+colW[3]-1, cy, {align:'right'});
+        doc.setFont('helvetica','bold');
+        doc.text(fmt2(item.cantidad_recibida), colX[4]+colW[4]-1, cy, {align:'right'});
+        doc.setFont('helvetica','normal');
+        doc.text('S/'+fmt2(item.precio_unitario), colX[5]+colW[5]-1, cy, {align:'right'});
+        doc.text('S/'+fmt2(item.subtotal), colX[6]+colW[6]-1, cy, {align:'right'});
+        doc.setFont('helvetica','bold').setTextColor(...colEstado);
+        doc.text(estadoItem, colX[7]+colW[7]/2, cy, {align:'center'});
+        doc.setFont('helvetica','normal').setTextColor(...negro);
+        y += rowH;
+      });
+
+      y += 8;
+
+      // ── OBSERVACIÓN ──────────────────────────────────────────────
+      if (or.observacion_local) {
+        doc.setFillColor(255,252,230);
+        const obsLines = doc.splitTextToSize(or.observacion_local, ancho-6);
+        doc.roundedRect(mL, y-3, ancho, obsLines.length*4.5+8, 1.5, 1.5, 'F');
+        doc.setFont('helvetica','bold').setFontSize(7.5).setTextColor(140,100,0);
+        doc.text('Observación:', mL+3, y+2);
+        doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...negro);
+        doc.text(obsLines, mL+3, y+7);
+        y += obsLines.length*4.5+12;
+      }
+
+      // ── PIE ──────────────────────────────────────────────────────
+      const pieY = 287;
+      doc.setFillColor(...azul);
+      doc.rect(0, pieY, 210, 10, 'F');
+      doc.setFont('helvetica','bold').setFontSize(7).setTextColor(...blanco);
+      doc.text('MPCS · Sistema de Gestión', mL, pieY+4);
+      doc.setFont('helvetica','normal').setFontSize(6.5).setTextColor(180,200,240);
+      doc.text(`gestion.mpcs.pe  ·  ${fecha}`, mL, pieY+8);
+      doc.setFont('helvetica','normal').setFontSize(6.5).setTextColor(180,200,240);
+      doc.text(`Generado por: ${perfil?.nombre || '—'}`, mR, pieY+4, { align:'right' });
+
+      const pdfBase64 = doc.output('datauristring').split(',')[1];
+
+      // Subir a Storage
+      const pdfBlob = base64ToBlob(pdfBase64, 'application/pdf');
+      const pathPDF = `${or.ruc_empresa || 'SIN-RUC'}/${or.id_or}.pdf`;
+      const { error: eStorage } = await sbClient.storage
+        .from('ordenes-compra')
+        .upload(pathPDF, pdfBlob, { contentType:'application/pdf', upsert:true });
+
+      if (eStorage) {
+        alert('Error al subir PDF: ' + eStorage.message);
+        return;
+      }
+
+      const { data: urlData } = await sbClient.storage
+        .from('ordenes-compra')
+        .createSignedUrl(pathPDF, 60 * 60 * 24 * 365);
+
+      const pdfUrl = urlData?.signedUrl || null;
+
+      if (pdfUrl) {
+        await sbClient.from('or_cabecera').update({ pdf_url: pdfUrl }).eq('id_or', idOR);
+        // Actualizar en memoria
+        const idx = ordenes.findIndex(o => o.id_or === idOR);
+        if (idx >= 0) ordenes[idx].pdf_url = pdfUrl;
+        // Abrir en nueva pestaña
+        window.open(pdfUrl, '_blank');
+        cerrarDetalle();
+        await cargar();
+      }
     }
 
     function cerrarDetalle() { document.getElementById('modal-detalle').classList.add('hidden'); }
