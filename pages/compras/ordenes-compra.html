@@ -483,9 +483,12 @@
           <td style="font-size:13px"><strong>${o.nombre_proveedor || o.proveedor || '—'}</strong></td>
           <td style="font-size:13px;font-weight:600">S/ ${parseFloat(o.total||0).toLocaleString('es-PE',{minimumFractionDigits:2})}</td>
           <td>${getEstadoBadge(o.estado || 'pendiente')}</td>
-          <td>${o.pdf_url ? `<a href="${o.pdf_url}" target="_blank" class="btn btn-sm btn-ghost">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            PDF</a>` : '—'}</td>
+          <td>${o.pdf_url
+            ? `<a href="${o.pdf_url}" target="_blank" class="btn btn-sm btn-ghost" title="Ver PDF">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Ver PDF</a>`
+            : '<span style="font-size:11px;color:var(--text-muted)">—</span>'
+          }</td>
           <td>
             <button class="btn btn-sm btn-ghost" onclick="verDetalleOC('${o.id_oc}')">
               ${icons.eye} Ver
@@ -1067,13 +1070,35 @@
 
         await auditar(perfil, 'CREAR', 'ordenes_compra', `Generó ${numero} — ${d.proveedor} — S/ ${d.total}`);
 
-        // Descargar PDF
-        const link = document.createElement('a');
-        link.href     = `data:application/pdf;base64,${pdfBase64}`;
-        link.download = `${numero}_${d.proveedor}.pdf`;
-        link.click();
+        // Subir PDF a Supabase Storage
+        const pdfBlob    = base64ToBlob(pdfBase64, 'application/pdf');
+        const pathPDF    = `${d.rucEmpresa}/${numero}.pdf`;
+        const { error: eStorage } = await sbClient.storage
+          .from('ordenes-compra')
+          .upload(pathPDF, pdfBlob, { contentType: 'application/pdf', upsert: true });
 
-        showMsg(msg, 'alert-success', `✓ ${numero} generada correctamente. El PDF se descargó.`);
+        if (eStorage) {
+          console.warn('Storage error:', eStorage.message);
+          // Si falla el storage, igual guardar la OC pero avisar
+          showMsg(msg, 'alert-success', `✓ ${numero} generada. (PDF no pudo subirse al servidor: ${eStorage.message})`);
+        } else {
+          // Obtener URL firmada (válida 1 año)
+          const { data: urlData } = await sbClient.storage
+            .from('ordenes-compra')
+            .createSignedUrl(pathPDF, 60 * 60 * 24 * 365);
+
+          const pdfUrl = urlData?.signedUrl || null;
+
+          // Guardar URL en la OC
+          if (pdfUrl) {
+            await sbClient.from('ordenes_compra')
+              .update({ pdf_url: pdfUrl })
+              .eq('id_oc', numero);
+          }
+
+          showMsg(msg, 'alert-success', `✓ ${numero} generada correctamente.`);
+        }
+
         cerrarGenerador();
         await cargar();
 
@@ -1390,7 +1415,15 @@
       return doc.output('datauristring').split(',')[1];
     }
 
-        // Cargar imagen como base64 para jsPDF
+        // Convertir base64 a Blob para subir a Storage
+    function base64ToBlob(base64, mimeType) {
+      const bytes = atob(base64);
+      const arr   = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+      return new Blob([arr], { type: mimeType });
+    }
+
+    // Cargar imagen como base64 para jsPDF
     function cargarImagenBase64(url) {
       return new Promise((resolve, reject) => {
         const img = new Image();
