@@ -676,17 +676,78 @@
             <div class="modal-body">
               <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem" id="doc-filename-preview"></p>
               <div class="field"><label>Categoría <span class="req">*</span></label>
-                <select id="doc-categoria-sel">
+                <select id="doc-categoria-sel" onchange="onCategoriaDocChange()">
                   <option value="dni_ce">DNI / CE</option>
+                  <option value="boleta">Boleta de pago</option>
                   <option value="contrato">Contrato</option>
                   <option value="libreta_sanitaria">Libreta sanitaria</option>
                   <option value="permiso_residencia">Permiso de residencia</option>
-                  <option value="sancion">Sanción</option>
+                  <option value="sancion">Sanción / Memo</option>
                   <option value="notificacion">Notificación</option>
                   <option value="otro">Otro</option>
                 </select>
               </div>
-              <div class="field"><label>Notas (opcional)</label><input type="text" id="doc-notas" placeholder="Ej: Contrato 2024-2025" /></div>
+              <!-- Campos extra: DNI / CE -->
+              <div id="extra-dni" style="display:none">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                  <div class="field"><label>Fecha de emisión</label><input type="date" id="doc-dni-emision" /></div>
+                  <div class="field"><label>Fecha de vencimiento</label><input type="date" id="doc-dni-vencimiento" /></div>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">
+                  Tipo: &nbsp;
+                  <label><input type="radio" name="doc-id-tipo" value="DNI" checked onchange="onTipoIdChange()" /> DNI</label>
+                  <label style="margin-left:10px"><input type="radio" name="doc-id-tipo" value="CE" onchange="onTipoIdChange()" /> CE</label>
+                </div>
+                <div id="extra-ce" style="display:none;margin-bottom:10px">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+                    <div class="field"><label>Vigencia calidad migratoria</label><input type="date" id="doc-ce-vigencia" /></div>
+                    <div class="field"><label>Tipo calidad migratoria</label>
+                      <select id="doc-ce-calidad">
+                        <option value="">—</option>
+                        <option value="residente">Residente</option>
+                        <option value="temporal">Temporal</option>
+                        <option value="humanitaria">Humanitaria</option>
+                        <option value="trabajador_designado">Trabajador designado</option>
+                        <option value="otro">Otro</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Campos extra: Libreta / Carnet sanitario -->
+              <div id="extra-libreta" style="display:none">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                  <div class="field"><label>Fecha de emisión</label><input type="date" id="doc-lib-emision" /></div>
+                  <div class="field"><label>Fecha de vencimiento</label><input type="date" id="doc-lib-vencimiento" /></div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-bottom:10px">
+                  <div class="field"><label>UBIGEO distrito</label><input type="text" id="doc-lib-ubigeo" maxlength="6" placeholder="150101" style="font-family:monospace" /></div>
+                  <div class="field"><label>Distrito emisor</label><input type="text" id="doc-lib-distrito" placeholder="Ej: Lima Cercado" /></div>
+                </div>
+              </div>
+
+              <!-- Campos extra: Sanción / Memo -->
+              <div id="extra-sancion" style="display:none">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                  <div class="field"><label>Tipo de documento</label>
+                    <select id="doc-san-tipo">
+                      <option value="memo">Memorándum</option>
+                      <option value="amonestacion">Amonestación escrita</option>
+                      <option value="suspension">Suspensión</option>
+                      <option value="sancion">Sanción económica</option>
+                      <option value="otro">Otro</option>
+                    </select>
+                  </div>
+                  <div class="field"><label>Fecha del hecho</label><input type="date" id="doc-san-fecha" /></div>
+                </div>
+                <div class="field" style="margin-bottom:10px">
+                  <label>Solicitado / emitido por</label>
+                  <input type="text" id="doc-san-emisor" placeholder="Nombre o cargo del responsable" />
+                </div>
+              </div>
+
+              <div class="field"><label>Notas adicionales (opcional)</label><input type="text" id="doc-notas" placeholder="Ej: Contrato 2024-2025" /></div>
             </div>
             <div class="modal-footer">
               <button class="btn btn-ghost" onclick="cancelarSubida()">Cancelar</button>
@@ -695,6 +756,27 @@
           </div>
         </div>
         <div class="doc-list" id="doc-list"><div class="loading">Cargando...</div></div>
+      </div>
+
+      <!-- MODAL: Vista previa de documento -->
+      <div class="modal-overlay hidden" id="modal-preview">
+        <div class="modal" style="max-width:780px;max-height:90vh;display:flex;flex-direction:column">
+          <div class="modal-header" style="flex-shrink:0">
+            <h3 id="preview-titulo">Vista previa</h3>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-sm btn-ghost" id="preview-btn-descargar" onclick="descargarDesdePreview()">⬇ Descargar</button>
+              <button class="modal-close" onclick="cerrarPreview()">×</button>
+            </div>
+          </div>
+          <div class="modal-body" style="flex:1;overflow:hidden;padding:0;display:flex;align-items:center;justify-content:center;background:#f0f0f0;min-height:400px">
+            <iframe id="preview-iframe" style="width:100%;height:520px;border:none;display:none"></iframe>
+            <img id="preview-img" style="max-width:100%;max-height:520px;object-fit:contain;display:none" />
+            <div id="preview-no-soporte" style="display:none;text-align:center;padding:2rem;color:var(--text-muted)">
+              <p style="font-size:14px">Este tipo de archivo no tiene vista previa.</p>
+              <button class="btn btn-primary" style="margin-top:1rem" onclick="descargarDesdePreview()">⬇ Descargar archivo</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- TAB: HISTORIAL -->
@@ -723,7 +805,7 @@
   <script>
     const RENIEC_TOKEN = 'a26db6d95f35f6c3ffe47be304049b1a024c4103a279ab48ed2161a59dc72fa7';
     const SUNAT_TOKEN  = 'a26db6d95f35f6c3ffe47be304049b1a024c4103a279ab48ed2161a59dc72fa7';
-    const catLabels    = { foto:'Foto', dni_ce:'DNI/CE', contrato:'Contrato', libreta_sanitaria:'Libreta sanitaria', permiso_residencia:'Permiso residencia', sancion:'Sanción', notificacion:'Notificación', boleta:'Boleta de pago', otro:'Otro' };
+    const catLabels    = { foto:'Foto', dni_ce:'DNI/CE', contrato:'Contrato', libreta_sanitaria:'Libreta sanitaria', permiso_residencia:'Permiso residencia', sancion:'Sanción/Memo', notificacion:'Notificación', boleta:'Boleta de pago', otro:'Otro' };
 
     let empleadoId = null, empleado = null, documentos = [], isDirty = false, pendingFile = null, perfilUser = null, isNuevo = false;
 
@@ -1110,56 +1192,216 @@
       renderDocs(cat==='todos' ? documentos : documentos.filter(d=>d.categoria===cat));
     }
 
+    // Parsea el campo notas: puede ser JSON estructurado o texto plano
+    function parseMeta(notas) {
+      if (!notas) return { _meta: {}, obs: '' };
+      try {
+        const p = JSON.parse(notas);
+        return { _meta: p._meta || {}, obs: p.obs || '' };
+      } catch(e) {
+        return { _meta: {}, obs: notas };
+      }
+    }
+
+    // Arma un resumen legible de los metadatos para mostrar en la lista
+    function metaResumen(d) {
+      const { _meta, obs } = parseMeta(d.notas);
+      const partes = [];
+      if (_meta.emision)     partes.push(`Emis.: ${_meta.emision}`);
+      if (_meta.vencimiento) partes.push(`Venc.: ${_meta.vencimiento}`);
+      if (_meta.ubigeo)      partes.push(`UBIGEO: ${_meta.ubigeo}`);
+      if (_meta.distrito)    partes.push(_meta.distrito);
+      if (_meta.tipo_san)    partes.push(_meta.tipo_san);
+      if (_meta.fecha_hecho) partes.push(`Hecho: ${_meta.fecha_hecho}`);
+      if (_meta.emisor)      partes.push(`Por: ${_meta.emisor}`);
+      if (_meta.tipo_id)     partes.push(_meta.tipo_id);
+      if (_meta.vig_migratoria) partes.push(`Vig. migrat.: ${_meta.vig_migratoria}`);
+      if (obs)               partes.push(obs);
+      return partes.join(' · ');
+    }
+
+    // Etiqueta de vencimiento (próximo/vencido)
+    function vencimientoBadge(meta) {
+      if (!meta.vencimiento) return '';
+      const hoy  = new Date(); hoy.setHours(0,0,0,0);
+      const venc = new Date(meta.vencimiento + 'T00:00:00');
+      const dias = Math.round((venc - hoy) / 86400000);
+      if (dias < 0)   return '<span class="badge badge-red" style="font-size:10px">⚠ Vencido</span>';
+      if (dias <= 30) return `<span class="badge badge-yellow" style="font-size:10px">⚠ Vence en ${dias}d</span>`;
+      return '';
+    }
+
     function renderDocs(data) {
       const list = document.getElementById('doc-list');
       if (!data.length) { list.innerHTML = '<div class="empty-state"><p>No hay documentos en esta categoría</p></div>'; return; }
       list.innerHTML = data.map(d => {
-        const ext = d.nombre_archivo.split('.').pop().toLowerCase();
-        const icon = ['jpg','jpeg','png','webp'].includes(ext)?'🖼️':ext==='pdf'?'📄':'📝';
+        const ext  = d.nombre_archivo.split('.').pop().toLowerCase();
+        const icon = ['jpg','jpeg','png','webp'].includes(ext) ? '🖼️' : ext==='pdf' ? '📄' : '📝';
+        const { _meta } = parseMeta(d.notas);
+        const resumen = metaResumen(d);
+        const vBadge  = vencimientoBadge(_meta);
         return `<div class="doc-item">
           <span style="font-size:22px">${icon}</span>
           <div class="doc-info">
-            <div class="doc-name">${d.nombre_archivo}</div>
-            <div class="doc-meta"><span class="badge badge-gray" style="font-size:10px">${catLabels[d.categoria]||d.categoria}</span> ${d.tamanio_kb?'· '+d.tamanio_kb+' KB':''} · ${new Date(d.created_at).toLocaleDateString('es-PE')} ${d.notas?'· <em>'+d.notas+'</em>':''}</div>
+            <div class="doc-name">${d.nombre_archivo} ${vBadge}</div>
+            <div class="doc-meta">
+              <span class="badge badge-gray" style="font-size:10px">${catLabels[d.categoria]||d.categoria}</span>
+              ${d.tamanio_kb ? '· '+d.tamanio_kb+' KB' : ''}
+              · ${new Date(d.created_at).toLocaleDateString('es-PE')}
+              ${resumen ? '· <span style="color:var(--text-muted)">'+resumen+'</span>' : ''}
+            </div>
           </div>
           <div class="doc-actions">
-            <button class="btn btn-sm btn-ghost" onclick="descargarDoc('${d.storage_path}','${d.nombre_archivo}')">⬇ Descargar</button>
+            <button class="btn btn-sm btn-ghost" onclick="verPrevia('${d.storage_path}','${d.nombre_archivo.replace(/'/g,"\'")}')">👁 Ver</button>
+            <button class="btn btn-sm btn-ghost" onclick="descargarDoc('${d.storage_path}','${d.nombre_archivo.replace(/'/g,"\'")}')">⬇</button>
             <button class="btn btn-sm btn-ghost" style="color:var(--error)" onclick="eliminarDoc(${d.id},'${d.storage_path}')">✕</button>
           </div>
         </div>`;
       }).join('');
     }
 
+    // ── Campos extra dinámicos según categoría ────────────
+    function onCategoriaDocChange() {
+      const cat = document.getElementById('doc-categoria-sel').value;
+      document.getElementById('extra-dni').style.display     = (cat === 'dni_ce')            ? '' : 'none';
+      document.getElementById('extra-libreta').style.display = (cat === 'libreta_sanitaria')  ? '' : 'none';
+      document.getElementById('extra-sancion').style.display = (cat === 'sancion')            ? '' : 'none';
+      onTipoIdChange();
+    }
+
+    function onTipoIdChange() {
+      const esCE = document.querySelector('input[name="doc-id-tipo"]:checked')?.value === 'CE';
+      const extraCe = document.getElementById('extra-ce');
+      if (extraCe) extraCe.style.display = esCE ? '' : 'none';
+    }
+
+    function collectMetaDoc(cat) {
+      const meta = {};
+      if (cat === 'dni_ce') {
+        meta.tipo_id     = document.querySelector('input[name="doc-id-tipo"]:checked')?.value || 'DNI';
+        meta.emision     = document.getElementById('doc-dni-emision').value    || null;
+        meta.vencimiento = document.getElementById('doc-dni-vencimiento').value || null;
+        if (meta.tipo_id === 'CE') {
+          meta.vig_migratoria = document.getElementById('doc-ce-vigencia').value  || null;
+          meta.calidad        = document.getElementById('doc-ce-calidad').value   || null;
+        }
+      } else if (cat === 'libreta_sanitaria') {
+        meta.emision     = document.getElementById('doc-lib-emision').value     || null;
+        meta.vencimiento = document.getElementById('doc-lib-vencimiento').value  || null;
+        meta.ubigeo      = document.getElementById('doc-lib-ubigeo').value       || null;
+        meta.distrito    = document.getElementById('doc-lib-distrito').value     || null;
+      } else if (cat === 'sancion') {
+        meta.tipo_san    = document.getElementById('doc-san-tipo').value         || null;
+        meta.fecha_hecho = document.getElementById('doc-san-fecha').value        || null;
+        meta.emisor      = document.getElementById('doc-san-emisor').value.trim() || null;
+      }
+      return meta;
+    }
+
     function prepararSubida(input) {
       pendingFile = input.files[0]; if (!pendingFile) return;
       document.getElementById('doc-filename-preview').textContent = `Archivo: ${pendingFile.name}`;
+      // Reset campos extra
+      ['doc-dni-emision','doc-dni-vencimiento','doc-ce-vigencia','doc-lib-emision','doc-lib-vencimiento',
+       'doc-lib-ubigeo','doc-lib-distrito','doc-san-fecha','doc-san-emisor','doc-notas'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+      });
+      document.querySelectorAll('input[name="doc-id-tipo"]')[0].checked = true;
+      onCategoriaDocChange();
       document.getElementById('modal-doc-cat').classList.remove('hidden');
       input.value = '';
     }
-    function cancelarSubida() { pendingFile = null; document.getElementById('modal-doc-cat').classList.add('hidden'); }
+
+    function cancelarSubida() {
+      pendingFile = null;
+      document.getElementById('modal-doc-cat').classList.add('hidden');
+    }
 
     async function confirmarSubida() {
       if (!pendingFile) return;
-      const cat = document.getElementById('doc-categoria-sel').value;
-      const notas = document.getElementById('doc-notas').value.trim();
-      const ext = pendingFile.name.split('.').pop().toLowerCase();
+      const cat   = document.getElementById('doc-categoria-sel').value;
+      const obs   = document.getElementById('doc-notas').value.trim();
+      const _meta = collectMetaDoc(cat);
+      // Guardar como JSON estructurado; si no hay meta ni obs, dejar null
+      const hasData = obs || Object.values(_meta).some(v=>v);
+      const notasVal = hasData ? JSON.stringify({ _meta, obs }) : null;
+
+      const ext  = pendingFile.name.split('.').pop().toLowerCase();
       const path = `${empleado.ruc_empresa}/${empleadoId}/${cat}_${Date.now()}.${ext}`;
-      const btn = document.getElementById('btn-subir-doc');
+      const btn  = document.getElementById('btn-subir-doc');
       btn.disabled = true; btn.textContent = 'Subiendo...';
       const { error } = await sbClient.storage.from('Legajos').upload(path, pendingFile);
       if (error) { alert('Error: ' + error.message); btn.disabled=false; btn.textContent='Subir'; return; }
       const session = await checkSession();
-      await sbClient.from('legajo_documentos').insert([{ id_empleado: empleadoId, ruc_empresa: empleado.ruc_empresa, categoria: cat, nombre_archivo: pendingFile.name, storage_path: path, tamanio_kb: Math.round(pendingFile.size/1024), notas: notas||null, subido_por: session.user.id }]);
+      await sbClient.from('legajo_documentos').insert([{
+        id_empleado:  empleadoId,
+        ruc_empresa:  empleado.ruc_empresa,
+        categoria:    cat,
+        nombre_archivo: pendingFile.name,
+        storage_path: path,
+        tamanio_kb:   Math.round(pendingFile.size/1024),
+        notas:        notasVal,
+        subido_por:   session.user.id
+      }]);
       btn.disabled=false; btn.textContent='Subir';
       cancelarSubida();
       await loadDocumentos();
       await loadHistorial();
     }
 
+    // ── Vista previa ──────────────────────────────────────
+    let _previewPath = null, _previewNombre = null;
+
+    async function verPrevia(path, nombre) {
+      _previewPath   = path;
+      _previewNombre = nombre;
+      const ext = nombre.split('.').pop().toLowerCase();
+      const esImagen = ['jpg','jpeg','png','webp','gif'].includes(ext);
+      const esPDF    = ext === 'pdf';
+
+      document.getElementById('preview-titulo').textContent = nombre;
+      document.getElementById('preview-iframe').style.display = 'none';
+      document.getElementById('preview-img').style.display    = 'none';
+      document.getElementById('preview-no-soporte').style.display = 'none';
+
+      const modal = document.getElementById('modal-preview');
+      modal.classList.remove('hidden');
+
+      // Obtener URL pública desde Supabase Storage
+      const { data: urlData } = sbClient.storage.from('Legajos').getPublicUrl(path);
+      const url = urlData?.publicUrl;
+
+      if (!url) { document.getElementById('preview-no-soporte').style.display='flex'; return; }
+
+      if (esImagen) {
+        const img = document.getElementById('preview-img');
+        img.src = url;
+        img.style.display = 'block';
+      } else if (esPDF) {
+        const iframe = document.getElementById('preview-iframe');
+        iframe.src = url;
+        iframe.style.display = 'block';
+      } else {
+        document.getElementById('preview-no-soporte').style.display = 'flex';
+      }
+    }
+
+    function cerrarPreview() {
+      document.getElementById('modal-preview').classList.add('hidden');
+      document.getElementById('preview-iframe').src = '';
+      _previewPath = null; _previewNombre = null;
+    }
+
+    async function descargarDesdePreview() {
+      if (_previewPath && _previewNombre) await descargarDoc(_previewPath, _previewNombre);
+    }
+
     async function descargarDoc(path, nombre) {
       const { data, error } = await sbClient.storage.from('Legajos').download(path);
       if (error) { alert('Error al descargar.'); return; }
-      const url = URL.createObjectURL(data); const a = document.createElement('a'); a.href=url; a.download=nombre; a.click(); URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a'); a.href=url; a.download=nombre; a.click();
+      URL.revokeObjectURL(url);
     }
 
     async function eliminarDoc(id, path) {
