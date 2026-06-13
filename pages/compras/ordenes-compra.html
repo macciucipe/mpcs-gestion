@@ -1158,7 +1158,7 @@
       // TABLA DE ITEMS
       // ══════════════════════════════════════════════
       // Anchos: N°, Cant, Und, Descripción, Detalle, P.Unit, IGV, Total
-      const colW = [7, 18, 16, 57, 28, 22, 17, 17];
+      const colW = [7, 18, 22, 53, 26, 22, 17, 17];
       const colX = [mL];
       colW.forEach((w,i) => { if(i>0) colX.push(colX[i-1]+colW[i-1]); });
       const headers = ['N°','Cant.','Und','Descripción / Artículo','Detalle / Especif.','P.Unit Bruto','IGV','Total'];
@@ -1282,41 +1282,49 @@
       });
 
       // ══════════════════════════════════════════════
-      // PIE — siempre pegado abajo
+      // QR — flotante a la derecha, ENCIMA del pie
+      // Posición fija: siempre en la misma esquina inferior derecha
       // ══════════════════════════════════════════════
-      const pieY = 284;
-      doc.setFillColor(...azul);
-      doc.rect(0, pieY - 1, 210, 14, 'F');
+      const qrSize = 28;                      // 28mm — bien visible
+      const qrX    = mR - qrSize;             // pegado al margen derecho
+      const qrY    = 252;                     // fijo, suficiente espacio antes del pie
 
-      // QR — apunta a la URL de recepción del portal de locales
-      // qrcodejs necesita un div real en el DOM para renderizar
       try {
         const qrUrl = `https://locales.mpcs.pe/pages/recepciones.html?oc=${numero}`;
         const qrDiv = document.createElement('div');
-        qrDiv.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:140px;height:140px;';
+        qrDiv.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:200px;height:200px;';
         document.body.appendChild(qrDiv);
-        new QRCode(qrDiv, { text: qrUrl, width: 140, height: 140, correctLevel: QRCode.CorrectLevel.M });
-        // qrcodejs crea un canvas dentro del div — esperamos un tick
-        await new Promise(r => setTimeout(r, 80));
+        new QRCode(qrDiv, { text: qrUrl, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+        await new Promise(r => setTimeout(r, 100));
         const qrCanvas = qrDiv.querySelector('canvas');
         if (qrCanvas) {
           const qrData = qrCanvas.toDataURL('image/png');
-          const qrX = mR - 19, qrY = pieY, qrSize = 16;
-          // Fondo blanco para el QR
-          doc.setFillColor(255,255,255);
-          doc.rect(qrX - 1, qrY - 1, qrSize + 2, qrSize + 2, 'F');
+          // Caja blanca con borde gris claro
+          doc.setFillColor(255, 255, 255);
+          doc.setDrawColor(...grisCla);
+          doc.setLineWidth(0.3);
+          doc.roundedRect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 10, 1.5, 1.5, 'FD');
+          // QR
           doc.addImage(qrData, 'PNG', qrX, qrY, qrSize, qrSize);
+          // Texto debajo del QR dentro de la caja
+          doc.setFont('helvetica','bold').setFontSize(6).setTextColor(...azul);
+          doc.text('Escanear para recibir', qrX + qrSize / 2, qrY + qrSize + 3.5, { align:'center' });
           doc.setFont('helvetica','normal').setFontSize(5.5).setTextColor(...gris);
-          doc.text('Escanear para', mR - 10, qrY + qrSize + 2.5, { align:'center' });
-          doc.text('recibir mercadería', mR - 10, qrY + qrSize + 5.5, { align:'center' });
+          doc.text('Portal de locales MPCS', qrX + qrSize / 2, qrY + qrSize + 6.5, { align:'center' });
         }
         document.body.removeChild(qrDiv);
       } catch(e) { console.warn('QR error:', e); }
 
+      // ══════════════════════════════════════════════
+      // PIE — franja al fondo, solo texto
+      // ══════════════════════════════════════════════
+      const pieY = 287;
+      doc.setFillColor(...(bgColor));
+      doc.rect(0, pieY, 210, 10, 'F');
       doc.setFont('helvetica','bold').setFontSize(7).setTextColor(...blanco);
-      doc.text('MPCS · Sistema de Gestión', mL, pieY + 5);
+      doc.text('MPCS · Sistema de Gestión', mL, pieY + 4);
       doc.setFont('helvetica','normal').setFontSize(6.5).setTextColor(180, 200, 240);
-      doc.text(`gestion.mpcs.pe  ·  ${fecha}`, mL, pieY + 10);
+      doc.text(`gestion.mpcs.pe  ·  ${fecha}`, mL, pieY + 8);
 
       return doc.output('datauristring').split(',')[1];
     }
