@@ -236,6 +236,24 @@
           </div>
         </div>
 
+        <!-- Fecha de entrega + vigencia -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+          <div class="field" style="margin:0">
+            <label>Fecha de entrega <span style="font-weight:400;color:var(--text-light)">(por defecto: mañana)</span></label>
+            <input type="date" id="gen-fecha-entrega"
+              style="width:100%;padding:9px 12px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:14px" />
+          </div>
+          <div class="field" style="margin:0">
+            <label>Vigencia de la OC</label>
+            <select id="gen-vigencia-hs"
+              style="width:100%;padding:9px 12px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:14px">
+              <option value="24" selected>24 horas (por defecto)</option>
+              <option value="48">48 horas</option>
+              <option value="72">72 horas</option>
+            </select>
+          </div>
+        </div>
+
         <!-- Observaciones -->
         <div class="field">
           <label>Observaciones <span style="font-weight:400;color:var(--text-light)">(opcional)</span></label>
@@ -510,6 +528,10 @@
       document.getElementById('input-detalle-rapido').value = '';
       document.getElementById('input-buscar-op').value = '';
       document.getElementById('msg-gen').style.display = 'none';
+      // Fecha de entrega por defecto: mañana
+      const _manana = new Date(); _manana.setDate(_manana.getDate() + 1);
+      document.getElementById('gen-fecha-entrega').value = _manana.toISOString().split('T')[0];
+      document.getElementById('gen-vigencia-hs').value = '24';
       document.getElementById('btns-empresa').querySelectorAll('.btn-empresa').forEach(b => b.classList.remove('active'));
       document.getElementById('btns-local').innerHTML = '';
       setTipo('OC');
@@ -880,8 +902,10 @@
         idLocal:     document.getElementById('gen-id-local').value,
         proveedor:   document.getElementById('gen-proveedor').value,
         docProveedor:document.getElementById('gen-doc-proveedor').value,
-        obs:         document.getElementById('gen-obs').value,
-        opOrigen:    document.getElementById('gen-op-origen').value,
+        obs:          document.getElementById('gen-obs').value,
+        opOrigen:     document.getElementById('gen-op-origen').value,
+        fechaEntrega: document.getElementById('gen-fecha-entrega').value,
+        vigenciaHs:   parseInt(document.getElementById('gen-vigencia-hs').value) || 24,
         items,
         subtotal: totalNeto.toFixed(2),
         igv:      totalIGV.toFixed(2),
@@ -943,20 +967,22 @@
         // Usar documento del proveedor como FK
         const docProv = d.docProveedor || d.proveedor;
         const { error: e1 } = await sbClient.from('ordenes_compra').insert({
-          id_oc:       numero,
-          numero:      numero,
-          tipo:        d.tipo,
-          ruc_empresa: d.rucEmpresa,
-          id_local:    d.idLocal,
-          proveedor:   docProv,
-          subtotal:    parseFloat(d.subtotal),
-          igv:         parseFloat(d.igv),
-          total:       parseFloat(d.total),
-          estado:      'pendiente',
-          op_origen:   d.opOrigen || null,
-          notas:       d.obs || null,
-          created_by:       perfil.nombre,
-          nombre_proveedor: d.proveedor,
+          id_oc:        numero,
+          numero:       numero,
+          tipo:         d.tipo,
+          ruc_empresa:  d.rucEmpresa,
+          id_local:     d.idLocal,
+          proveedor:    docProv,
+          subtotal:     parseFloat(d.subtotal),
+          igv:          parseFloat(d.igv),
+          total:        parseFloat(d.total),
+          estado:       'pendiente',
+          op_origen:    d.opOrigen || null,
+          notas:        d.obs || null,
+          created_by:        perfil.nombre,
+          nombre_proveedor:  d.proveedor,
+          fecha_entrega:     d.fechaEntrega || null,
+          vigencia_hs:       d.vigenciaHs || 24,
         });
         if (e1) throw new Error(e1.message);
 
@@ -1083,6 +1109,11 @@
       doc.setFont('helvetica','bold').setFontSize(10).setTextColor(...locColor);
       doc.text(d.local, 105, 26, { align:'center' });
 
+      // Fecha de entrega guardada en d para usarla en el PDF
+      const fechaEntregaStr = d.fechaEntrega
+        ? new Date(d.fechaEntrega + 'T12:00:00').toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'numeric' })
+        : null;
+
       // Número OC — derecha en la franja, caja blanca (o gris claro si fondo blanco)
       const boxX = 148, boxW = 48, boxH = 24, boxY = 4;
       const boxFill = isLightBg ? [240, 240, 240] : blanco;
@@ -1121,8 +1152,9 @@
       // ══════════════════════════════════════════════
       // PROVEEDOR — en caja con fondo claro
       // ══════════════════════════════════════════════
+      const provBoxH = fechaEntregaStr ? 20 : 12;
       doc.setFillColor(244, 247, 252);
-      doc.roundedRect(mL, y - 4, ancho, 12, 1.5, 1.5, 'F');
+      doc.roundedRect(mL, y - 4, ancho, provBoxH, 1.5, 1.5, 'F');
       doc.setFont('helvetica','bold').setFontSize(8.5).setTextColor(...azul);
       doc.text('PROVEEDOR:', mL + 3, y + 3);
       doc.setFont('helvetica','bold').setFontSize(9).setTextColor(0, 90, 0);
@@ -1131,7 +1163,15 @@
         doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...gris);
         doc.text(`RUC: ${prov.documento}`, mR - 3, y + 3, { align:'right' });
       }
-      y += 14;
+      if (fechaEntregaStr) {
+        doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...azul);
+        doc.text('Fecha de entrega pactada:', mL + 3, y + 11);
+        doc.setFont('helvetica','bold').setFontSize(8).setTextColor(0, 120, 0);
+        doc.text(fechaEntregaStr, mL + 45, y + 11);
+        doc.setFont('helvetica','normal').setFontSize(7).setTextColor(...gris);
+        doc.text(`Vigencia: ${d.vigenciaHs || 24} horas`, mR - 3, y + 11, { align:'right' });
+      }
+      y += provBoxH + 2;
 
       // ══════════════════════════════════════════════
       // PEDIDO ORIGEN — solo si viene de una OP
