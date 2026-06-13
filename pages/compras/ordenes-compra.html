@@ -1157,8 +1157,8 @@
       // ══════════════════════════════════════════════
       // TABLA DE ITEMS
       // ══════════════════════════════════════════════
-      // Anchos ajustados: N°, Cant, Und, Descripción, Detalle, P.Unit, IGV, Total
-      const colW = [7, 12, 10, 65, 33, 20, 17, 18];
+      // Anchos: N°, Cant, Und, Descripción, Detalle, P.Unit, IGV, Total
+      const colW = [7, 18, 16, 57, 28, 22, 17, 17];
       const colX = [mL];
       colW.forEach((w,i) => { if(i>0) colX.push(colX[i-1]+colW[i-1]); });
       const headers = ['N°','Cant.','Und','Descripción / Artículo','Detalle / Especif.','P.Unit Bruto','IGV','Total'];
@@ -1289,18 +1289,29 @@
       doc.rect(0, pieY - 1, 210, 14, 'F');
 
       // QR — apunta a la URL de recepción del portal de locales
+      // qrcodejs necesita un div real en el DOM para renderizar
       try {
         const qrUrl = `https://locales.mpcs.pe/pages/recepciones.html?oc=${numero}`;
-        const qrCanvas = document.createElement('canvas');
-        qrCanvas.width = 120; qrCanvas.height = 120;
-        new QRCode(qrCanvas, { text: qrUrl, width:120, height:120, correctLevel: QRCode.CorrectLevel.M });
-        const qrData = qrCanvas.toDataURL('image/png');
-        doc.addImage(qrData, 'PNG', mR - 18, pieY - 1, 15, 15);
-        // Tooltip debajo del QR
-        doc.setFont('helvetica','normal').setFontSize(5.5).setTextColor(...gris);
-        doc.text('Escanear para', mR - 10.5, pieY + 15, { align:'center' });
-        doc.text('recibir mercadería', mR - 10.5, pieY + 18.5, { align:'center' });
-      } catch(e) {}
+        const qrDiv = document.createElement('div');
+        qrDiv.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:140px;height:140px;';
+        document.body.appendChild(qrDiv);
+        new QRCode(qrDiv, { text: qrUrl, width: 140, height: 140, correctLevel: QRCode.CorrectLevel.M });
+        // qrcodejs crea un canvas dentro del div — esperamos un tick
+        await new Promise(r => setTimeout(r, 80));
+        const qrCanvas = qrDiv.querySelector('canvas');
+        if (qrCanvas) {
+          const qrData = qrCanvas.toDataURL('image/png');
+          const qrX = mR - 19, qrY = pieY, qrSize = 16;
+          // Fondo blanco para el QR
+          doc.setFillColor(255,255,255);
+          doc.rect(qrX - 1, qrY - 1, qrSize + 2, qrSize + 2, 'F');
+          doc.addImage(qrData, 'PNG', qrX, qrY, qrSize, qrSize);
+          doc.setFont('helvetica','normal').setFontSize(5.5).setTextColor(...gris);
+          doc.text('Escanear para', mR - 10, qrY + qrSize + 2.5, { align:'center' });
+          doc.text('recibir mercadería', mR - 10, qrY + qrSize + 5.5, { align:'center' });
+        }
+        document.body.removeChild(qrDiv);
+      } catch(e) { console.warn('QR error:', e); }
 
       doc.setFont('helvetica','bold').setFontSize(7).setTextColor(...blanco);
       doc.text('MPCS · Sistema de Gestión', mL, pieY + 5);
