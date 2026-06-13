@@ -298,13 +298,23 @@
       '20613752979': 'https://raw.githubusercontent.com/macciucipe/mpcs-gestion/main/assets/logos/logo-heroes.png',
       '20611965274': 'https://raw.githubusercontent.com/macciucipe/mpcs-gestion/main/assets/logos/logo-mpc.png',
     };
+    // Color de fondo de la franja superior del PDF por empresa (RGB)
+    const LOGO_BG = {
+      '20605195408': [180, 20, 20],      // La Parri — rojo
+      '20602716385': [30, 60, 30],       // Tito — verde oscuro
+      '20613752979': [15, 30, 80],       // Heroes 1982 — azul marino
+      '20611965274': [27, 43, 94],       // MPC — azul corporativo
+    };
 
     // ── CARGAR OPs PENDIENTES ─────────────────────────────────
-    async function cargarOPsPendientes() {
-      const { data } = await sbClient.from('pedidos')
-        .select('id_pedido, numero, id_local, locales(nombre), solicitante, created_at')
+    async function cargarOPsPendientes(rucFiltro = null, idLocalFiltro = null) {
+      let query = sbClient.from('pedidos')
+        .select('id_pedido, numero, id_local, ruc_empresa, locales(nombre), solicitante, created_at')
         .eq('estado','pendiente')
         .order('created_at', { ascending: false });
+      if (rucFiltro)     query = query.eq('ruc_empresa', rucFiltro);
+      if (idLocalFiltro) query = query.eq('id_local', idLocalFiltro);
+      const { data } = await query;
       const sel = document.getElementById('select-op-pendiente');
       if (!sel) return;
       sel.innerHTML = '<option value="">-- Seleccionar pedido pendiente --</option>';
@@ -479,6 +489,9 @@
     // ── GENERADOR ────────────────────────────────────────────────
     function abrirGenerador(opOrigen = null) {
       limpiarGenerador();
+      // Recargar OPs filtradas por el contexto del sidebar
+      const ctx = getContexto();
+      cargarOPsPendientes(ctx.ruc || null, ctx.idLocales?.length === 1 ? ctx.idLocales[0] : null);
       if (opOrigen) {
         document.getElementById('input-buscar-op').value = opOrigen.numero;
         precargarDesdeOP(opOrigen);
@@ -629,7 +642,7 @@
       agregarFila('', 1, 'NIU', '', '', true, '');
     }
 
-    function agregarFila(desc = '', cant = 1, und = 'NIU', det = '', precio = '', afectoIgv = true, idProducto = '') {
+    function agregarFila(desc = '', cant = 1, und = 'NIU', det = '', precio = '', afectoIgv = true, idProducto = '', idItem = '') {
       const tbody = document.getElementById('tbody-oc');
       const tr    = document.createElement('tr');
       const igvChecked = afectoIgv ? 'checked' : '';
@@ -637,7 +650,7 @@
         <td style="text-align:center;width:32px;color:var(--text-muted);font-size:12px" class="num-fila"></td>
         <td style="width:80px"><input type="number" step="0.01" min="0.01" value="${cant}" class="cant" onchange="calcularTotales()"></td>
         <td style="width:70px"><input type="text" value="${und}" class="und"></td>
-        <td><input type="text" value="${desc}" class="desc" data-id-producto="${idProducto}"></td>
+        <td><input type="text" value="${desc}" class="desc" data-id-producto="${idProducto}" data-id-item="${idItem}"></td>
         <td><input type="text" value="${det}" class="det"></td>
         <td style="width:110px"><input type="number" step="0.01" min="0" value="${precio}" class="precio" placeholder="0.00" onchange="calcularTotales()"></td>
         <td style="width:64px;text-align:center">
@@ -717,15 +730,49 @@
       const itemsParaCargar = op.items_seleccionados?.length
         ? op.items_seleccionados
         : (op.pedidos_items || []).map(i => ({
-            nombre: i.nombre_producto || i.detalle || '',
-            cantidad: i.cantidad,
-            unidad_medida: i.unidad_medida || 'NIU',
+            id_item:          i.id_item,
+            id_producto_local: i.id_producto_local,
+            nombre:           i.nombre_producto || i.detalle || '',
+            cantidad:         i.cantidad,
+            unidad_medida:    i.unidad_medida || 'NIU',
+            categoria:        i.categoria || '',
           }));
 
       document.getElementById('tbody-oc').innerHTML = '';
-      itemsParaCargar.forEach(item => {
-        agregarFila(item.nombre || item.nombre_producto || item.detalle, item.cantidad, item.unidad_medida || 'NIU', '', '');
-      });
+
+      // Para cada item, buscar el producto en el catálogo para obtener IGV y último precio
+      for (const item of itemsParaCargar) {
+        const nombre      = item.nombre || item.nombre_producto || item.detalle || '';
+        const cantidad    = item.cantidad;
+        const unidad      = item.unidad_medida || 'NIU';
+        let   afectoIgv   = true;  // default afecto
+        let   precio      = '';
+        let   idProducto  = '';
+
+        // Buscar en catálogo local por id_producto_local o por nombre
+        if (item.id_producto_local) {
+          const prod = itemsGlobal.find(p => p.id_producto === item.id_producto_local);
+          if (prod) {
+            afectoIgv  = prod.afecto_igv !== false;
+            idProducto = prod.id_producto;
+            // Buscar último precio negociado
+            const ultimoPrecio = await getUltimoPrecio(prod.id_producto);
+            precio = ultimoPrecio || prod.precio_ref || '';
+          }
+        }
+        // Si no encontró por id, buscar por nombre exacto
+        if (!idProducto) {
+          const prod = itemsGlobal.find(p => (p.nombre||'').toLowerCase() === nombre.toLowerCase());
+          if (prod) {
+            afectoIgv  = prod.afecto_igv !== false;
+            idProducto = prod.id_producto;
+            const ultimoPrecio = await getUltimoPrecio(prod.id_producto);
+            precio = ultimoPrecio || prod.precio_ref || '';
+          }
+        }
+
+        agregarFila(nombre, cantidad, unidad, '', precio, afectoIgv, idProducto, item.id_item || '');
+      }
 
       const count = itemsParaCargar.length;
       // No mostrar alert molesto — el usuario ya sabe lo que seleccionó
@@ -819,6 +866,7 @@
         const idProducto = tr.querySelector('.desc')?.dataset.idProducto || '';
         totalNeto += sNeto; totalIGV += igvL; totalBruto += sBruto;
         items.push({
+          idItem:        tr.querySelector('.desc')?.dataset.idItem || '',
           cant:          c,
           und:           tr.querySelector('.und').value,
           desc:          tr.querySelector('.desc').value,
@@ -930,9 +978,40 @@
         }));
         await sbClient.from('oc_items').insert(itemsRows);
 
-        // Marcar OP como atendida
+        // Marcar items del pedido como asignados a esta OC
         if (d.opOrigen) {
-          await sbClient.from('pedidos').update({ estado: 'atendida', oc_vinculada: numero }).eq('numero', d.opOrigen);
+          const idsItemsAsignados = d.items
+            .map(i => i.idItem)
+            .filter(Boolean);
+
+          if (idsItemsAsignados.length) {
+            await sbClient.from('pedidos_items')
+              .update({ asignado_a_oc: true, id_oc: numero })
+              .in('id_item', idsItemsAsignados);
+          }
+
+          // Verificar si todos los items del pedido quedaron asignados
+          const { data: todosItems } = await sbClient
+            .from('pedidos_items')
+            .select('id_item, asignado_a_oc')
+            .eq('id_pedido', d.opOrigen);
+
+          const todoAsignado = (todosItems || []).every(i => i.asignado_a_oc);
+
+          // Acumular OCs vinculadas (puede haber varias si el pedido se dividió)
+          const { data: pedidoActual } = await sbClient
+            .from('pedidos')
+            .select('oc_vinculada')
+            .eq('numero', d.opOrigen)
+            .single();
+
+          const ocAnterior = pedidoActual?.oc_vinculada || '';
+          const ocNueva = ocAnterior ? `${ocAnterior}, ${numero}` : numero;
+
+          await sbClient.from('pedidos').update({
+            estado:       todoAsignado ? 'atendida' : 'pendiente',
+            oc_vinculada: ocNueva,
+          }).eq('numero', d.opOrigen);
         }
 
         // Eliminar borrador si existe
@@ -970,12 +1049,13 @@
       const tipoLabel = d.tipo === 'OS' ? 'ORDEN DE SERVICIO' : 'ORDEN DE COMPRA';
 
       // ══════════════════════════════════════════════
-      // CABECERA — franja azul superior
+      // CABECERA — franja con color propio de cada empresa
       // ══════════════════════════════════════════════
-      doc.setFillColor(...azul);
+      const bgColor = LOGO_BG[d.rucEmpresa] || azul;
+      doc.setFillColor(...bgColor);
       doc.rect(0, 0, 210, 32, 'F');
 
-      // Logo — izquierda en la franja azul
+      // Logo — izquierda en la franja
       const logoUrl = LOGOS[d.rucEmpresa];
       if (logoUrl) {
         try {

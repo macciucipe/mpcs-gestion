@@ -59,6 +59,7 @@
               <option value="atendida">Atendidos</option>
               <option value="anulada">Anulados</option>
             </select>
+            <!-- Estado "parcial" = tiene al menos 1 item asignado pero no todos -->
           </div>
         </div>
         <div class="table-wrap">
@@ -316,8 +317,9 @@
         '<tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>';
 
       const { ruc, idLocales } = getContexto();
+      // Traer pedido + count de items + items para saber OCs vinculadas
       let query = sbClient.from('pedidos')
-        .select('*, locales(nombre, id_concepto)')
+        .select('*, locales(nombre, id_concepto), pedidos_items(id_item, asignado_a_oc, id_oc)')
         .order('created_at', { ascending: false });
 
       if (ruc) query = query.eq('ruc_empresa', ruc);
@@ -367,15 +369,27 @@
 
       tbody.innerHTML = lista.map(p => {
         const fecha = p.created_at ? new Date(p.created_at).toLocaleDateString('es-PE') : '—';
+        const items = p.pedidos_items || [];
+        const totalItems    = items.length;
+        const itemsPend     = items.filter(i => !i.asignado_a_oc).length;
+        const itemsAsign    = items.filter(i =>  i.asignado_a_oc).length;
+        const itemsLabel    = totalItems
+          ? `<span title="${itemsAsign} asignados / ${itemsPend} pendientes">${totalItems} <span style="font-size:10px;color:${itemsPend>0?'var(--warning)':'var(--success)'}">(${itemsPend} pend.)</span></span>`
+          : '—';
+        // OCs únicas vinculadas a este pedido
+        const ocsUnicas = [...new Set(items.filter(i => i.id_oc).map(i => i.id_oc))];
+        const ocLabel = ocsUnicas.length
+          ? ocsUnicas.map(oc => `<span style="font-family:monospace;font-size:11px;display:block">${oc}</span>`).join('')
+          : (p.oc_vinculada ? `<span style="font-family:monospace;font-size:11px">${p.oc_vinculada}</span>` : '—');
         return `
           <tr>
             <td><strong style="font-family:monospace;font-size:12px">${p.numero || p.id_pedido}</strong></td>
             <td style="font-size:12px;color:var(--text-muted)">${fecha}</td>
             <td><strong>${p.locales?.nombre || p.id_local || '—'}</strong></td>
             <td style="font-size:12px;color:var(--text-muted)">${p.solicitante || '—'}</td>
-            <td style="font-size:12px;text-align:center">—</td>
+            <td style="font-size:12px;text-align:center">${itemsLabel}</td>
             <td>${getEstadoBadge(p.estado || 'pendiente')}</td>
-            <td style="font-size:12px;color:var(--text-muted);font-family:monospace">${p.oc_vinculada || '—'}</td>
+            <td style="font-size:12px;color:var(--text-muted)">${ocLabel}</td>
             <td>
               <div style="display:flex;gap:6px">
                 <button class="btn btn-sm btn-ghost" onclick="verDetalle('${p.id_pedido}')">
