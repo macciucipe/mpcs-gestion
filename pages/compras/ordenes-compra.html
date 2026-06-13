@@ -119,6 +119,10 @@
       <div class="modal-header">
         <h3 id="gen-titulo">Nueva Orden de Compra / Servicio</h3>
         <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-sm btn-outline" onclick="abrirBorradores()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Borradores
+          </button>
           <button class="btn btn-sm btn-outline" onclick="guardarBorrador()" id="btn-borrador">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
             Guardar borrador
@@ -137,26 +141,9 @@
         <input type="hidden" id="gen-id-borrador" value="" />
         <input type="hidden" id="gen-op-origen" value="" />
 
-        <!-- Importar OP -->
-        <div class="import-box">
-          <div class="sec-label">¿Atender un pedido interno (OP)?</div>
-          <div style="display:flex;gap:8px">
-            <select id="select-op-pendiente" style="flex:1;padding:8px 12px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px"
-                    onchange="if(this.value) importarOPdesdeSelect(this.value)">
-              <option value="">-- Seleccionar pedido pendiente --</option>
-            </select>
-            <input type="text" id="input-buscar-op" placeholder="O escribir número OP..."
-                   style="flex:1;padding:8px 12px;border:1px solid var(--border-md);border-radius:var(--radius-md);font-size:13px"
-                   onkeydown="if(event.key==='Enter') importarOP()" />
-            <button class="btn" style="background:var(--warning);color:#000;font-weight:600" onclick="importarOP()">
-              Importar
-            </button>
-            <button class="btn btn-outline" onclick="abrirBorradores()">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              Borradores
-            </button>
-          </div>
-        </div>
+        <!-- input-buscar-op oculto: usado internamente cuando se viene desde pedidos.html -->
+        <input type="hidden" id="input-buscar-op" />
+        <input type="hidden" id="select-op-pendiente" />
 
         <!-- 1. Empresa -->
         <div style="margin-bottom:16px">
@@ -300,31 +287,35 @@
     };
     // Color de fondo de la franja superior del PDF por empresa (RGB)
     const LOGO_BG = {
-      '20605195408': [180, 20, 20],      // La Parri — rojo
+      '20605195408': [10, 10, 10],       // La Parri — negro
       '20602716385': [30, 60, 30],       // Tito — verde oscuro
-      '20613752979': [15, 30, 80],       // Heroes 1982 — azul marino
+      '20613752979': [255, 255, 255],    // Heroes 1982 — blanco
       '20611965274': [27, 43, 94],       // MPC — azul corporativo
+    };
+    // Color del texto de local/dirección en la franja (por empresa)
+    const LOCAL_COLOR = {
+      '20605195408': [255, 60, 60],      // La Parri — rojo claro
+      '20602716385': [180, 230, 180],    // Tito — verde claro
+      '20613752979': [220, 30, 30],      // Heroes 1982 — rojo claro (sobre blanco)
+      '20611965274': [160, 190, 240],    // MPC — azul claro
+    };
+    // Color del texto de empresa/RUC en la franja
+    const EMP_COLOR = {
+      '20605195408': [255, 255, 255],    // La Parri — blanco sobre negro
+      '20602716385': [255, 255, 255],    // Tito — blanco
+      '20613752979': [20, 20, 20],       // Heroes 1982 — negro sobre blanco
+      '20611965274': [255, 255, 255],    // MPC — blanco
+    };
+    // Color del borde de la caja del número OC
+    const BOX_BORDER = {
+      '20613752979': [200, 200, 200],    // Heroes — borde gris (fondo blanco)
     };
 
     // ── CARGAR OPs PENDIENTES ─────────────────────────────────
+    // cargarOPsPendientes — ya no llena un select visible.
+    // Se mantiene para el flujo interno (sessionStorage desde pedidos.html).
     async function cargarOPsPendientes(rucFiltro = null, idLocalFiltro = null) {
-      let query = sbClient.from('pedidos')
-        .select('id_pedido, numero, id_local, ruc_empresa, locales(nombre), solicitante, created_at')
-        .eq('estado','pendiente')
-        .order('created_at', { ascending: false });
-      if (rucFiltro)     query = query.eq('ruc_empresa', rucFiltro);
-      if (idLocalFiltro) query = query.eq('id_local', idLocalFiltro);
-      const { data } = await query;
-      const sel = document.getElementById('select-op-pendiente');
-      if (!sel) return;
-      sel.innerHTML = '<option value="">-- Seleccionar pedido pendiente --</option>';
-      (data || []).forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.numero || p.id_pedido;
-        const fecha = new Date(p.created_at).toLocaleDateString('es-PE');
-        opt.textContent = `${p.numero || p.id_pedido} — ${p.locales?.nombre || p.id_local} — ${p.solicitante || ''} (${fecha})`;
-        sel.appendChild(opt);
-      });
+      // No-op: el flujo de importar OP viene siempre desde pedidos.html via sessionStorage
     }
 
     async function importarOPdesdeSelect(numero) {
@@ -1051,9 +1042,18 @@
       // ══════════════════════════════════════════════
       // CABECERA — franja con color propio de cada empresa
       // ══════════════════════════════════════════════
-      const bgColor = LOGO_BG[d.rucEmpresa] || azul;
+      const bgColor   = LOGO_BG[d.rucEmpresa]    || azul;
+      const empColor  = EMP_COLOR[d.rucEmpresa]   || blanco;
+      const locColor  = LOCAL_COLOR[d.rucEmpresa] || [200, 220, 255];
+      const isLightBg = bgColor[0] > 200 && bgColor[1] > 200 && bgColor[2] > 200;
+
       doc.setFillColor(...bgColor);
       doc.rect(0, 0, 210, 32, 'F');
+      // Borde inferior sutil si el fondo es claro
+      if (isLightBg) {
+        doc.setDrawColor(200, 200, 200).setLineWidth(0.3);
+        doc.line(0, 32, 210, 32);
+      }
 
       // Logo — izquierda en la franja
       const logoUrl = LOGOS[d.rucEmpresa];
@@ -1064,21 +1064,30 @@
         } catch(e) { console.warn('Logo:', e); }
       }
 
-      // Empresa + local — centro de la franja
-      doc.setFont('helvetica','bold').setFontSize(11).setTextColor(...blanco);
+      // Empresa + RUC — centro, color dinámico
+      doc.setFont('helvetica','bold').setFontSize(12).setTextColor(...empColor);
       doc.text(d.empresa, 105, 12, { align:'center' });
-      doc.setFont('helvetica','normal').setFontSize(9).setTextColor(180, 200, 240);
+      doc.setFont('helvetica','normal').setFontSize(8.5).setTextColor(...empColor);
       doc.text(`RUC: ${d.rucEmpresa}`, 105, 18, { align:'center' });
-      doc.setFontSize(8.5).setTextColor(210, 225, 255);
-      doc.text(d.local, 105, 24, { align:'center' });
 
-      // Número OC — derecha en la franja, en caja blanca
+      // Local — rojo claro bien visible, más grande
+      doc.setFont('helvetica','bold').setFontSize(10).setTextColor(...locColor);
+      doc.text(d.local, 105, 26, { align:'center' });
+
+      // Número OC — derecha en la franja, caja blanca (o gris claro si fondo blanco)
       const boxX = 148, boxW = 48, boxH = 24, boxY = 4;
-      doc.setFillColor(...blanco);
-      doc.roundedRect(boxX, boxY, boxW, boxH, 2, 2, 'F');
-      doc.setFont('helvetica','normal').setFontSize(6.5).setTextColor(...azul);
+      const boxFill = isLightBg ? [240, 240, 240] : blanco;
+      const boxText = isLightBg ? azul : azul;
+      doc.setFillColor(...boxFill);
+      if (isLightBg) {
+        doc.setDrawColor(180, 180, 180).setLineWidth(0.4);
+        doc.roundedRect(boxX, boxY, boxW, boxH, 2, 2, 'FD');
+      } else {
+        doc.roundedRect(boxX, boxY, boxW, boxH, 2, 2, 'F');
+      }
+      doc.setFont('helvetica','normal').setFontSize(6.5).setTextColor(...boxText);
       doc.text(tipoLabel + ' N°:', boxX + boxW/2, boxY + 7, { align:'center' });
-      doc.setFont('helvetica','bold').setFontSize(9.5).setTextColor(...azul);
+      doc.setFont('helvetica','bold').setFontSize(9.5).setTextColor(...boxText);
       doc.text(numero, boxX + boxW/2, boxY + 14, { align:'center' });
       doc.setFont('helvetica','normal').setFontSize(6.5).setTextColor(...gris);
       doc.text(`Emisión: ${fecha}`, boxX + boxW/2, boxY + 20, { align:'center' });
@@ -1089,10 +1098,10 @@
       // DATOS DEL LOCAL — dirección/contacto bajo cabecera
       // ══════════════════════════════════════════════
       if (localData?.direccion || localData?.telefono || localData?.horario) {
-        doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...gris);
+        doc.setFont('helvetica','bold').setFontSize(8).setTextColor(...(locColor || gris));
         const infoLocal = [localData?.direccion, localData?.telefono, localData?.horario].filter(Boolean).join('  |  ');
         doc.text(infoLocal, 105, y, { align:'center' });
-        y += 6;
+        y += 7;
       }
 
       // Línea separadora
