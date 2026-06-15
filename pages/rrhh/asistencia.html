@@ -189,6 +189,39 @@
             </div>
           </div>
         </div>
+        <!-- Extra: Descanso médico -->
+        <div id="extra-dm" style="display:none;margin-bottom:1rem">
+          <div class="field" style="margin-bottom:8px">
+            <label>Tipo de descanso médico</label>
+            <div style="display:flex;gap:12px;margin-top:6px">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+                <input type="radio" name="dm-tipo" value="particular" checked /> Particular
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+                <input type="radio" name="dm-tipo" value="essalud" /> EsSalud
+              </label>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label>Comprobante <span style="font-size:11px;color:var(--text-muted)">(opcional — se guarda en el legajo del empleado)</span></label>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+              <input type="file" id="f-dm-archivo" accept=".pdf,image/*" style="display:none" onchange="onDmArchivoChange()" />
+              <button class="btn btn-sm btn-ghost" type="button" onclick="document.getElementById('f-dm-archivo').click()">📎 Adjuntar</button>
+              <span id="f-dm-nombre" style="font-size:12px;color:var(--text-muted)">Sin archivo</span>
+              <button id="f-dm-quitar" style="display:none;background:none;border:none;color:var(--error);cursor:pointer;font-size:12px" onclick="quitarDmArchivo()">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Extra: Vacaciones -->
+        <div id="extra-vac" style="display:none;margin-bottom:1rem">
+          <div class="field" style="margin-bottom:0">
+            <label>Período al que corresponde</label>
+            <input type="number" id="f-vac-anio" min="2020" max="2040"
+              placeholder="Ej: 2025" style="width:140px;font-family:monospace" />
+          </div>
+        </div>
+
         <div class="field">
           <label>Observación (opcional)</label>
           <textarea id="f-obs" rows="2" placeholder="Ej: Llegó 15 min tarde por paro de transporte"></textarea>
@@ -367,7 +400,18 @@
           if (esFuturo) {
             tbody += `<td class="${tdCls}"><div class="cel futuro">·</div></td>`;
           } else if (reg) {
-            const tooltip = `${reg.estado}${reg.minutos_tardanza>0?' ('+reg.minutos_tardanza+' min)':''}${reg.observacion?' — '+reg.observacion:''}`;
+            let obsLabel = '';
+            if (reg.observacion) {
+              try {
+                const op = JSON.parse(reg.observacion);
+                const parts = [];
+                if (op.dm_tipo)  parts.push(op.dm_tipo === 'essalud' ? 'EsSalud' : 'Particular');
+                if (op.vac_anio) parts.push(`Período ${op.vac_anio}`);
+                if (op.obs)      parts.push(op.obs);
+                obsLabel = parts.length ? ' — ' + parts.join(' · ') : '';
+              } catch(e) { obsLabel = ' — ' + reg.observacion; }
+            }
+            const tooltip = `${reg.estado}${reg.minutos_tardanza>0?' ('+reg.minutos_tardanza+' min)':''}${obsLabel}`;
             tbody += `<td class="${tdCls}"><div class="cel ${reg.estado}" onclick="openModal('${e.id_empleado}','${fecha}')" title="${tooltip}">${ESTADOS_EMOJI[reg.estado]||'?'}</div></td>`;
           } else {
             tbody += `<td class="${tdCls}"><div class="cel vacio" onclick="openModal('${e.id_empleado}','${fecha}')" title="Sin registro — clic para agregar">+</div></td>`;
@@ -429,7 +473,21 @@
       document.getElementById('f-minutos').value = reg?.minutos_tardanza || 0;
       document.getElementById('f-he25').value    = reg?.horas_extras_25  || 0;
       document.getElementById('f-he35').value    = reg?.horas_extras_35  || 0;
-      document.getElementById('f-obs').value     = reg?.observacion      || '';
+
+      // Parsear observacion como JSON si tiene datos extra
+      let obsExtra = {};
+      try { obsExtra = JSON.parse(reg?.observacion || '{}'); } catch(e) { }
+      document.getElementById('f-obs').value = obsExtra.obs ?? (reg?.observacion || '');
+
+      // Precargar dm tipo
+      const dmTipo = obsExtra.dm_tipo || 'particular';
+      document.querySelectorAll('input[name="dm-tipo"]').forEach(r => r.checked = (r.value === dmTipo));
+
+      // Precargar año vacaciones
+      document.getElementById('f-vac-anio').value = obsExtra.vac_anio || new Date().getFullYear();
+
+      // Reset archivo dm
+      quitarDmArchivo();
 
       toggleExtras(estadoSeleccionado);
       document.getElementById('modal-nov').classList.remove('hidden');
@@ -444,9 +502,26 @@
 
     function toggleExtras(estado) {
       document.getElementById('extra-tardanza').style.display =
-        estado === 'tardanza' ? 'block' : 'none';
+        estado === 'tardanza'         ? 'block' : 'none';
       document.getElementById('extra-he').style.display =
         ['normal','feriado_trabajado'].includes(estado) ? 'block' : 'none';
+      document.getElementById('extra-dm').style.display =
+        estado === 'descanso_medico'  ? 'block' : 'none';
+      document.getElementById('extra-vac').style.display =
+        estado === 'vacaciones'       ? 'block' : 'none';
+    }
+
+    function onDmArchivoChange() {
+      const file = document.getElementById('f-dm-archivo').files[0];
+      if (!file) return;
+      document.getElementById('f-dm-nombre').textContent = file.name;
+      document.getElementById('f-dm-quitar').style.display = 'inline';
+    }
+
+    function quitarDmArchivo() {
+      document.getElementById('f-dm-archivo').value = '';
+      document.getElementById('f-dm-nombre').textContent = 'Sin archivo';
+      document.getElementById('f-dm-quitar').style.display = 'none';
     }
 
     function closeModal() {
@@ -458,6 +533,22 @@
       if (!estadoSeleccionado) { alert('Seleccioná un estado primero.'); return; }
       const emp     = empleados.find(e => e.id_empleado === modalEmpId);
       const session = await checkSession();
+      const obsTexto = document.getElementById('f-obs').value.trim();
+
+      // Armar observacion como JSON con campos extra
+      const extra = { obs: obsTexto };
+      if (estadoSeleccionado === 'descanso_medico') {
+        extra.dm_tipo = document.querySelector('input[name="dm-tipo"]:checked')?.value || 'particular';
+      }
+      if (estadoSeleccionado === 'vacaciones') {
+        const anio = document.getElementById('f-vac-anio').value;
+        if (anio) extra.vac_anio = parseInt(anio);
+      }
+      const hasExtra = extra.dm_tipo || extra.vac_anio;
+      const observacion = (hasExtra || obsTexto)
+        ? JSON.stringify(extra)
+        : null;
+
       const payload = {
         id_empleado:      modalEmpId,
         ruc_empresa:      emp.ruc_empresa,
@@ -467,12 +558,39 @@
           ? parseInt(document.getElementById('f-minutos').value) || 0 : 0,
         horas_extras_25:  parseFloat(document.getElementById('f-he25').value) || 0,
         horas_extras_35:  parseFloat(document.getElementById('f-he35').value) || 0,
-        observacion:      document.getElementById('f-obs').value.trim() || null,
+        observacion,
         registrado_por:   session.user.id,
       };
+
       const { error } = await sbClient.from('asistencia_diaria')
         .upsert([payload], { onConflict: 'id_empleado,fecha' });
       if (error) { alert('Error: ' + error.message); return; }
+
+      // Subir comprobante de descanso médico si hay archivo
+      if (estadoSeleccionado === 'descanso_medico') {
+        const file = document.getElementById('f-dm-archivo').files[0];
+        if (file) {
+          const ext      = file.name.split('.').pop().toLowerCase();
+          const dmTipo   = extra.dm_tipo.toUpperCase();
+          const fechaSfx = modalFecha.replace(/-/g,'');
+          const nombre   = `${modalEmpId}_DM-${dmTipo}_${fechaSfx}.${ext}`;
+          const path     = `${emp.ruc_empresa}/${modalEmpId}/${nombre}`;
+          const { error: sErr } = await sbClient.storage.from('Legajos').upload(path, file, { upsert: true });
+          if (!sErr) {
+            await sbClient.from('legajo_documentos').insert([{
+              id_empleado:    modalEmpId,
+              ruc_empresa:    emp.ruc_empresa,
+              categoria:      'descanso_medico',
+              nombre_archivo: nombre,
+              storage_path:   path,
+              tamanio_kb:     Math.round(file.size / 1024),
+              notas:          JSON.stringify({ _meta: { tipo: extra.dm_tipo, fecha: modalFecha }, obs: obsTexto }),
+              subido_por:     session.user.id,
+            }]);
+          }
+        }
+      }
+
       if (!asistencia[modalEmpId]) asistencia[modalEmpId] = {};
       asistencia[modalEmpId][modalFecha] = payload;
       closeModal();
