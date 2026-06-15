@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vacaciones · MPC Gestión</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .vac-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+    .vac-stat  { background:#fff; border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px 20px; }
+    .vac-stat-val { font-size:28px; font-weight:700; line-height:1; }
+    .vac-stat-lbl { font-size:12px; color:var(--text-muted); margin-top:4px; }
+
+    .saldo-bar { height:6px; border-radius:3px; background:var(--border); margin-top:6px; overflow:hidden; }
+    .saldo-bar-fill { height:100%; border-radius:3px; transition:width .4s; }
+
+    table { width:100%; border-collapse:collapse; }
+    th { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); padding:8px 12px; text-align:left; border-bottom:2px solid var(--border); }
+    td { padding:10px 12px; border-bottom:1px solid var(--border-light); font-size:13px; vertical-align:middle; }
+    tr:hover td { background:var(--navy-light); }
+
+    .dias-chip { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:12px; font-weight:600; }
+    .chip-ok     { background:var(--success-bg); color:var(--success); }
+    .chip-warn   { background:var(--warning-bg); color:var(--warning); }
+    .chip-danger { background:var(--error-bg);   color:var(--error); }
+    .chip-gray   { background:var(--border);     color:var(--text-muted); }
+
+    .estado-badge { padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; }
+    .estado-aprobado   { background:var(--success-bg); color:var(--success); }
+    .estado-solicitado { background:var(--warning-bg); color:var(--warning); }
+    .estado-rechazado  { background:var(--error-bg);   color:var(--error); }
+    .estado-anulado    { background:var(--border);     color:var(--text-muted); }
+
+    .tab-bar { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--border); }
+    .tab-bar .tab { padding:8px 16px; font-size:13px; font-weight:500; border:none; background:none; cursor:pointer; color:var(--text-muted); border-bottom:2px solid transparent; margin-bottom:-2px; transition:all .15s; }
+    .tab-bar .tab.active { color:var(--navy); border-bottom-color:var(--navy); }
+
+    .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+    .toolbar select, .toolbar input { font-size:13px; padding:6px 10px; border:1px solid var(--border-md); border-radius:var(--radius-md); background:#fff; }
+
+    /* Modal */
+    .modal { max-width:520px; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .field label { font-size:12px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:4px; }
+    .field input, .field select, .field textarea { width:100%; padding:7px 10px; border:1px solid var(--border-md); border-radius:var(--radius-md); font-size:13px; box-sizing:border-box; }
+
+    .dias-preview { background:var(--navy-light); border-radius:var(--radius-md); padding:10px 14px; font-size:13px; margin-top:8px; display:none; }
+    .dias-preview strong { color:var(--navy); font-size:16px; }
+
+    .empty-state { text-align:center; padding:40px; color:var(--text-muted); font-size:13px; }
+
+    @media(max-width:768px) {
+      .vac-stats { grid-template-columns:1fr 1fr; }
+      .form-row  { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body class="portal-layout">
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Vacaciones</h1>
+        <p id="page-sub">Control de saldos y goces</p>
+      </div>
+      <div class="page-header-right">
+        <select id="filtro-anio" class="btn" onchange="onAnioChange()"></select>
+        <button class="btn btn-primary" onclick="abrirModalGoce()">+ Registrar goce</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="vac-stats">
+      <div class="vac-stat">
+        <div class="vac-stat-val" id="st-empleados">—</div>
+        <div class="vac-stat-lbl">Empleados activos</div>
+      </div>
+      <div class="vac-stat">
+        <div class="vac-stat-val" id="st-gozando" style="color:var(--navy)">—</div>
+        <div class="vac-stat-lbl">De vacaciones hoy</div>
+      </div>
+      <div class="vac-stat">
+        <div class="vac-stat-val" id="st-pendientes" style="color:var(--warning)">—</div>
+        <div class="vac-stat-lbl">Días pendientes totales</div>
+      </div>
+      <div class="vac-stat">
+        <div class="vac-stat-val" id="st-vencidos" style="color:var(--error)">—</div>
+        <div class="vac-stat-lbl">Empleados sin iniciar goce</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <button class="tab active" onclick="switchTab('saldos',this)">Saldos por empleado</button>
+      <button class="tab"        onclick="switchTab('goces',this)">Historial de goces</button>
+    </div>
+
+    <!-- TAB: SALDOS -->
+    <div id="tab-saldos">
+      <div class="toolbar">
+        <input type="text" id="search-emp" placeholder="🔍 Buscar empleado..." oninput="filtrarSaldos()" style="width:220px" />
+        <select id="filtro-local-s" onchange="filtrarSaldos()">
+          <option value="">Todos los locales</option>
+        </select>
+        <select id="filtro-estado-s" onchange="filtrarSaldos()">
+          <option value="">Todos</option>
+          <option value="sin_iniciar">Sin iniciar goce</option>
+          <option value="en_curso">Con goces registrados</option>
+          <option value="completado">Completados</option>
+        </select>
+      </div>
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Empleado</th>
+              <th>Régimen</th>
+              <th>Local</th>
+              <th>Días derecho</th>
+              <th>Gozados</th>
+              <th>Pendientes</th>
+              <th>Avance</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-saldos">
+            <tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: GOCES -->
+    <div id="tab-goces" style="display:none">
+      <div class="toolbar">
+        <input type="text" id="search-goce" placeholder="🔍 Buscar empleado..." oninput="filtrarGoces()" style="width:220px" />
+        <select id="filtro-estado-g" onchange="filtrarGoces()">
+          <option value="">Todos los estados</option>
+          <option value="aprobado">Aprobados</option>
+          <option value="solicitado">Solicitados</option>
+          <option value="rechazado">Rechazados</option>
+          <option value="anulado">Anulados</option>
+        </select>
+        <select id="filtro-tipo-g" onchange="filtrarGoces()">
+          <option value="">Todos los tipos</option>
+          <option value="programado">Programado</option>
+          <option value="fraccionado">Fraccionado</option>
+          <option value="urgente">Urgente</option>
+        </select>
+      </div>
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Empleado</th>
+              <th>Período</th>
+              <th>Desde</th>
+              <th>Hasta</th>
+              <th>Días</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-goces">
+            <tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Registrar / Editar goce -->
+  <div class="modal-overlay hidden" id="modal-goce">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-goce-titulo">Registrar goce vacacional</h3>
+        <button class="modal-close" onclick="cerrarModalGoce()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field" style="margin-bottom:12px">
+          <label>Empleado</label>
+          <select id="g-empleado" onchange="onEmpleadoChange()">
+            <option value="">— Seleccioná un empleado —</option>
+          </select>
+        </div>
+        <div id="g-saldo-info" style="display:none;background:var(--navy-light);border-radius:var(--radius-md);padding:10px 14px;font-size:12px;margin-bottom:12px;color:var(--navy)">
+          Saldo disponible: <strong id="g-saldo-val">—</strong> días
+        </div>
+        <div class="form-row" style="margin-bottom:12px">
+          <div class="field">
+            <label>Período al que descuenta</label>
+            <select id="g-anio-derecho"></select>
+          </div>
+          <div class="field">
+            <label>Tipo</label>
+            <select id="g-tipo">
+              <option value="programado">Programado</option>
+              <option value="fraccionado">Fraccionado</option>
+              <option value="urgente">Urgente</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:12px">
+          <div class="field">
+            <label>Fecha inicio</label>
+            <input type="date" id="g-fecha-ini" onchange="calcDias()" />
+          </div>
+          <div class="field">
+            <label>Fecha fin</label>
+            <input type="date" id="g-fecha-fin" onchange="calcDias()" />
+          </div>
+        </div>
+        <div class="dias-preview" id="g-dias-preview">
+          Duración: <strong id="g-dias-val">0</strong> días calendario
+          <span id="g-alerta-saldo" style="color:var(--error);margin-left:8px;display:none">⚠ Supera el saldo disponible</span>
+        </div>
+        <div class="form-row" style="margin-top:12px;margin-bottom:12px">
+          <div class="field">
+            <label>Estado</label>
+            <select id="g-estado">
+              <option value="aprobado">Aprobado</option>
+              <option value="solicitado">Solicitado (pendiente)</option>
+              <option value="rechazado">Rechazado</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Observación (opcional)</label>
+          <textarea id="g-obs" rows="2" placeholder="Ej: Vacaciones de verano aprobadas en reunión del 10/01"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between">
+        <button class="btn btn-ghost" id="btn-anular" style="color:var(--error);display:none" onclick="anularGoce()">🗑 Anular</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="cerrarModalGoce()">Cancelar</button>
+          <button class="btn btn-primary" id="btn-guardar-goce" onclick="guardarGoce()">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Derecho vacacional (editar días asignados) -->
+  <div class="modal-overlay hidden" id="modal-derecho">
+    <div class="modal" style="max-width:400px">
+      <div class="modal-header">
+        <h3>Editar derecho vacacional</h3>
+        <button class="modal-close" onclick="cerrarModalDerecho()">×</button>
+      </div>
+      <div class="modal-body">
+        <p id="d-empleado-nombre" style="font-weight:600;margin-bottom:12px"></p>
+        <div class="form-row">
+          <div class="field">
+            <label>Días de derecho <span style="font-size:10px;color:var(--text-muted)">(base del régimen)</span></label>
+            <input type="number" id="d-dias" min="0" max="30" step="0.5" />
+          </div>
+          <div class="field">
+            <label>Días adicionales <span style="font-size:10px;color:var(--text-muted)">(acumulados)</span></label>
+            <input type="number" id="d-adicionales" min="0" step="0.5" />
+          </div>
+        </div>
+        <div class="field" style="margin-top:12px">
+          <label>Observación</label>
+          <textarea id="d-obs" rows="2" placeholder="Ej: 5 días acumulados de 2024"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="cerrarModalDerecho()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarDerecho()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script>
+    let perfil, empleados = [], saldos = [], goces = [], locales = [];
+    let anioActual = new Date().getFullYear();
+    let anioSel    = anioActual;
+    let editGoceId = null, editDerechoId = null, editDerechoEmpId = null;
+
+    const DIAS_REGIMEN = { general: 30, mype: 15, micro: 15 };
+    const fmt = d => new Date(d + 'T00:00:00').toLocaleDateString('es-PE', { day:'2-digit', month:'short', year:'numeric' });
+
+    // ── Init ──────────────────────────────────────────────
+    async function init() {
+      perfil = await requireAuth(['admin','rrhh','gerencia'], 'rrhh_empleados');
+      if (!perfil) return;
+      renderSidebar(perfil, 'vacaciones');
+      aplicarPermisosUI(perfil, 'rrhh_empleados');
+
+      // Poblar selector de años (año actual ± 2)
+      const sel = document.getElementById('filtro-anio');
+      for (let y = anioActual + 1; y >= anioActual - 3; y--) {
+        const opt = document.createElement('option');
+        opt.value = y; opt.textContent = y;
+        if (y === anioActual) opt.selected = true;
+        sel.appendChild(opt);
+      }
+
+      onContextoChange(() => loadData());
+      if (getContexto().ruc) await loadData();
+    }
+
+    function onAnioChange() {
+      anioSel = parseInt(document.getElementById('filtro-anio').value);
+      loadData();
+    }
+
+    // ── Carga principal ───────────────────────────────────
+    async function loadData() {
+      const { ruc } = getContexto();
+      if (!ruc) return;
+
+      // Empleados activos
+      const { data: emps } = await sbClient.from('empleados')
+        .select('id_empleado, nombres, apellidos, cargo, regimen, id_local, ruc_empresa, locales(nombre)')
+        .eq('ruc_empresa', ruc)
+        .eq('estado', 'activo')
+        .order('apellidos');
+      empleados = emps || [];
+
+      // Locales para filtro
+      const locsUniq = [...new Map(empleados.filter(e=>e.locales).map(e=>[e.id_local, e.locales.nombre])).entries()];
+      const selLocal = document.getElementById('filtro-local-s');
+      selLocal.innerHTML = '<option value="">Todos los locales</option>';
+      locsUniq.forEach(([id,nom]) => selLocal.innerHTML += `<option value="${id}">${nom}</option>`);
+
+      // Saldos del año seleccionado
+      const { data: sd } = await sbClient.from('vacaciones_saldo')
+        .select('*')
+        .eq('ruc_empresa', ruc)
+        .eq('anio', anioSel);
+      saldos = sd || [];
+
+      // Goces del año seleccionado
+      const { data: gc } = await sbClient.from('vacaciones_goces')
+        .select('*')
+        .eq('ruc_empresa', ruc)
+        .eq('anio_derecho', anioSel)
+        .order('fecha_inicio', { ascending: false });
+      goces = gc || [];
+
+      // Asegurar que todos los empleados tienen derecho registrado
+      await asegurarDerechos(ruc);
+
+      actualizarStats();
+      filtrarSaldos();
+      filtrarGoces();
+      poblarSelectEmpleados();
+    }
+
+    async function asegurarDerechos(ruc) {
+      // Crear registros de derecho para empleados que no tienen aún
+      const idsConDerecho = new Set(saldos.map(s => s.id_empleado));
+      const sinDerecho = empleados.filter(e => !idsConDerecho.has(e.id_empleado));
+      if (!sinDerecho.length) return;
+
+      const inserts = sinDerecho.map(e => ({
+        id_empleado:  e.id_empleado,
+        ruc_empresa:  e.ruc_empresa,
+        anio:         anioSel,
+        dias_derecho: DIAS_REGIMEN[e.regimen] || 30,
+        dias_adicionales: 0,
+      }));
+      const { data: nuevos } = await sbClient.from('vacaciones_derecho')
+        .insert(inserts)
+        .select();
+
+      // Recargar saldos
+      const { data: sd } = await sbClient.from('vacaciones_saldo')
+        .select('*').eq('ruc_empresa', ruc).eq('anio', anioSel);
+      saldos = sd || [];
+    }
+
+    // ── Stats ─────────────────────────────────────────────
+    function actualizarStats() {
+      const hoy = new Date().toISOString().split('T')[0];
+      const gozandoHoy = goces.filter(g =>
+        g.estado === 'aprobado' && g.fecha_inicio <= hoy && g.fecha_fin >= hoy
+      ).length;
+      const totalPend = saldos.reduce((s,x) => s + (x.dias_pendientes || 0), 0);
+      const sinIniciar = saldos.filter(s => (s.dias_gozados || 0) === 0).length;
+
+      document.getElementById('st-empleados').textContent  = empleados.length;
+      document.getElementById('st-gozando').textContent    = gozandoHoy;
+      document.getElementById('st-pendientes').textContent = totalPend;
+      document.getElementById('st-vencidos').textContent   = sinIniciar;
+    }
+
+    // ── Tab saldos ────────────────────────────────────────
+    function filtrarSaldos() {
+      const q      = document.getElementById('search-emp').value.toLowerCase();
+      const local  = document.getElementById('filtro-local-s').value;
+      const estado = document.getElementById('filtro-estado-s').value;
+
+      let data = empleados.map(e => {
+        const s = saldos.find(x => x.id_empleado === e.id_empleado) || {};
+        return { ...e, ...s };
+      });
+
+      if (q)      data = data.filter(e => `${e.nombres} ${e.apellidos}`.toLowerCase().includes(q));
+      if (local)  data = data.filter(e => String(e.id_local) === local);
+      if (estado === 'sin_iniciar') data = data.filter(e => (e.dias_gozados||0) === 0);
+      if (estado === 'en_curso')    data = data.filter(e => (e.dias_gozados||0) > 0 && (e.dias_pendientes||0) > 0);
+      if (estado === 'completado')  data = data.filter(e => (e.dias_pendientes||0) <= 0);
+
+      const tb = document.getElementById('tbody-saldos');
+      if (!data.length) { tb.innerHTML = '<tr><td colspan="8"><div class="empty-state">No hay empleados</div></td></tr>'; return; }
+
+      const canEdit = ['admin','rrhh'].includes(perfil.rol);
+
+      tb.innerHTML = data.map(e => {
+        const total  = (e.dias_total     || e.dias_derecho || 0);
+        const gozado = (e.dias_gozados   || 0);
+        const pend   = (e.dias_pendientes!= null ? e.dias_pendientes : total - gozado);
+        const pct    = total > 0 ? Math.round((gozado / total) * 100) : 0;
+        const regLbl = { general:'General', mype:'MYPE', micro:'Micro' }[e.regimen] || e.regimen || '—';
+
+        const chipCls = pend <= 0 ? 'chip-gray' : pend <= 5 ? 'chip-danger' : pend <= 10 ? 'chip-warn' : 'chip-ok';
+        const barColor = pct >= 100 ? 'var(--success)' : pct >= 50 ? 'var(--navy)' : 'var(--warning)';
+
+        return `<tr>
+          <td>
+            <div style="font-weight:600">${e.apellidos}, ${e.nombres}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${e.id_empleado} · ${e.cargo||'—'}</div>
+          </td>
+          <td><span class="badge badge-gray">${regLbl}</span></td>
+          <td style="font-size:12px">${e.locales?.nombre||'—'}</td>
+          <td style="text-align:center">
+            <span style="font-weight:600">${total}</span>
+            ${e.dias_adicionales > 0 ? `<span style="font-size:10px;color:var(--text-muted)"> (+${e.dias_adicionales} acum.)</span>` : ''}
+          </td>
+          <td style="text-align:center;font-weight:600;color:var(--navy)">${gozado}</td>
+          <td style="text-align:center">
+            <span class="dias-chip ${chipCls}">${pend > 0 ? pend : 0}</span>
+          </td>
+          <td style="min-width:80px">
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">${pct}%</div>
+            <div class="saldo-bar"><div class="saldo-bar-fill" style="width:${Math.min(pct,100)}%;background:${barColor}"></div></div>
+          </td>
+          <td>
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-sm btn-ghost" onclick="verGocesEmpleado('${e.id_empleado}')">Ver goces</button>
+              ${canEdit ? `<button class="btn btn-sm btn-ghost" onclick="abrirModalDerecho('${e.id_empleado}')">✏</button>` : ''}
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    // ── Tab goces ─────────────────────────────────────────
+    function filtrarGoces() {
+      const q      = document.getElementById('search-goce').value.toLowerCase();
+      const estado = document.getElementById('filtro-estado-g').value;
+      const tipo   = document.getElementById('filtro-tipo-g').value;
+
+      let data = goces.map(g => {
+        const emp = empleados.find(e => e.id_empleado === g.id_empleado);
+        return { ...g, emp };
+      });
+
+      if (q)      data = data.filter(g => g.emp && `${g.emp.nombres} ${g.emp.apellidos}`.toLowerCase().includes(q));
+      if (estado) data = data.filter(g => g.estado === estado);
+      if (tipo)   data = data.filter(g => g.tipo   === tipo);
+
+      const tb = document.getElementById('tbody-goces');
+      if (!data.length) { tb.innerHTML = '<tr><td colspan="8"><div class="empty-state">No hay goces registrados</div></td></tr>'; return; }
+
+      const canEdit = ['admin','rrhh'].includes(perfil.rol);
+      const tipoLbl = { programado:'Programado', fraccionado:'Fraccionado', urgente:'Urgente' };
+
+      tb.innerHTML = data.map(g => `
+        <tr>
+          <td>
+            <div style="font-weight:600">${g.emp ? `${g.emp.apellidos}, ${g.emp.nombres}` : g.id_empleado}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${g.id_empleado}</div>
+          </td>
+          <td style="text-align:center"><span class="badge badge-blue">${g.anio_derecho}</span></td>
+          <td>${fmt(g.fecha_inicio)}</td>
+          <td>${fmt(g.fecha_fin)}</td>
+          <td style="text-align:center;font-weight:600">${g.dias_calendario}</td>
+          <td><span class="badge badge-gray">${tipoLbl[g.tipo]||g.tipo}</span></td>
+          <td><span class="estado-badge estado-${g.estado}">${g.estado}</span></td>
+          <td>
+            ${canEdit && g.estado !== 'anulado' ? `<button class="btn btn-sm btn-ghost" onclick="editarGoce(${g.id})">✏</button>` : ''}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function verGocesEmpleado(idEmp) {
+      document.getElementById('search-goce').value = empleados.find(e=>e.id_empleado===idEmp)?.apellidos || '';
+      switchTab('goces', document.querySelectorAll('.tab-bar .tab')[1]);
+      filtrarGoces();
+    }
+
+    // ── Modal goce ────────────────────────────────────────
+    function poblarSelectEmpleados() {
+      const sel = document.getElementById('g-empleado');
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">— Seleccioná un empleado —</option>';
+      empleados.forEach(e => {
+        sel.innerHTML += `<option value="${e.id_empleado}">${e.apellidos}, ${e.nombres} (${e.id_empleado})</option>`;
+      });
+      if (cur) sel.value = cur;
+    }
+
+    function abrirModalGoce(idEmp = null) {
+      editGoceId = null;
+      document.getElementById('modal-goce-titulo').textContent = 'Registrar goce vacacional';
+      document.getElementById('btn-anular').style.display = 'none';
+      document.getElementById('g-empleado').disabled = false;
+      document.getElementById('g-empleado').value = idEmp || '';
+      document.getElementById('g-tipo').value    = 'programado';
+      document.getElementById('g-estado').value  = 'aprobado';
+      document.getElementById('g-fecha-ini').value = '';
+      document.getElementById('g-fecha-fin').value = '';
+      document.getElementById('g-obs').value = '';
+      document.getElementById('g-dias-preview').style.display = 'none';
+      poblarAniosDerecho();
+      if (idEmp) onEmpleadoChange();
+      document.getElementById('modal-goce').classList.remove('hidden');
+    }
+
+    function poblarAniosDerecho() {
+      const sel = document.getElementById('g-anio-derecho');
+      sel.innerHTML = '';
+      for (let y = anioActual + 1; y >= anioActual - 3; y--) {
+        sel.innerHTML += `<option value="${y}" ${y===anioSel?'selected':''}>${y}</option>`;
+      }
+    }
+
+    function editarGoce(id) {
+      const g = goces.find(x => x.id === id);
+      if (!g) return;
+      editGoceId = id;
+      document.getElementById('modal-goce-titulo').textContent = 'Editar goce vacacional';
+      document.getElementById('btn-anular').style.display = 'inline-block';
+      document.getElementById('g-empleado').value    = g.id_empleado;
+      document.getElementById('g-empleado').disabled = true;
+      poblarAniosDerecho();
+      document.getElementById('g-anio-derecho').value = g.anio_derecho;
+      document.getElementById('g-tipo').value         = g.tipo;
+      document.getElementById('g-estado').value       = g.estado;
+      document.getElementById('g-fecha-ini').value    = g.fecha_inicio;
+      document.getElementById('g-fecha-fin').value    = g.fecha_fin;
+      document.getElementById('g-obs').value          = g.observacion || '';
+      onEmpleadoChange();
+      calcDias();
+      document.getElementById('modal-goce').classList.remove('hidden');
+    }
+
+    function cerrarModalGoce() {
+      document.getElementById('modal-goce').classList.add('hidden');
+      document.getElementById('g-empleado').disabled = false;
+      editGoceId = null;
+    }
+
+    function onEmpleadoChange() {
+      const id    = document.getElementById('g-empleado').value;
+      const anio  = parseInt(document.getElementById('g-anio-derecho').value) || anioSel;
+      const saldo = saldos.find(s => s.id_empleado === id && s.anio === anio);
+      const info  = document.getElementById('g-saldo-info');
+      if (saldo && id) {
+        document.getElementById('g-saldo-val').textContent = saldo.dias_pendientes ?? '—';
+        info.style.display = 'block';
+      } else {
+        info.style.display = 'none';
+      }
+    }
+
+    function calcDias() {
+      const ini = document.getElementById('g-fecha-ini').value;
+      const fin = document.getElementById('g-fecha-fin').value;
+      if (!ini || !fin) return;
+      const d1 = new Date(ini), d2 = new Date(fin);
+      if (d2 < d1) { document.getElementById('g-fecha-fin').value = ini; return; }
+      const dias = Math.round((d2 - d1) / 86400000) + 1;
+      document.getElementById('g-dias-val').textContent = dias;
+      document.getElementById('g-dias-preview').style.display = 'block';
+
+      // Alerta si supera saldo
+      const empId = document.getElementById('g-empleado').value;
+      const anio  = parseInt(document.getElementById('g-anio-derecho').value) || anioSel;
+      const saldo = saldos.find(s => s.id_empleado === empId && s.anio === anio);
+      const pend  = saldo?.dias_pendientes ?? 999;
+      const ajuste = editGoceId ? (goces.find(g=>g.id===editGoceId)?.dias_calendario || 0) : 0;
+      document.getElementById('g-alerta-saldo').style.display =
+        dias > (pend + ajuste) ? 'inline' : 'none';
+    }
+
+    async function guardarGoce() {
+      const empId = document.getElementById('g-empleado').value;
+      const ini   = document.getElementById('g-fecha-ini').value;
+      const fin   = document.getElementById('g-fecha-fin').value;
+      if (!empId || !ini || !fin) { alert('Completá empleado y fechas.'); return; }
+      if (fin < ini) { alert('La fecha fin no puede ser anterior al inicio.'); return; }
+
+      const emp     = empleados.find(e => e.id_empleado === empId);
+      const session = await checkSession();
+      const payload = {
+        id_empleado:  empId,
+        ruc_empresa:  emp.ruc_empresa,
+        anio_derecho: parseInt(document.getElementById('g-anio-derecho').value),
+        fecha_inicio: ini,
+        fecha_fin:    fin,
+        tipo:         document.getElementById('g-tipo').value,
+        estado:       document.getElementById('g-estado').value,
+        observacion:  document.getElementById('g-obs').value.trim() || null,
+        aprobado_por: session.user.id,
+        created_by:   session.user.id,
+      };
+
+      const btn = document.getElementById('btn-guardar-goce');
+      btn.disabled = true; btn.textContent = 'Guardando...';
+
+      let error;
+      if (editGoceId) {
+        ({ error } = await sbClient.from('vacaciones_goces').update(payload).eq('id', editGoceId));
+      } else {
+        ({ error } = await sbClient.from('vacaciones_goces').insert([payload]));
+      }
+
+      btn.disabled = false; btn.textContent = 'Guardar';
+      if (error) { alert('Error: ' + error.message); return; }
+      cerrarModalGoce();
+      await loadData();
+    }
+
+    async function anularGoce() {
+      if (!editGoceId || !confirm('¿Anular este goce? No se eliminará, quedará como anulado.')) return;
+      await sbClient.from('vacaciones_goces').update({ estado: 'anulado' }).eq('id', editGoceId);
+      cerrarModalGoce();
+      await loadData();
+    }
+
+    // ── Modal derecho ─────────────────────────────────────
+    function abrirModalDerecho(idEmp) {
+      editDerechoEmpId = idEmp;
+      const emp   = empleados.find(e => e.id_empleado === idEmp);
+      const saldo = saldos.find(s => s.id_empleado === idEmp);
+      document.getElementById('d-empleado-nombre').textContent =
+        `${emp?.apellidos}, ${emp?.nombres} — ${anioSel}`;
+      document.getElementById('d-dias').value        = saldo?.dias_derecho    || DIAS_REGIMEN[emp?.regimen] || 30;
+      document.getElementById('d-adicionales').value = saldo?.dias_adicionales || 0;
+      document.getElementById('d-obs').value         = '';
+      document.getElementById('modal-derecho').classList.remove('hidden');
+    }
+
+    function cerrarModalDerecho() {
+      document.getElementById('modal-derecho').classList.add('hidden');
+      editDerechoEmpId = null;
+    }
+
+    async function guardarDerecho() {
+      if (!editDerechoEmpId) return;
+      const emp = empleados.find(e => e.id_empleado === editDerechoEmpId);
+      const dias = parseFloat(document.getElementById('d-dias').value) || 0;
+      const adic = parseFloat(document.getElementById('d-adicionales').value) || 0;
+      const obs  = document.getElementById('d-obs').value.trim() || null;
+
+      const { error } = await sbClient.from('vacaciones_derecho')
+        .upsert([{
+          id_empleado:      editDerechoEmpId,
+          ruc_empresa:      emp.ruc_empresa,
+          anio:             anioSel,
+          dias_derecho:     dias,
+          dias_adicionales: adic,
+          observacion:      obs,
+          updated_at:       new Date().toISOString(),
+        }], { onConflict: 'id_empleado,anio' });
+
+      if (error) { alert('Error: ' + error.message); return; }
+      cerrarModalDerecho();
+      await loadData();
+    }
+
+    // ── Utils ─────────────────────────────────────────────
+    function switchTab(tab, btn) {
+      document.getElementById('tab-saldos').style.display = tab === 'saldos' ? '' : 'none';
+      document.getElementById('tab-goces').style.display  = tab === 'goces'  ? '' : 'none';
+      document.querySelectorAll('.tab-bar .tab').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+
+    init();
+  </script>
+</body>
+</html>
