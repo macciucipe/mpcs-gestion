@@ -625,7 +625,7 @@
         .slice(0, 8);
       if (!matches.length) { lista.style.display = 'none'; return; }
       lista.innerHTML = matches.map(i => `
-        <div class="autocomplete-item" onclick="seleccionarArticulo('${i.nombre.replace(/'/g,"\\'")}', '${i.unidad_medida}', ${i.precio_ref||0})">
+        <div class="autocomplete-item" onclick="seleccionarArticulo('${i.id_producto}', '${i.nombre.replace(/'/g,"\\'")}', '${i.unidad_medida}', ${i.precio_ref||0}, ${i.afecto_igv !== false})">
           <span>${i.nombre}</span>
           <span style="font-size:11px;color:var(--text-muted)">${i.unidad_medida} — S/ ${parseFloat(i.precio_ref||0).toFixed(2)}</span>
         </div>`).join('');
