@@ -487,7 +487,10 @@
             ? `<a href="${o.pdf_url}" target="_blank" class="btn btn-sm btn-ghost" title="Ver PDF">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 Ver PDF</a>`
-            : '<span style="font-size:11px;color:var(--text-muted)">—</span>'
+            : `<button class="btn btn-sm btn-ghost" style="color:var(--warning)" title="Regenerar PDF"
+                onclick="regenerarPDF('${o.id_oc}')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+                PDF</button>`
           }</td>
           <td>
             <button class="btn btn-sm btn-ghost" onclick="verDetalleOC('${o.id_oc}')">
@@ -1417,7 +1420,81 @@
       return doc.output('datauristring').split(',')[1];
     }
 
-        // Convertir base64 a Blob para subir a Storage
+        // Regenerar PDF para una OC que no tiene URL
+    async function regenerarPDF(idOC) {
+      const btn = event.target.closest('button');
+      if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+      try {
+        // Cargar datos de la OC
+        const { data: oc } = await sbClient.from('ordenes_compra')
+          .select('*, oc_items(*)')
+          .eq('id_oc', idOC).single();
+        if (!oc) throw new Error('OC no encontrada');
+
+        const localData = localesGlobal.find(l => l.id_local === oc.id_local);
+        const emp       = empresas.find(e => e.ruc === oc.ruc_empresa);
+
+        // Reconstruir objeto d para generarPDF
+        const d = {
+          tipo:        oc.tipo || 'OC',
+          rucEmpresa:  oc.ruc_empresa,
+          empresa:     emp?.razon_social || oc.ruc_empresa,
+          local:       localData?.nombre || oc.id_local,
+          idLocal:     oc.id_local,
+          proveedor:   oc.nombre_proveedor || oc.proveedor || '—',
+          docProveedor: oc.proveedor || '',
+          subtotal:    oc.subtotal || 0,
+          igv:         oc.igv || 0,
+          total:       oc.total || 0,
+          obs:         oc.notas || '',
+          opOrigen:    oc.op_origen || null,
+          fechaEntrega: oc.fecha_entrega || null,
+          vigenciaHs:  oc.vigencia_hs || 24,
+          _totalItemsOP: null,
+          items: (oc.oc_items || []).map((i, idx) => ({
+            cant:         i.cantidad,
+            und:          i.unidad_medida || 'NIU',
+            desc:         i.descripcion,
+            det:          i.detalle_adic || '',
+            precioBruto:  i.precio_bruto || 0,
+            precioNeto:   i.precio_neto  || 0,
+            igvLinea:     i.igv_linea    || 0,
+            subtotalBruto:i.subtotal_bruto || 0,
+            afectoIgv:    true,
+            idProducto:   i.id_producto  || '',
+          })),
+        };
+
+        const numero     = oc.numero || oc.id_oc;
+        const pdfBase64  = await generarPDF(d, numero, localData, emp);
+        const pdfBlob    = base64ToBlob(pdfBase64, 'application/pdf');
+        const pathPDF    = `${oc.ruc_empresa}/${numero}.pdf`;
+
+        const { error: eStorage } = await sbClient.storage
+          .from('ordenes-compra')
+          .upload(pathPDF, pdfBlob, { contentType: 'application/pdf', upsert: true });
+
+        if (eStorage) throw new Error(eStorage.message);
+
+        const { data: urlData } = await sbClient.storage
+          .from('ordenes-compra')
+          .createSignedUrl(pathPDF, 60 * 60 * 24 * 365);
+
+        const pdfUrl = urlData?.signedUrl || null;
+        if (pdfUrl) {
+          await sbClient.from('ordenes_compra')
+            .update({ pdf_url: pdfUrl }).eq('id_oc', idOC);
+          window.open(pdfUrl, '_blank');
+          await cargar();
+        }
+      } catch(e) {
+        alert('Error al regenerar PDF: ' + e.message);
+        if (btn) { btn.disabled = false; btn.textContent = 'PDF'; }
+      }
+    }
+
+    // Convertir base64 a Blob para subir a Storage
     function base64ToBlob(base64, mimeType) {
       const bytes = atob(base64);
       const arr   = new Uint8Array(bytes.length);
