@@ -142,7 +142,10 @@
         </div>
         <div style="flex:1">
           <div style="font-size:20px;font-weight:700" id="perfil-nombre">—</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px" id="perfil-badges"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap" id="perfil-badges"></div>
+            <span id="perfil-semaforo" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)"></span>
+          </div>
           <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:13px;color:var(--text-muted)" id="perfil-meta"></div>
         </div>
       </div>
@@ -951,6 +954,8 @@
         await loadEmpleado();
         await loadDocumentos();
         await loadHistorial();
+        // Semáforo: calcular después de tener empleado y documentos
+        renderSemaforoPerfil(empleado, documentos);
         if (window._soloLectura) { document.querySelectorAll('input:not([disabled]), select:not([disabled]), textarea:not([disabled])').forEach(el => el.disabled = true); }
         // Mostrar botón de portal solo si es admin y el empleado tiene email
         if (perfilUser.rol === 'admin' && empleado?.email) {
@@ -1425,6 +1430,7 @@
       cancelarSubida();
       await loadDocumentos();
       await loadHistorial();
+      renderSemaforoPerfil(empleado, documentos);
     }
 
     // ── Vista previa ──────────────────────────────────────
@@ -1600,6 +1606,7 @@
       if (error) { alert('Error: ' + error.message); return; }
       isDirty=false; document.getElementById('save-bar').classList.remove('visible');
       await loadEmpleado();
+      renderSemaforoPerfil(empleado, documentos);
     }
 
     async function crearEmpleado() {
@@ -1717,6 +1724,122 @@
         if (dd) dd.style.display = 'none';
       }
     });
+
+    // ── Semáforo de perfil ────────────────────────────────
+    const CAMPOS_CRITICOS = ['numero_documento','fecha_ingreso','sueldo_basico','cargo','telefono','email','direccion'];
+    const CAMPOS_COMPL    = ['fecha_nacimiento','area'];
+
+    const TAB_CAMPOS = {
+      personales:   { criticos: ['numero_documento','fecha_nacimiento','telefono','email','direccion'], compl: [] },
+      laborales:    { criticos: ['cargo','fecha_ingreso','sueldo_basico'], compl: ['area'] },
+      previsionales:{ criticos: ['sist_pension','banco','num_cuenta'], compl: [] },
+      salud:        { criticos: [], compl: [] },
+      familia:      { criticos: [], compl: ['emerg_nombre'] },
+      formacion:    { criticos: [], compl: [] },
+      documentos:   { criticos: [], compl: [] },
+    };
+
+    function calcSemaforoPerfil(emp, docs) {
+      const hoy = new Date(); hoy.setHours(0,0,0,0);
+      const d30 = new Date(hoy); d30.setDate(d30.getDate() + 30);
+      const dat = emp.datos_extra || {};
+
+      const faltaCritico = CAMPOS_CRITICOS.some(k => {
+        const v = emp[k] ?? dat[k]; return !v || String(v).trim() === '';
+      });
+      const faltaCompl = CAMPOS_COMPL.some(k => {
+        const v = emp[k] ?? dat[k]; return !v || String(v).trim() === '';
+      });
+
+      let docVencido = false, docPorVencer = false;
+      (docs || []).forEach(d => {
+        try {
+          const meta = JSON.parse(d.notas || '{}')._meta || {};
+          const vKey = meta.vencimiento || meta.vig_migratoria || null;
+          if (!vKey) return;
+          const vDate = new Date(vKey + 'T00:00:00');
+          if (vDate < hoy)       docVencido   = true;
+          else if (vDate <= d30) docPorVencer = true;
+        } catch(e) {}
+      });
+
+      if (faltaCritico || docVencido)   return 'rojo';
+      if (faltaCompl   || docPorVencer) return 'amarillo';
+      return 'verde';
+    }
+
+    function calcSemaforoTab(tabId, emp, docs) {
+      const hoy = new Date(); hoy.setHours(0,0,0,0);
+      const d30 = new Date(hoy); d30.setDate(d30.getDate() + 30);
+      const dat = emp.datos_extra || {};
+      const cfg = TAB_CAMPOS[tabId] || { criticos:[], compl:[] };
+
+      const faltaCritico = cfg.criticos.some(k => {
+        const v = emp[k] ?? dat[k]; return !v || String(v).trim() === '';
+      });
+      const faltaCompl = cfg.compl.some(k => {
+        const v = emp[k] ?? dat[k]; return !v || String(v).trim() === '';
+      });
+
+      // Tab documentos: revisar vencimientos
+      if (tabId === 'documentos') {
+        let docVencido = false, docPorVencer = false;
+        (docs || []).forEach(d => {
+          try {
+            const meta = JSON.parse(d.notas || '{}')._meta || {};
+            const vKey = meta.vencimiento || meta.vig_migratoria || null;
+            if (!vKey) return;
+            const vDate = new Date(vKey + 'T00:00:00');
+            if (vDate < hoy)       docVencido   = true;
+            else if (vDate <= d30) docPorVencer = true;
+          } catch(e) {}
+        });
+        if (docVencido)   return 'rojo';
+        if (docPorVencer) return 'amarillo';
+        return 'verde';
+      }
+
+      if (faltaCritico) return 'rojo';
+      if (faltaCompl)   return 'amarillo';
+      return 'verde';
+    }
+
+    function dotHtml(color, size = 10) {
+      const cfg = {
+        rojo:     { bg: 'var(--error)',   glow: '#DC262640' },
+        amarillo: { bg: 'var(--warning)', glow: '#D9770640' },
+        verde:    { bg: 'var(--success)', glow: '#05966940' },
+      };
+      const c = cfg[color] || cfg.verde;
+      return `<span style="display:inline-block;width:${size}px;height:${size}px;border-radius:50%;background:${c.bg};box-shadow:0 0 0 3px ${c.glow};flex-shrink:0"></span>`;
+    }
+
+    function renderSemaforoPerfil(emp, docs) {
+      const color = calcSemaforoPerfil(emp, docs);
+      const labels = { rojo:'Información crítica faltante o documentación vencida', amarillo:'Información complementaria faltante o documentos por vencer', verde:'Perfil completo y documentación al día' };
+      const el = document.getElementById('perfil-semaforo');
+      if (!el) return;
+      el.style.display = 'inline-flex';
+      el.innerHTML = `${dotHtml(color, 10)}<span>${labels[color]}</span>`;
+      el.style.color = color === 'rojo' ? 'var(--error)' : color === 'amarillo' ? 'var(--warning)' : 'var(--success)';
+
+      // Semáforo en cada tab
+      const tabIds = ['personales','laborales','previsionales','salud','familia','formacion','documentos'];
+      tabIds.forEach(tid => {
+        const btn = document.querySelector(`button.tab[onclick="switchTab('${tid}')"]`);
+        if (!btn) return;
+        const tColor = calcSemaforoTab(tid, emp, docs);
+        // Limpiar dot previo
+        const prev = btn.querySelector('.tab-dot');
+        if (prev) prev.remove();
+        if (tColor !== 'verde') {
+          const dot = document.createElement('span');
+          dot.className = 'tab-dot';
+          dot.style.cssText = `display:inline-block;width:7px;height:7px;border-radius:50%;background:${tColor === 'rojo' ? 'var(--error)' : 'var(--warning)'};margin-left:5px;vertical-align:middle`;
+          btn.appendChild(dot);
+        }
+      });
+    }
 
     init();
   </script>

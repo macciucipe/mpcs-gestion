@@ -61,6 +61,7 @@
             <thead>
               <tr>
                 <th>ID</th>
+                <th style="width:32px"></th>
                 <th>Empleado</th>
                 <th>Documento</th>
                 <th>Cargo</th>
@@ -71,7 +72,7 @@
               </tr>
             </thead>
             <tbody id="tbody">
-              <tr><td colspan="8"><div class="loading">Cargando...</div></td></tr>
+              <tr><td colspan="9"><div class="loading">Cargando...</div></td></tr>
             </tbody>
           </table>
         </div>
@@ -98,6 +99,7 @@
   <script src="../../js/auth.js"></script>
   <script>
     let empleados = [];
+      let docsMap    = {};
     let perfil    = null;
 
     async function init() {
@@ -150,6 +152,17 @@
       const { data } = await query;
       empleados = data || [];
 
+      // Traer documentos de todos los empleados de la empresa para el semáforo
+      const { data: docs } = await sbClient
+        .from('legajo_documentos')
+        .select('id_empleado, categoria, notas')
+        .eq('ruc_empresa', ruc);
+      docsMap = {};
+      (docs || []).forEach(d => {
+        if (!docsMap[d.id_empleado]) docsMap[d.id_empleado] = [];
+        docsMap[d.id_empleado].push(d);
+      });
+
       const activos  = empleados.filter(e => e.estado === 'activo').length;
       const cesados  = empleados.filter(e => e.estado === 'cesado').length;
       document.getElementById('stat-total').textContent   = empleados.length;
@@ -173,15 +186,79 @@
       renderTable(filtered);
     }
 
+    // ── Semáforo de completitud ───────────────────────────
+    const CRITICOS = ['numero_documento','fecha_ingreso','sueldo_basico','cargo','telefono','email','direccion','sist_pension','banco','num_cuenta'];
+    const COMPLEMENTARIOS = ['fecha_nacimiento','area','emerg_nombre'];
+
+    function calcSemaforo(e) {
+      const hoy   = new Date(); hoy.setHours(0,0,0,0);
+      const d30   = new Date(hoy); d30.setDate(d30.getDate() + 30);
+      const datos = e.datos_extra || {};
+
+      // Campos críticos faltantes
+      const faltaCritico = CRITICOS.some(k => {
+        const v = e[k] ?? datos[k];
+        return !v || String(v).trim() === '';
+      });
+
+      // Campos complementarios faltantes
+      const faltaCompl = COMPLEMENTARIOS.some(k => {
+        const v = e[k] ?? datos[k];
+        return !v || String(v).trim() === '';
+      });
+
+      // Documentos
+      const docs = docsMap[e.id_empleado] || [];
+      let docVencido = false, docPorVencer = false;
+      docs.forEach(d => {
+        try {
+          const meta = JSON.parse(d.notas || '{}')._meta || {};
+          const vKey = meta.vencimiento || meta.vig_migratoria || null;
+          if (!vKey) return;
+          const vDate = new Date(vKey + 'T00:00:00');
+          if (vDate < hoy)  docVencido   = true;
+          else if (vDate <= d30) docPorVencer = true;
+        } catch(e) {}
+      });
+
+      if (faltaCritico || docVencido)   return 'rojo';
+      if (faltaCompl   || docPorVencer) return 'amarillo';
+      return 'verde';
+    }
+
+    function semaforoDot(color) {
+      const cfg = {
+        rojo:     { bg: 'var(--error)',   shadow: '#DC262640', title: 'Información crítica faltante o documentación vencida' },
+        amarillo: { bg: 'var(--warning)', shadow: '#D9770640', title: 'Información complementaria faltante o documentos por vencer' },
+        verde:    { bg: 'var(--success)', shadow: '#05966940', title: 'Perfil completo y documentación al día' },
+      };
+      const c = cfg[color] || cfg.verde;
+      return `<span title="${c.title}" style="
+        display:inline-block;width:10px;height:10px;border-radius:50%;
+        background:${c.bg};box-shadow:0 0 0 3px ${c.shadow};
+        flex-shrink:0;cursor:default">
+      </span>`;
+    }
+
+    function tabSemaforoDot(color) {
+      if (color === 'verde') return '';
+      const cfg = {
+        rojo:     { bg: 'var(--error)' },
+        amarillo: { bg: 'var(--warning)' },
+      };
+      return ` <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${cfg[color].bg};margin-left:4px;vertical-align:middle"></span>`;
+    }
+
     function renderTable(data) {
       const tbody = document.getElementById('tbody');
       if (!data.length) {
-        tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>No se encontraron empleados</p></div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><p>No se encontraron empleados</p></div></td></tr>';
         return;
       }
       tbody.innerHTML = data.map(e => `
         <tr>
           <td style="font-size:12px;color:var(--text-muted)">${e.id_empleado}</td>
+          <td style="text-align:center">${semaforoDot(calcSemaforo(e))}</td>
           <td>
             <strong>${e.nombres} ${e.apellidos}</strong>
           </td>
